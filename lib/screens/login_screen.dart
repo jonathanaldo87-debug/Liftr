@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import 'sign_up_screen.dart';
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passCtrl = TextEditingController();
   bool _obscurePass = true;
   bool _isLoading = false;
+  bool _isGuestLoading = false;
   String? _errorMsg;
 
   @override
@@ -24,6 +26,32 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
+  }
+
+  /// Creates an anonymous Supabase account, so the app has a real user id to
+  /// hang workouts off and RLS keeps working exactly as it does for a login.
+  Future<void> _continueAsGuest() async {
+    setState(() {
+      _isGuestLoading = true;
+      _errorMsg = null;
+    });
+    try {
+      await AuthService.signInAsGuest();
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => landingScreen()),
+        );
+      }
+    } on AuthException catch (e) {
+      // The most likely cause by far: anonymous sign-ins are switched off in the
+      // Supabase dashboard (Authentication → Sign In / Providers).
+      setState(() => _errorMsg = e.message);
+    } catch (_) {
+      setState(() => _errorMsg = 'Could not start a guest session.');
+    } finally {
+      if (mounted) setState(() => _isGuestLoading = false);
+    }
   }
 
   Future<void> _login() async {
@@ -179,6 +207,35 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Continue with Apple',
                 icon: Icon(Icons.apple, size: 18, color: lt.textSecondary),
                 onTap: () {},
+              ),
+              const SizedBox(height: 10),
+              _SocialButton(
+                label: _isGuestLoading
+                    ? 'Setting you up…'
+                    : 'Continue as guest',
+                icon: _isGuestLoading
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: lt.textSecondary,
+                        ),
+                      )
+                    : Icon(Icons.person_outline,
+                        size: 18, color: lt.textSecondary),
+                onTap: _isGuestLoading || _isLoading ? () {} : _continueAsGuest,
+              ),
+              const SizedBox(height: 8),
+              Center(
+                child: Text(
+                  // Said up front, not buried in settings: a guest account only
+                  // exists on this device, and signing out ends it.
+                  'No email needed. Your workouts stay on this device\n'
+                  'until you add a login.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: lt.textDim, height: 1.5),
+                ),
               ),
               const SizedBox(height: 24),
 

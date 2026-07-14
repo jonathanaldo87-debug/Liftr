@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'services/auth_service.dart';
 import 'services/prefs.dart';
 import 'theme/app_theme.dart';
 
@@ -25,14 +26,12 @@ void main() async {
   runApp(const LiftrApp());
 }
 
-/// The screen to open on launch, and after signing in.
+/// The screen to open on launch, and after signing in — as a guest or otherwise.
 ///
-/// Signed out goes to Login. Signed in but never onboarded goes to Onboarding —
-/// which is what makes that screen reachable at all; it used to be dead code.
+/// Signed out goes to Login. Signed in but never onboarded goes to Onboarding.
+/// A guest is signed in like anyone else, so this needs no special case.
 Widget landingScreen() {
-  if (Supabase.instance.client.auth.currentSession == null) {
-    return const LoginScreen();
-  }
+  if (!AuthService.isSignedIn) return const LoginScreen();
   return Prefs.hasOnboarded ? const HomeScreen() : const OnboardingScreen();
 }
 

@@ -10,8 +10,6 @@ class WorkoutService {
     return user.id;
   }
 
-  static User? get currentUser => _db.auth.currentUser;
-
   // ── Sessions ────────────────────────────────────────────────
 
   /// The session logged on [date], or null.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/models.dart';
+import '../services/auth_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
@@ -29,8 +30,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// you come back to it or jump to a date from the Log tab.
   int _homeEpoch = 0;
 
+  /// The unguarded sign-out. Only ever called after [confirmAndSignOut] has had
+  /// its say, which is what stops a guest wiping their history by accident.
   Future<void> _signOut() async {
-    await Supabase.instance.client.auth.signOut();
+    await AuthService.signOut();
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -60,7 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
           key: ValueKey('${_selectedDate.toIso8601String()}#$_homeEpoch'),
           initialDate: _selectedDate,
           onDateChanged: (d) => _selectedDate = d,
-          onSignOut: _signOut,
+          // Guarded: the avatar menu here can sign out too, and a guest would
+          // lose everything without the warning.
+          onSignOut: () => confirmAndSignOut(context, _signOut),
         );
     }
   }
@@ -235,7 +240,6 @@ class _TodayTabState extends State<_TodayTab> {
   Widget build(BuildContext context) {
     final lt = context.lt;
     final tt = Theme.of(context).textTheme;
-    final email = WorkoutService.currentUser?.email ?? '';
 
     return SafeArea(
       child: Column(
@@ -255,18 +259,16 @@ class _TodayTabState extends State<_TodayTab> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        // Was hardcoded to "Hey, Alex 👋".
-                        email.isEmpty
-                            ? 'Hey 👋'
-                            : 'Hey, ${ProfileTab.displayNameFor(email)} 👋',
+                        // Was hardcoded to "Hey, Alex 👋". For a guest this is
+                        // the generated username ("Hey, Swift 👋").
+                        'Hey, ${AuthService.shortName} 👋',
                         style: tt.displaySmall,
                       ),
                     ],
                   ),
                 ),
                 _AvatarMenu(
-                  initials:
-                      email.isEmpty ? '?' : ProfileTab.initialsFor(email),
+                  initials: AuthService.initials,
                   onSignOut: widget.onSignOut,
                 ),
               ],
