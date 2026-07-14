@@ -1,41 +1,63 @@
 import 'package:flutter/material.dart';
-import 'theme/app_theme.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'services/prefs.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: 'https://fenwzvwhmutoappysqdr.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlbnd6dndobXV0b2FwcHlzcWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDg2OTUsImV4cCI6MjA4OTMyNDY5NX0.edotP7cZbnSO5KruZXkqkWXXewBgLRqLdpXYNx0AZLI',
+    // Public by design: this key ships inside the APK and is only safe because
+    // row-level security is enabled. Never put a service_role key here.
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlbnd6dndobXV0b2FwcHlzcWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDg2OTUsImV4cCI6MjA4OTMyNDY5NX0.edotP7cZbnSO5KruZXkqkWXXewBgLRqLdpXYNx0AZLI',
   );
 
+  // Awaited here so the first screen can be chosen synchronously, with no
+  // loading flash between splash and content.
+  await Prefs.init();
+
   runApp(const LiftrApp());
+}
+
+/// The screen to open on launch, and after signing in.
+///
+/// Signed out goes to Login. Signed in but never onboarded goes to Onboarding —
+/// which is what makes that screen reachable at all; it used to be dead code.
+Widget landingScreen() {
+  if (Supabase.instance.client.auth.currentSession == null) {
+    return const LoginScreen();
+  }
+  return Prefs.hasOnboarded ? const HomeScreen() : const OnboardingScreen();
 }
 
 class LiftrApp extends StatefulWidget {
   const LiftrApp({super.key});
 
-  // Static method so child widgets can toggle theme
-  static _LiftrAppState of(BuildContext context) =>
-      context.findAncestorStateOfType<_LiftrAppState>()!;
+  /// Lets any screen reach the theme toggle.
+  static LiftrAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<LiftrAppState>()!;
 
   @override
-  State<LiftrApp> createState() => _LiftrAppState();
+  State<LiftrApp> createState() => LiftrAppState();
 }
 
-class _LiftrAppState extends State<LiftrApp> {
+class LiftrAppState extends State<LiftrApp> {
   ThemeMode _themeMode = ThemeMode.dark;
+
+  ThemeMode get themeMode => _themeMode;
 
   void toggleTheme() {
     setState(() {
-      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+      _themeMode =
+          _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     });
   }
-
-  ThemeMode get themeMode => _themeMode;
 
   @override
   Widget build(BuildContext context) {
@@ -45,9 +67,7 @@ class _LiftrAppState extends State<LiftrApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: _themeMode,
-      home: Supabase.instance.client.auth.currentSession != null
-          ? const HomeScreen()
-          : const LoginScreen(),
+      home: landingScreen(),
     );
   }
 }

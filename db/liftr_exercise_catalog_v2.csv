@@ -1,0 +1,220 @@
+name,category,muscle_group,equipment,is_compound
+Barbell Bench Press,push,chest,barbell,true
+Incline Barbell Bench Press,push,chest,barbell,true
+Decline Barbell Bench Press,push,chest,barbell,true
+Close Grip Bench Press,push,chest,barbell,true
+Dumbbell Bench Press,push,chest,dumbbell,true
+Incline Dumbbell Bench Press,push,chest,dumbbell,true
+Decline Dumbbell Bench Press,push,chest,dumbbell,true
+Neutral Grip Dumbbell Press,push,chest,dumbbell,true
+Dumbbell Fly,push,chest,dumbbell,false
+Incline Dumbbell Fly,push,chest,dumbbell,false
+Chest Press Machine,push,chest,machine,false
+Incline Chest Press Machine,push,chest,machine,false
+Decline Chest Press Machine,push,chest,machine,false
+Iso-Lateral Chest Press,push,chest,machine,false
+Pec Deck,push,chest,machine,false
+Cable Fly,push,chest,cable,false
+High to Low Cable Fly,push,chest,cable,false
+Low to High Cable Fly,push,chest,cable,false
+Cable Crossover,push,chest,cable,false
+Single Arm Cable Fly,push,chest,cable,false
+Landmine Press,push,chest,barbell,true
+Dips,push,chest,bodyweight,true
+Weighted Dips,push,chest,bodyweight,true
+Push Up,push,chest,bodyweight,true
+Diamond Push Up,push,chest,bodyweight,true
+Deficit Push Up,push,chest,bodyweight,true
+Overhead Barbell Press,push,shoulders,barbell,true
+Seated Barbell Press,push,shoulders,barbell,true
+Push Press,push,shoulders,barbell,true
+Overhead Dumbbell Press,push,shoulders,dumbbell,true
+Seated Dumbbell Press,push,shoulders,dumbbell,true
+Arnold Press,push,shoulders,dumbbell,true
+Landmine Press Shoulders,push,shoulders,barbell,true
+Shoulder Press Machine,push,shoulders,machine,true
+Viking Press,push,shoulders,machine,true
+Cuban Press,push,shoulders,dumbbell,false
+Pike Push Up,push,shoulders,bodyweight,true
+Handstand Push Up,push,shoulders,bodyweight,true
+Dumbbell Lateral Raise,push,shoulders,dumbbell,false
+Cable Lateral Raise,push,shoulders,cable,false
+Behind the Back Cable Lateral Raise,push,shoulders,cable,false
+Lateral Raise Machine,push,shoulders,machine,false
+Leaning Dumbbell Lateral Raise,push,shoulders,dumbbell,false
+Dumbbell Front Raise,push,shoulders,dumbbell,false
+Cable Front Raise,push,shoulders,cable,false
+Plate Front Raise,push,shoulders,barbell,false
+Rear Delt Fly,push,shoulders,dumbbell,false
+Rear Delt Machine,push,shoulders,machine,false
+Face Pull,pull,shoulders,cable,false
+Cable Reverse Fly,pull,shoulders,cable,false
+Cable Y Raise,pull,shoulders,cable,false
+Prone Y Raise,pull,shoulders,dumbbell,false
+Barbell Row,pull,back,barbell,true
+Pendlay Row,pull,back,barbell,true
+T-Bar Row,pull,back,barbell,true
+Meadows Row,pull,back,barbell,true
+Landmine Row,pull,back,barbell,true
+Dumbbell Row,pull,back,dumbbell,true
+Chest-Supported Dumbbell Row,pull,back,dumbbell,true
+Seal Row,pull,back,dumbbell,true
+Seated Cable Row,pull,back,cable,true
+Cable Row Wide Grip,pull,back,cable,true
+Single Arm Cable Row,pull,back,cable,true
+Chest-Supported Row Machine,pull,back,machine,true
+Iso-Lateral Row Machine,pull,back,machine,true
+Lat Pulldown,pull,back,cable,true
+Wide Grip Lat Pulldown,pull,back,cable,true
+Close Grip Lat Pulldown,pull,back,cable,true
+Reverse Grip Lat Pulldown,pull,back,cable,true
+Neutral Grip Lat Pulldown,pull,back,cable,true
+Single Arm Lat Pulldown,pull,back,cable,true
+Straight Arm Pulldown,pull,back,cable,false
+Kneeling Cable Pulldown,pull,back,cable,false
+Pull Up,pull,back,bodyweight,true
+Weighted Pull Up,pull,back,bodyweight,true
+Chin Up,pull,back,bodyweight,true
+Neutral Grip Pull Up,pull,back,bodyweight,true
+Assisted Pull Up Machine,pull,back,machine,true
+Pullover Machine,pull,back,machine,false
+Dumbbell Pullover,pull,back,dumbbell,false
+Deadlift,pull,back,barbell,true
+Sumo Deadlift,pull,back,barbell,true
+Trap Bar Deadlift,pull,back,barbell,true
+Rack Pull,pull,back,barbell,true
+Deficit Deadlift,pull,back,barbell,true
+Barbell Shrug,pull,back,barbell,false
+Dumbbell Shrug,pull,back,dumbbell,false
+Cable Shrug,pull,back,cable,false
+Trap Bar Shrug,pull,back,barbell,false
+Barbell Curl,pull,biceps,barbell,false
+EZ Bar Curl,pull,biceps,barbell,false
+Reverse Barbell Curl,pull,biceps,barbell,false
+Reverse EZ Curl,pull,biceps,barbell,false
+Dumbbell Curl,pull,biceps,dumbbell,false
+Alternating Dumbbell Curl,pull,biceps,dumbbell,false
+Incline Dumbbell Curl,pull,biceps,dumbbell,false
+Hammer Curl,pull,biceps,dumbbell,false
+Zottman Curl,pull,biceps,dumbbell,false
+Cross-Body Hammer Curl,pull,biceps,dumbbell,false
+Spider Curl,pull,biceps,dumbbell,false
+Concentration Curl,pull,biceps,dumbbell,false
+Preacher Curl,pull,biceps,barbell,false
+Dumbbell Preacher Curl,pull,biceps,dumbbell,false
+Machine Preacher Curl,pull,biceps,machine,false
+Biceps Curl Machine,pull,biceps,machine,false
+Cable Curl,pull,biceps,cable,false
+Cable Hammer Curl,pull,biceps,cable,false
+Cable Rope Curl,pull,biceps,cable,false
+Bayesian Cable Curl,pull,biceps,cable,false
+High Cable Curl,pull,biceps,cable,false
+Single Arm Cable Curl,pull,biceps,cable,false
+Cable Preacher Curl,pull,biceps,cable,false
+21s Bicep Curl,pull,biceps,barbell,false
+Drag Curl,pull,biceps,barbell,false
+Skull Crusher,push,triceps,barbell,false
+EZ Bar Skull Crusher,push,triceps,barbell,false
+JM Press,push,triceps,barbell,true
+Tate Press,push,triceps,dumbbell,false
+Overhead Triceps Extension,push,triceps,dumbbell,false
+Seated Overhead Triceps Extension,push,triceps,dumbbell,false
+French Press,push,triceps,barbell,false
+Cable Triceps Pushdown,push,triceps,cable,false
+Cable Rope Pushdown,push,triceps,cable,false
+Reverse Grip Pushdown,push,triceps,cable,false
+Cable Overhead Extension,push,triceps,cable,false
+Single Arm Cable Extension,push,triceps,cable,false
+Triceps Extension Machine,push,triceps,machine,false
+Dips for Triceps,push,triceps,bodyweight,true
+Bench Dips,push,triceps,bodyweight,false
+Triceps Kickback,push,triceps,dumbbell,false
+Cable Kickback for Triceps,push,triceps,cable,false
+Wrist Curl,pull,forearms,barbell,false
+Dumbbell Wrist Curl,pull,forearms,dumbbell,false
+Cable Wrist Curl,pull,forearms,cable,false
+Reverse Wrist Curl,pull,forearms,barbell,false
+Dumbbell Reverse Wrist Curl,pull,forearms,dumbbell,false
+Behind the Back Wrist Curl,pull,forearms,barbell,false
+Farmer's Carry,pull,forearms,dumbbell,false
+Plate Pinch,pull,forearms,barbell,false
+Dead Hang,pull,forearms,bodyweight,false
+Wrist Roller,pull,forearms,other,false
+Fat Grip Curl,pull,forearms,dumbbell,false
+Radial Deviation,pull,forearms,dumbbell,false
+Ulnar Deviation,pull,forearms,dumbbell,false
+Back Squat,legs,quads,barbell,true
+Front Squat,legs,quads,barbell,true
+High Bar Squat,legs,quads,barbell,true
+Low Bar Squat,legs,quads,barbell,true
+Zercher Squat,legs,quads,barbell,true
+Safety Bar Squat,legs,quads,barbell,true
+Goblet Squat,legs,quads,dumbbell,true
+Bulgarian Split Squat,legs,quads,dumbbell,true
+Dumbbell Lunge,legs,quads,dumbbell,true
+Walking Lunge,legs,quads,dumbbell,true
+Reverse Lunge,legs,quads,dumbbell,true
+Barbell Lunge,legs,quads,barbell,true
+Step Up,legs,quads,dumbbell,true
+Hack Squat,legs,quads,machine,true
+Reverse Hack Squat,legs,quads,machine,true
+Leg Press,legs,quads,machine,true
+Single Leg Press,legs,quads,machine,true
+Pendulum Squat,legs,quads,machine,true
+Belt Squat,legs,quads,machine,true
+Smith Machine Squat,legs,quads,machine,true
+Leg Extension,legs,quads,machine,false
+Single Leg Extension,legs,quads,machine,false
+Sissy Squat,legs,quads,bodyweight,false
+Romanian Deadlift,legs,hamstrings,barbell,true
+Dumbbell Romanian Deadlift,legs,hamstrings,dumbbell,true
+Single Leg Romanian Deadlift,legs,hamstrings,dumbbell,true
+Stiff Leg Deadlift,legs,hamstrings,barbell,true
+Lying Leg Curl,legs,hamstrings,machine,false
+Seated Leg Curl,legs,hamstrings,machine,false
+Standing Leg Curl,legs,hamstrings,machine,false
+Nordic Curl,legs,hamstrings,bodyweight,false
+Good Morning,legs,hamstrings,barbell,true
+Cable Pull Through,legs,hamstrings,cable,true
+Barbell Hip Thrust,legs,glutes,barbell,true
+Dumbbell Hip Thrust,legs,glutes,dumbbell,true
+Single Leg Hip Thrust,legs,glutes,barbell,true
+Hip Thrust Machine,legs,glutes,machine,true
+Glute Bridge,legs,glutes,bodyweight,false
+Cable Kickback,legs,glutes,cable,false
+Kickback Machine,legs,glutes,machine,false
+Hip Abduction Machine,legs,glutes,machine,false
+Hip Adduction Machine,legs,glutes,machine,false
+Cable Hip Abduction,legs,glutes,cable,false
+Standing Calf Raise,legs,calves,machine,false
+Seated Calf Raise,legs,calves,machine,false
+Leg Press Calf Raise,legs,calves,machine,false
+Smith Machine Calf Raise,legs,calves,machine,false
+Donkey Calf Raise,legs,calves,machine,false
+Single Leg Calf Raise,legs,calves,bodyweight,false
+Tibialis Raise,legs,calves,bodyweight,false
+Plank,core,abs,bodyweight,false
+Side Plank,core,abs,bodyweight,false
+Weighted Plank,core,abs,bodyweight,false
+Hanging Leg Raise,core,abs,bodyweight,false
+Hanging Knee Raise,core,abs,bodyweight,false
+Toes to Bar,core,abs,bodyweight,false
+Cable Crunch,core,abs,cable,false
+Ab Crunch Machine,core,abs,machine,false
+Roman Chair Sit Up,core,abs,bodyweight,false
+Decline Sit Up,core,abs,bodyweight,false
+Ab Wheel Rollout,core,abs,bodyweight,false
+Barbell Rollout,core,abs,barbell,false
+Russian Twist,core,abs,bodyweight,false
+Cable Woodchopper,core,abs,cable,false
+Pallof Press,core,abs,cable,false
+Dragon Flag,core,abs,bodyweight,false
+L-Sit,core,abs,bodyweight,false
+Back Extension,core,lower_back,bodyweight,false
+Weighted Back Extension,core,lower_back,bodyweight,false
+Reverse Hyperextension,core,lower_back,machine,false
+Bird Dog,core,lower_back,bodyweight,false
+Superman,core,lower_back,bodyweight,false
+Neck Curl,push,neck,other,false
+Neck Extension,pull,neck,other,false
+Neck Harness,pull,neck,other,false

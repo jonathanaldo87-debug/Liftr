@@ -6,6 +6,7 @@ class WorkoutExercises {
   final String? catalogId;
   final CatalogExercises? catalogDetail;
   final int? orderIndex;
+  final String? notes;
   final DateTime? createdAt;
 
   const WorkoutExercises({
@@ -14,15 +15,24 @@ class WorkoutExercises {
     this.catalogId,
     this.catalogDetail,
     this.orderIndex,
+    this.notes,
     this.createdAt,
   });
+
+  String get name => catalogDetail?.name ?? 'Unknown exercise';
 
   factory WorkoutExercises.fromJson(Map<String, dynamic> j) => WorkoutExercises(
         exerciseId: j['exercise_id'] as String?,
         sessionId: j['session_id'] as String?,
         catalogId: j['catalog_id'] as String?,
-        catalogDetail: j['catalog_detail'] == null ? null : CatalogExercises.fromJson(j['catalog_detail'] as Map<String, dynamic>),
-        orderIndex: j['order_index'] as int?,
-        createdAt: j['created_at'] == null ? null : DateTime.parse(j['created_at'] as String),
+        catalogDetail: j['catalog_detail'] == null
+            ? null
+            : CatalogExercises.fromJson(
+                j['catalog_detail'] as Map<String, dynamic>),
+        orderIndex: (j['order_index'] as num?)?.toInt(),
+        notes: j['notes'] as String?,
+        createdAt: j['created_at'] == null
+            ? null
+            : DateTime.parse(j['created_at'] as String),
       );
 }

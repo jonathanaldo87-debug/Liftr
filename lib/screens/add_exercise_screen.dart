@@ -3,6 +3,8 @@ import '../models/models.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
+import '../utils/exercise_search.dart';
+import '../utils/format.dart';
 
 class AddExerciseScreen extends StatefulWidget {
   final DateTime sessionDate;
@@ -15,50 +17,76 @@ class AddExerciseScreen extends StatefulWidget {
 class _AddExerciseScreenState extends State<AddExerciseScreen> {
   final _sessionNameCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  String? _selectedExercise;
-  String? _selectedExerciseEmoji;
-  String? _selectedCatalogId;
+  final _exerciseCtrl = TextEditingController();
+  final _exerciseFocus = FocusNode();
+
+  /// The exercise picked from the dropdown. Null means the field holds free text
+  /// that matches nothing, which is what keeps Save disabled.
+  CatalogExercises? _selected;
+
   bool _nameError = false;
   bool _isSaving = false;
 
   List<CatalogExercises> _catalog = [];
+  List<CatalogExercises> _recent = [];
+
+  /// Built once when the catalog lands — it precomputes a search index, so
+  /// rebuilding it per keystroke would defeat the point.
+  ExerciseSearch? _search;
+
+  /// The workout already logged on this date, if any. When it exists we append
+  /// to it instead of starting a second session for the same day.
+  WorkoutSessions? _existingSession;
 
   @override
   void initState() {
     super.initState();
-    _loadCatalog();
+    _load();
   }
 
-  Future<void> _loadCatalog() async {
+  Future<void> _load() async {
     final catalog = await WorkoutService.getExerciseCatalog();
-    if (mounted) setState(() => _catalog = catalog);
+    final recent = await WorkoutService.getRecentExercises();
+    final session = await WorkoutService.getWorkoutSession(widget.sessionDate);
+
+    if (mounted) {
+      setState(() {
+        _catalog = catalog;
+        _search = ExerciseSearch(catalog);
+        _recent = recent;
+        _existingSession = session;
+        // Adding to a day that already has a workout: show its name rather than
+        // asking for one again. Editing it renames the session.
+        if (session?.name != null) _sessionNameCtrl.text = session!.name!;
+      });
+    }
   }
 
   @override
   void dispose() {
     _sessionNameCtrl.dispose();
     _noteCtrl.dispose();
+    _exerciseCtrl.dispose();
+    _exerciseFocus.dispose();
     super.dispose();
   }
 
-  void _pickExercise() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ExercisePickerSheet(
-        exercises: _catalog,
-        selectedName: _selectedExercise,
-        onSelect: (emoji, name, catalogId) {
-          setState(() {
-            _selectedExercise = name;
-            _selectedExerciseEmoji = emoji;
-            _selectedCatalogId = catalogId;
-          });
-          Navigator.pop(context);
-        },
-      ),
-    );
+  /// Matches on any word, in any order, across name *and* equipment/muscle —
+  /// see [ExerciseSearch]. An empty field offers your recent lifts instead.
+  Iterable<CatalogExercises> _rank(String raw) {
+    if (raw.trim().isEmpty) {
+      return _recent.isNotEmpty ? _recent : _catalog.take(8);
+    }
+    return _search?.search(raw) ?? const [];
+  }
+
+  /// e.g. "Barbell · Biceps" — the only way to tell the curl variants apart.
+  static String _subtitle(CatalogExercises e) =>
+      detailLine([e.equipment, e.muscleGroup]);
+
+  void _select(CatalogExercises e) {
+    setState(() => _selected = e);
+    _exerciseFocus.unfocus();
   }
 
   Future<void> _save() async {
@@ -70,20 +98,35 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final sessionId = await WorkoutService.createWorkoutSession(
-        WorkoutSessionsPayload(
-          sessionDate: widget.sessionDate,
-          name: name,
-          notes: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-        ),
+      final notes = _noteCtrl.text.trim();
+
+      // Reuse the day's session if it has one. Unconditionally creating here is
+      // what produced two sessions for a single day the moment you added a
+      // second exercise.
+      final sessionId = await WorkoutService.getOrCreateSession(
+        widget.sessionDate,
+        name,
       );
 
+      final existingId = _existingSession?.sessionId;
+      if (existingId != null && _existingSession!.name != name) {
+        await WorkoutService.updateWorkoutSession(
+          existingId,
+          WorkoutSessionsPayload(
+            sessionDate: widget.sessionDate,
+            name: name,
+            notes: _existingSession!.notes,
+          ),
+        );
+      }
+
+      // orderIndex omitted on purpose: the service appends. Hardcoding 1 here
+      // left every exercise in the session sitting at the same position.
       await WorkoutService.createWorkoutExercise(
         WorkoutExercisePayload(
           sessionId: sessionId,
-          catalogId: _selectedCatalogId,
-          orderIndex: 1,
-          notes: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+          catalogId: _selected?.catalogId,
+          notes: notes.isEmpty ? null : notes,
         ),
       );
 
@@ -181,44 +224,10 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     ],
                     const SizedBox(height: 20),
 
-                    // Exercise picker
+                    // ── Exercise autocomplete ───────────────
                     const SectionLabel('Exercise'),
                     const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: _pickExercise,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: lt.card,
-                          border: Border.all(
-                            color: _selectedExercise != null ? lt.accentBorder : lt.border,
-                            width: 0.5,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            if (_selectedExercise != null) ...[
-                              Text(_selectedExerciseEmoji!, style: const TextStyle(fontSize: 16)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _selectedExercise!,
-                                  style: TextStyle(fontSize: 14, color: lt.textPrimary),
-                                ),
-                              ),
-                            ] else
-                              Expanded(
-                                child: Text(
-                                  'Choose an exercise…',
-                                  style: TextStyle(fontSize: 14, color: lt.textDim),
-                                ),
-                              ),
-                            Icon(Icons.chevron_right, size: 16, color: lt.textDim),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _buildExerciseField(lt),
                     const SizedBox(height: 20),
 
                     // Notes
@@ -279,7 +288,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: (_selectedExercise == null || _isSaving) ? null : _save,
+                      onPressed:
+                          (_selected == null || _isSaving) ? null : _save,
                       child: _isSaving
                           ? const SizedBox(
                               width: 18,
@@ -300,189 +310,187 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
       ),
     );
   }
-}
 
-// ── Exercise Picker Bottom Sheet ──────────────────────────────
-class _ExercisePickerSheet extends StatefulWidget {
-  final List<CatalogExercises> exercises;
-  final String? selectedName;
-  final void Function(String emoji, String name, String? catalogId) onSelect;
-  const _ExercisePickerSheet({
-    required this.exercises,
-    required this.selectedName,
-    required this.onSelect,
-  });
+  Widget _buildExerciseField(LiftrTheme lt) {
+    // LayoutBuilder gives the dropdown the field's exact width — optionsViewBuilder
+    // renders into an unconstrained Align, so without this it collapses.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
 
-  @override
-  State<_ExercisePickerSheet> createState() => _ExercisePickerSheetState();
-}
-
-class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
-  final _searchCtrl = TextEditingController();
-  String _query = '';
-
-  static String _muscleEmoji(String? group) {
-    switch (group?.toLowerCase()) {
-      case 'chest': return '🏋️';
-      case 'back': return '🔛';
-      case 'legs': return '🦵';
-      case 'shoulders': return '💪';
-      case 'triceps': return '📌';
-      case 'biceps': return '💪';
-      default: return '🏃';
-    }
-  }
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final lt = context.lt;
-    final filtered = widget.exercises
-        .where((e) => (e.name ?? '').toLowerCase().contains(_query.toLowerCase()))
-        .toList();
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.65,
-      decoration: BoxDecoration(
-        color: lt.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(top: BorderSide(color: lt.borderSubtle, width: 0.5)),
-      ),
-      child: Column(
-        children: [
-          // Drag handle
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 8),
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: lt.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          // Title row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Choose Exercise',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: lt.textPrimary,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Icon(Icons.close, size: 20, color: lt.textMuted),
-                ),
-              ],
-            ),
-          ),
-
-          // Search field
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Container(
+        return RawAutocomplete<CatalogExercises>(
+          textEditingController: _exerciseCtrl,
+          focusNode: _exerciseFocus,
+          displayStringForOption: (e) => e.name ?? '',
+          optionsBuilder: (value) => _rank(value.text),
+          onSelected: _select,
+          fieldViewBuilder: (context, controller, focusNode, _) {
+            final selected = _selected;
+            final hasSelection = selected != null;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: lt.card,
-                border: Border.all(color: lt.border, width: 0.5),
+                border: Border.all(
+                  color: hasSelection ? lt.accentBorder : lt.border,
+                  width: 0.5,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: (v) => setState(() => _query = v),
-                style: TextStyle(fontSize: 14, color: lt.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Search exercises…',
-                  prefixIcon: Icon(Icons.search, size: 18, color: lt.textDim),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  fillColor: Colors.transparent,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Exercise list
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Text(
-                      _query.isEmpty ? 'No exercises found.' : 'No results for "$_query".',
-                      style: TextStyle(fontSize: 13, color: lt.textMuted),
+              child: Row(
+                children: [
+                  if (hasSelection) ...[
+                    Text(
+                      exerciseEmoji(selected.category, selected.muscleGroup),
+                      style: const TextStyle(fontSize: 16),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) {
-                      final ex = filtered[i];
-                      final emoji = _muscleEmoji(ex.muscleGroup);
-                      final name = ex.name ?? '';
-                      final muscle = ex.muscleGroup ?? ex.category ?? '';
-                      final isSelected = name == widget.selectedName;
-                      return InkWell(
-                        onTap: () => widget.onSelect(emoji, name, ex.catalogId),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: lt.card,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Center(
-                                  child: Text(emoji, style: const TextStyle(fontSize: 16)),
+                    const SizedBox(width: 8),
+                  ] else
+                    Icon(Icons.search, size: 18, color: lt.textDim),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                      onChanged: (v) {
+                        // Typing past a selection invalidates it, which disables Save.
+                        if (selected != null && v.trim() != selected.name) {
+                          setState(() => _selected = null);
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search exercises…',
+                        hintStyle: TextStyle(fontSize: 14, color: lt.textDim),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        fillColor: Colors.transparent,
+                      ),
+                    ),
+                  ),
+                  if (controller.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        controller.clear();
+                        setState(() => _selected = null);
+                      },
+                      child: Icon(Icons.close, size: 16, color: lt.textDim),
+                    ),
+                ],
+              ),
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            final list = options.toList();
+            final showingRecents = _exerciseCtrl.text.trim().isEmpty &&
+                _recent.isNotEmpty;
+
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: width,
+                    constraints: const BoxConstraints(maxHeight: 300),
+                    decoration: BoxDecoration(
+                      color: lt.surface,
+                      border: Border.all(color: lt.border, width: 0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 16,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showingRecents)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'RECENT',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  letterSpacing: 0.8,
+                                  fontWeight: FontWeight.w600,
+                                  color: lt.textMuted,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      name,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: lt.textPrimary,
+                            ),
+                          ),
+                        Flexible(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            shrinkWrap: true,
+                            itemCount: list.length,
+                            itemBuilder: (_, i) {
+                              final e = list[i];
+                              final sub = _subtitle(e);
+                              return InkWell(
+                                onTap: () => onSelected(e),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 9),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        exerciseEmoji(e.category, e.muscleGroup),
+                                        style: const TextStyle(fontSize: 15),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      muscle,
-                                      style: TextStyle(fontSize: 11, color: lt.textMuted),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              e.name ?? '',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w500,
+                                                color: lt.textPrimary,
+                                              ),
+                                            ),
+                                            if (sub.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                sub,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: lt.textMuted,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              if (isSelected)
-                                const Icon(Icons.check_circle, size: 18, color: LiftrColors.accent),
-                            ],
+                              );
+                            },
                           ),
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
-          ),
-        ],
-      ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../main.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
-import 'home_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -49,9 +49,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       // If email confirmation is disabled in Supabase, session is available immediately
       if (res.session != null) {
+        // A brand-new account has never onboarded, so this lands on Onboarding.
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => landingScreen()),
         );
       } else {
         // Email confirmation is required — show a message and go back to login

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import '../services/prefs.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
+import 'home_screen.dart';
 
+/// Shown once, on first launch after signing in.
+///
+/// NOTE: the answers are recorded (and shown on Profile) but don't yet change
+/// how the app behaves — it logs gym lifts regardless of what you pick here.
+/// The non-Gym activities and the "use a template" option are aspirational:
+/// nothing downstream reads them yet.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -31,15 +39,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // Page 3 state
   int _selectedTemplate = 0;
 
-  void _nextPage() {
+  bool _isFinishing = false;
+
+  Future<void> _nextPage() async {
     if (_currentPage < 2) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
       );
-    } else {
-      // Navigate to home
+      return;
     }
+
+    // "Get started" used to be a no-op — the button did nothing at all.
+    setState(() => _isFinishing = true);
+    await Prefs.completeOnboarding(
+      activity: _activities[_selectedActivity].$2,
+      level: _levels[_selectedLevel],
+    );
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
   }
 
   @override
@@ -90,8 +112,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: ElevatedButton(
-                onPressed: _nextPage,
-                child: Text(_currentPage == 2 ? 'Get started' : 'Next →'),
+                onPressed: _isFinishing ? null : _nextPage,
+                child: _isFinishing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: LiftrColors.accentText,
+                        ),
+                      )
+                    : Text(_currentPage == 2 ? 'Get started' : 'Next →'),
               ),
             ),
           ],

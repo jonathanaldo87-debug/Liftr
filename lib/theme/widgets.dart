@@ -101,27 +101,6 @@ class AccentChip extends StatelessWidget {
   }
 }
 
-// ── Surface Card ─────────────────────────────────────────────
-class SurfaceCard extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry? padding;
-  final BorderRadius? borderRadius;
-  const SurfaceCard({super.key, required this.child, this.padding, this.borderRadius});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: context.lt.surface,
-        border: Border.all(color: context.lt.borderSubtle, width: 0.5),
-        borderRadius: borderRadius ?? BorderRadius.circular(20),
-      ),
-      child: child,
-    );
-  }
-}
-
 // ── Three-dot menu button ─────────────────────────────────────
 class ThreeDotMenu extends StatelessWidget {
   final VoidCallback? onEdit;
@@ -164,38 +143,12 @@ class ThreeDotMenu extends StatelessWidget {
           height: 40,
           child: Text('Edit', style: TextStyle(fontSize: 13, color: context.lt.textPrimary)),
         ),
-        PopupMenuItem(
+        const PopupMenuItem(
           value: 'delete',
           height: 40,
-          child: const Text('Delete', style: TextStyle(fontSize: 13, color: Color(0xFFE24B4A))),
+          child: Text('Delete', style: TextStyle(fontSize: 13, color: Color(0xFFE24B4A))),
         ),
       ],
-    );
-  }
-}
-
-// ── Weight Badge ──────────────────────────────────────────────
-class WeightBadge extends StatelessWidget {
-  final String weight;
-  const WeightBadge(this.weight, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: context.lt.accentBg,
-        border: Border.all(color: context.lt.accentBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        weight,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: LiftrColors.accent,
-        ),
-      ),
     );
   }
 }
@@ -281,44 +234,6 @@ class ProgressDots extends StatelessWidget {
           ),
         );
       }),
-    );
-  }
-}
-
-// ── Level chip ────────────────────────────────────────────────
-class LevelChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const LevelChip({super.key, required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? context.lt.accentBg : context.lt.card,
-            border: Border.all(
-              color: selected ? LiftrColors.accent : context.lt.border,
-              width: selected ? 1.0 : 0.5,
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
-              color: selected ? LiftrColors.accent : context.lt.textMuted,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

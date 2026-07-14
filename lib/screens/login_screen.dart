@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../main.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
-import 'home_screen.dart';
 import 'sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -34,9 +34,11 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passCtrl.text,
       );
       if (mounted) {
+        // Not HomeScreen directly: a first-time user has to see onboarding,
+        // and landingScreen() is the single place that decides which is which.
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => landingScreen()),
         );
       }
     } on AuthException catch (e) {
@@ -88,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 28),
 
               // Email
-              SectionLabel('Email'),
+              const SectionLabel('Email'),
               const SizedBox(height: 6),
               TextField(
                 controller: _emailCtrl,
@@ -99,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 14),
 
               // Password
-              SectionLabel('Password'),
+              const SectionLabel('Password'),
               const SizedBox(height: 6),
               TextField(
                 controller: _passCtrl,
@@ -156,12 +158,12 @@ class _LoginScreenState extends State<LoginScreen> {
               // Divider
               Row(
                 children: [
-                  Expanded(child: Divider()),
+                  const Expanded(child: Divider()),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text('or', style: TextStyle(fontSize: 12, color: lt.textDim)),
                   ),
-                  Expanded(child: Divider()),
+                  const Expanded(child: Divider()),
                 ],
               ),
               const SizedBox(height: 20),
@@ -190,7 +192,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       WidgetSpan(
                         child: GestureDetector(
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignUpScreen())),
-                          child: Text(
+                          child: const Text(
                             'Sign up',
                             style: TextStyle(
                               fontSize: 12,
@@ -285,7 +287,6 @@ class _GooglePainter extends CustomPainter {
       );
     }
 
-    const pi = 3.1415926;
     arc(-0.35, 1.57, const Color(0xFF4285F4));
     arc(1.22, 1.57, const Color(0xFF34A853));
     arc(2.79, 1.57, const Color(0xFFFBBC05));
