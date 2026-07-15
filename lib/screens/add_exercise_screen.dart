@@ -136,7 +136,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save: $e'),
-            backgroundColor: const Color(0xFFE24B4A),
+            backgroundColor: LiftrColors.danger,
           ),
         );
       }
@@ -165,13 +165,13 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       height: 32,
                       decoration: BoxDecoration(
                         color: lt.card,
-                        border: Border.all(color: lt.border, width: 0.5),
-                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                        borderRadius: BorderRadius.circular(LiftrRadii.control),
                       ),
                       child: Icon(Icons.chevron_left, size: 20, color: lt.textSecondary),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: LiftrSpacing.x10),
                   Expanded(
                     child: Text(
                       'Add Exercise',
@@ -185,21 +185,21 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
             // ── Form ────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Session name
                     const SectionLabel('Session Name'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: LiftrSpacing.x8),
                     Container(
                       decoration: BoxDecoration(
                         color: lt.card,
                         border: Border.all(
-                          color: _nameError ? const Color(0xFFE24B4A) : lt.border,
-                          width: _nameError ? 1.0 : 0.5,
+                          color: _nameError ? LiftrColors.danger : lt.border,
+                          width: _nameError ? LiftrBorders.thin : LiftrBorders.hairline,
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(LiftrRadii.field),
                       ),
                       child: TextField(
                         controller: _sessionNameCtrl,
@@ -210,34 +210,34 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         decoration: const InputDecoration(
                           hintText: 'e.g. Push Day A',
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          contentPadding: EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x14),
                           fillColor: Colors.transparent,
                         ),
                       ),
                     ),
                     if (_nameError) ...[
-                      const SizedBox(height: 5),
+                      const SizedBox(height: LiftrSpacing.x5),
                       const Text(
                         'Session name is required',
-                        style: TextStyle(fontSize: 11, color: Color(0xFFE24B4A)),
+                        style: TextStyle(fontSize: 11, color: LiftrColors.danger),
                       ),
                     ],
-                    const SizedBox(height: 20),
+                    const SizedBox(height: LiftrSpacing.x20),
 
                     // ── Exercise autocomplete ───────────────
                     const SectionLabel('Exercise'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: LiftrSpacing.x8),
                     _buildExerciseField(lt),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: LiftrSpacing.x20),
 
                     // Notes
                     const SectionLabel('Notes'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: LiftrSpacing.x8),
                     Container(
                       decoration: BoxDecoration(
                         color: lt.card,
-                        border: Border.all(color: lt.border, width: 0.5),
-                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                        borderRadius: BorderRadius.circular(LiftrRadii.field),
                       ),
                       child: TextField(
                         controller: _noteCtrl,
@@ -246,12 +246,12 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         decoration: const InputDecoration(
                           hintText: 'Optional notes for this exercise…',
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.all(14),
+                          contentPadding: EdgeInsets.all(LiftrSpacing.x14),
                           fillColor: Colors.transparent,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: LiftrSpacing.x32),
                   ],
                 ),
               ),
@@ -269,8 +269,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         height: 50,
                         decoration: BoxDecoration(
                           color: lt.card,
-                          border: Border.all(color: lt.border, width: 0.5),
-                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                          borderRadius: BorderRadius.circular(LiftrRadii.button),
                         ),
                         child: Center(
                           child: Text(
@@ -285,7 +285,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: LiftrSpacing.x10),
                   Expanded(
                     child: ElevatedButton(
                       onPressed:
@@ -328,14 +328,14 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
             final selected = _selected;
             final hasSelection = selected != null;
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14),
               decoration: BoxDecoration(
                 color: lt.card,
                 border: Border.all(
                   color: hasSelection ? lt.accentBorder : lt.border,
-                  width: 0.5,
+                  width: LiftrBorders.hairline,
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(LiftrRadii.field),
               ),
               child: Row(
                 children: [
@@ -344,7 +344,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       exerciseEmoji(selected.category, selected.muscleGroup),
                       style: const TextStyle(fontSize: 16),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: LiftrSpacing.x8),
                   ] else
                     Icon(Icons.search, size: 18, color: lt.textDim),
                   Expanded(
@@ -363,7 +363,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         hintStyle: TextStyle(fontSize: 14, color: lt.textDim),
                         border: InputBorder.none,
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x14),
                         fillColor: Colors.transparent,
                       ),
                     ),
@@ -396,11 +396,11 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     constraints: const BoxConstraints(maxHeight: 300),
                     decoration: BoxDecoration(
                       color: lt.surface,
-                      border: Border.all(color: lt.border, width: 0.5),
-                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                      borderRadius: BorderRadius.circular(LiftrRadii.field),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x33000000),
+                          color: LiftrColors.shadow,
                           blurRadius: 16,
                           offset: Offset(0, 6),
                         ),
@@ -427,7 +427,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                           ),
                         Flexible(
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x4),
                             shrinkWrap: true,
                             itemCount: list.length,
                             itemBuilder: (_, i) {
@@ -437,14 +437,14 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                 onTap: () => onSelected(e),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 9),
+                                      horizontal: LiftrSpacing.x14, vertical: 9),
                                   child: Row(
                                     children: [
                                       Text(
                                         exerciseEmoji(e.category, e.muscleGroup),
                                         style: const TextStyle(fontSize: 15),
                                       ),
-                                      const SizedBox(width: 10),
+                                      const SizedBox(width: LiftrSpacing.x10),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -461,7 +461,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                               ),
                                             ),
                                             if (sub.isNotEmpty) ...[
-                                              const SizedBox(height: 2),
+                                              const SizedBox(height: LiftrSpacing.x2),
                                               Text(
                                                 sub,
                                                 maxLines: 1,

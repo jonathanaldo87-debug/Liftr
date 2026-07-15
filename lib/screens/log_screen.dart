@@ -64,7 +64,7 @@ class _LogTabState extends State<LogTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Could not delete: $e'),
-          backgroundColor: const Color(0xFFE24B4A),
+          backgroundColor: LiftrColors.danger,
         ));
       }
     }
@@ -90,7 +90,7 @@ class _LogTabState extends State<LogTab> {
                       : '${_sessions.length} workout${_sessions.length == 1 ? '' : 's'}',
                   style: TextStyle(fontSize: 12, color: lt.textMuted),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: LiftrSpacing.x2),
                 Text('History', style: tt.displaySmall),
               ],
             ),
@@ -168,7 +168,7 @@ class _Scrollable extends StatelessWidget {
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x32),
                 child: child,
               ),
             ),
@@ -198,24 +198,24 @@ class _SessionCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(LiftrRadii.card),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
           decoration: BoxDecoration(
             color: lt.surface,
-            border: Border.all(color: lt.borderSubtle, width: 0.5),
-            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+            borderRadius: BorderRadius.circular(LiftrRadii.card),
           ),
           child: Row(
             children: [
               // Date block
               Container(
                 width: 44,
-                padding: const EdgeInsets.symmetric(vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x6),
                 decoration: BoxDecoration(
                   color: lt.accentBg,
-                  border: Border.all(color: lt.accentBorder, width: 0.5),
-                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+                  borderRadius: BorderRadius.circular(LiftrRadii.control),
                 ),
                 child: Column(
                   children: [
@@ -239,7 +239,7 @@ class _SessionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: LiftrSpacing.x12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +254,7 @@ class _SessionCard extends StatelessWidget {
                         color: lt.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: LiftrSpacing.x2),
                     Text(
                       '${summary.exerciseCount} exercise'
                       '${summary.exerciseCount == 1 ? '' : 's'}'
@@ -305,7 +305,7 @@ class _ConfirmDialog extends StatelessWidget {
     final lt = context.lt;
     return AlertDialog(
       backgroundColor: lt.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
       title: Text(title, style: TextStyle(fontSize: 16, color: lt.textPrimary)),
       content:
           Text(message, style: TextStyle(fontSize: 13, color: lt.textSecondary)),
@@ -317,7 +317,7 @@ class _ConfirmDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.pop(context, true),
           child:
-              const Text('Delete', style: TextStyle(color: Color(0xFFE24B4A))),
+              const Text('Delete', style: TextStyle(color: LiftrColors.danger)),
         ),
       ],
     );

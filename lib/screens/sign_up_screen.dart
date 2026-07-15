@@ -78,18 +78,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 28),
+              const SizedBox(height: LiftrSpacing.x28),
               Center(
                 child: Column(
                   children: [
                     const LiftrLogoMark(size: 52),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: LiftrSpacing.x12),
                     Text('Liftr', style: tt.displaySmall),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: LiftrSpacing.x3),
                     Text(
                       'Track every rep',
                       style: TextStyle(fontSize: 12, color: lt.textMuted),
@@ -97,30 +97,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: LiftrSpacing.x36),
 
               Text('Create your\naccount.', style: tt.displayMedium),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               Text(
                 'Start tracking your workouts today',
                 style: TextStyle(fontSize: 13, color: lt.textMuted),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: LiftrSpacing.x28),
 
               // Email
               const SectionLabel('Email'),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: TextStyle(fontSize: 14, color: lt.textPrimary),
                 decoration: const InputDecoration(hintText: 'you@email.com'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: LiftrSpacing.x14),
 
               // Password
               const SectionLabel('Password'),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscurePass,
@@ -137,11 +137,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: LiftrSpacing.x14),
 
               // Confirm password
               const SectionLabel('Confirm Password'),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               TextField(
                 controller: _confirmPassCtrl,
                 obscureText: _obscureConfirm,
@@ -161,14 +161,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               // Error message
               if (_errorMsg != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: LiftrSpacing.x10),
                 Text(
                   _errorMsg!,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFFE24B4A)),
+                  style: const TextStyle(fontSize: 12, color: LiftrColors.danger),
                 ),
               ],
 
-              const SizedBox(height: 20),
+              const SizedBox(height: LiftrSpacing.x20),
 
               // CTA
               ElevatedButton(
@@ -181,7 +181,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       )
                     : const Text('Create Account'),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: LiftrSpacing.x24),
 
               // Log in footer
               Center(
@@ -207,7 +207,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: LiftrSpacing.x32),
             ],
           ),
         ),

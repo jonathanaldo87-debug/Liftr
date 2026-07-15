@@ -54,7 +54,7 @@ class _ProgressTabState extends State<ProgressTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('All time', style: TextStyle(fontSize: 12, color: lt.textMuted)),
-                const SizedBox(height: 2),
+                const SizedBox(height: LiftrSpacing.x2),
                 Text('Progress', style: tt.displaySmall),
               ],
             ),
@@ -102,7 +102,7 @@ class _ProgressTabState extends State<ProgressTab> {
                     )
                   else ...[
                     _StreakCard(stats: s),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: LiftrSpacing.x10),
                     Row(
                       children: [
                         Expanded(
@@ -112,7 +112,7 @@ class _ProgressTabState extends State<ProgressTab> {
                             hint: '${s.sessionsThisWeek} in the last 7 days',
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: LiftrSpacing.x10),
                         Expanded(
                           child: _StatCard(
                             label: 'SETS LOGGED',
@@ -124,7 +124,7 @@ class _ProgressTabState extends State<ProgressTab> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: LiftrSpacing.x10),
                     Row(
                       children: [
                         Expanded(
@@ -134,7 +134,7 @@ class _ProgressTabState extends State<ProgressTab> {
                             hint: 'weight × reps, all sets',
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: LiftrSpacing.x10),
                         Expanded(
                           child: _StatCard(
                             label: 'HEAVIEST SET',
@@ -146,7 +146,7 @@ class _ProgressTabState extends State<ProgressTab> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: LiftrSpacing.x14),
                     Text(
                       'Per-exercise trends live on each exercise — open one from '
                       'a workout to see its weight chart.',
@@ -184,16 +184,16 @@ class _StreakCard extends StatelessWidget {
     final days = stats.streakDays;
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(LiftrSpacing.x18),
       decoration: BoxDecoration(
         color: lt.accentBg,
-        border: Border.all(color: lt.accentBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.panel),
       ),
       child: Row(
         children: [
           Text(days > 0 ? '🔥' : '💤', style: const TextStyle(fontSize: 30)),
-          const SizedBox(width: 14),
+          const SizedBox(width: LiftrSpacing.x14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,7 +206,7 @@ class _StreakCard extends StatelessWidget {
                     color: lt.accentTextColor,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: LiftrSpacing.x2),
                 Text(
                   days == 0
                       ? 'Log a workout today to start one.'
@@ -237,11 +237,11 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lt = context.lt;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(LiftrSpacing.x14),
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,7 +255,7 @@ class _StatCard extends StatelessWidget {
               color: lt.textMuted,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -269,7 +269,7 @@ class _StatCard extends StatelessWidget {
             ),
           ),
           if (hint.isNotEmpty) ...[
-            const SizedBox(height: 3),
+            const SizedBox(height: LiftrSpacing.x3),
             Text(hint, style: TextStyle(fontSize: 11, color: lt.textDim)),
           ],
         ],

@@ -86,19 +86,19 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Logo centred
-              const SizedBox(height: 28),
+              const SizedBox(height: LiftrSpacing.x28),
               Center(
                 child: Column(
                   children: [
                     const LiftrLogoMark(size: 52),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: LiftrSpacing.x12),
                     Text('Liftr', style: tt.displaySmall),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: LiftrSpacing.x3),
                     Text(
                       'Track every rep',
                       style: TextStyle(fontSize: 12, color: lt.textMuted),
@@ -106,31 +106,31 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: LiftrSpacing.x36),
 
               // Headline
               Text('Welcome\nback.', style: tt.displayMedium),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               Text(
                 'Log in to continue your streak',
                 style: TextStyle(fontSize: 13, color: lt.textMuted),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: LiftrSpacing.x28),
 
               // Email
               const SectionLabel('Email'),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: TextStyle(fontSize: 14, color: lt.textPrimary),
                 decoration: const InputDecoration(hintText: 'you@email.com'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: LiftrSpacing.x14),
 
               // Password
               const SectionLabel('Password'),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscurePass,
@@ -147,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: LiftrSpacing.x6),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -158,16 +158,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: LiftrSpacing.x12),
 
               // Error message
               if (_errorMsg != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: LiftrSpacing.x4),
                 Text(
                   _errorMsg!,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFFE24B4A)),
+                  style: const TextStyle(fontSize: 12, color: LiftrColors.danger),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: LiftrSpacing.x8),
               ],
 
               // CTA
@@ -181,20 +181,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       )
                     : const Text('Continue'),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: LiftrSpacing.x20),
 
               // Divider
               Row(
                 children: [
                   const Expanded(child: Divider()),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x12),
                     child: Text('or', style: TextStyle(fontSize: 12, color: lt.textDim)),
                   ),
                   const Expanded(child: Divider()),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: LiftrSpacing.x20),
 
               // Google SSO
               _SocialButton(
@@ -202,13 +202,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: const _GoogleIcon(),
                 onTap: () {},
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: LiftrSpacing.x10),
               _SocialButton(
                 label: 'Continue with Apple',
                 icon: Icon(Icons.apple, size: 18, color: lt.textSecondary),
                 onTap: () {},
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: LiftrSpacing.x10),
               _SocialButton(
                 label: _isGuestLoading
                     ? 'Setting you up…'
@@ -226,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         size: 18, color: lt.textSecondary),
                 onTap: _isGuestLoading || _isLoading ? () {} : _continueAsGuest,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: LiftrSpacing.x8),
               Center(
                 child: Text(
                   // Said up front, not buried in settings: a guest account only
@@ -237,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 11, color: lt.textDim, height: 1.5),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: LiftrSpacing.x24),
 
               // Sign-up footer
               Center(
@@ -263,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: LiftrSpacing.x32),
             ],
           ),
         ),
@@ -285,17 +285,17 @@ class _SocialButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x14),
         decoration: BoxDecoration(
           color: lt.card,
-          border: Border.all(color: lt.border, width: 0.5),
-          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+          borderRadius: BorderRadius.circular(LiftrRadii.button),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             icon,
-            const SizedBox(width: 8),
+            const SizedBox(width: LiftrSpacing.x8),
             Text(
               label,
               style: TextStyle(fontSize: 13, color: lt.textSecondary),

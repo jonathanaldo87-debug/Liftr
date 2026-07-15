@@ -15,7 +15,7 @@ class LiftrLogoMark extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFC8F075), Color(0xFF80E850)],
+          colors: [LiftrColors.accent, LiftrColors.accentDark],
         ),
         borderRadius: BorderRadius.circular(size * 0.31),
       ),
@@ -82,11 +82,11 @@ class AccentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
       decoration: BoxDecoration(
         color: context.lt.accentBg,
-        border: Border.all(color: context.lt.accentBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: context.lt.accentBorder, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.panel),
       ),
       child: Text(
         label.toUpperCase(),
@@ -130,8 +130,8 @@ class ThreeDotMenu extends StatelessWidget {
       padding: EdgeInsets.zero,
       color: context.lt.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: context.lt.border, width: 0.5),
+        borderRadius: BorderRadius.circular(LiftrRadii.field),
+        side: BorderSide(color: context.lt.border, width: LiftrBorders.hairline),
       ),
       onSelected: (v) {
         if (v == 'edit') onEdit?.call();
@@ -146,7 +146,7 @@ class ThreeDotMenu extends StatelessWidget {
         const PopupMenuItem(
           value: 'delete',
           height: 40,
-          child: Text('Delete', style: TextStyle(fontSize: 13, color: Color(0xFFE24B4A))),
+          child: Text('Delete', style: TextStyle(fontSize: 13, color: LiftrColors.danger)),
         ),
       ],
     );
@@ -202,8 +202,8 @@ class IconSquareButton extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           color: context.lt.card,
-          border: Border.all(color: context.lt.border, width: 0.5),
-          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: context.lt.border, width: LiftrBorders.hairline),
+          borderRadius: BorderRadius.circular(LiftrRadii.control),
         ),
         child: Center(child: icon),
       ),
@@ -225,12 +225,12 @@ class ProgressDots extends StatelessWidget {
         final isActive = i == current;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 250),
-          margin: const EdgeInsets.symmetric(horizontal: 3),
+          margin: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x3),
           width: isActive ? 20 : 8,
           height: 3,
           decoration: BoxDecoration(
             color: isActive ? LiftrColors.accent : context.lt.border,
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(LiftrRadii.pip),
           ),
         );
       }),
@@ -260,14 +260,14 @@ class ActivityCard extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(LiftrSpacing.x14),
         decoration: BoxDecoration(
           color: selected ? context.lt.accentBg : context.lt.card,
           border: Border.all(
             color: selected ? LiftrColors.accent : context.lt.border,
-            width: selected ? 1.0 : 0.5,
+            width: selected ? LiftrBorders.thin : LiftrBorders.hairline,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(LiftrRadii.card),
         ),
         child: Stack(
           children: [
@@ -275,7 +275,7 @@ class ActivityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(emoji, style: const TextStyle(fontSize: 22)),
-                const SizedBox(height: 8),
+                const SizedBox(height: LiftrSpacing.x8),
                 Text(
                   name,
                   style: TextStyle(
@@ -284,7 +284,7 @@ class ActivityCard extends StatelessWidget {
                     color: context.lt.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: LiftrSpacing.x2),
                 Text(
                   description,
                   style: TextStyle(fontSize: 11, color: context.lt.textMuted),

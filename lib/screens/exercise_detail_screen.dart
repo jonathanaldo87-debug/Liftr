@@ -109,7 +109,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: error ? const Color(0xFFE24B4A) : null,
+        backgroundColor: error ? LiftrColors.danger : null,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -232,14 +232,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     children: [
                       _chartCard(lt),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: LiftrSpacing.x14),
                       _notesCard(lt),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: LiftrSpacing.x16),
                       _setsHeader(lt),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: LiftrSpacing.x10),
                       if (_isLoading)
                         const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
+                          padding: EdgeInsets.symmetric(vertical: LiftrSpacing.x24),
                           child: Center(
                             child: SizedBox(
                               width: 20,
@@ -253,7 +253,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         )
                       else if (_sets.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x14),
                           child: Text(
                             'No sets yet. Log your first one below.',
                             style: TextStyle(fontSize: 13, color: lt.textDim),
@@ -261,7 +261,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         )
                       else
                         ..._sets.map((s) => _setRow(lt, s)),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: LiftrSpacing.x4),
                       _weightInput(lt),
                     ],
                   ),
@@ -286,14 +286,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               height: 32,
               decoration: BoxDecoration(
                 color: lt.card,
-                border: Border.all(color: lt.border, width: 0.5),
-                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                borderRadius: BorderRadius.circular(LiftrRadii.control),
               ),
               child:
                   Icon(Icons.chevron_left, size: 20, color: lt.textSecondary),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: LiftrSpacing.x10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,10 +338,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     return Container(
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: 0.5),
-        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.cardLarge),
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(LiftrSpacing.x14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -368,7 +368,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: LiftrSpacing.x12),
           SizedBox(
             height: 100,
             child: _history.length < 2
@@ -402,8 +402,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     return Container(
       decoration: BoxDecoration(
         color: lt.card,
-        border: Border.all(color: lt.border, width: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.field),
       ),
       child: TextField(
         controller: _noteCtrl,
@@ -421,7 +421,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         decoration: const InputDecoration(
           hintText: 'Add a note for this exercise…',
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          contentPadding: EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
           fillColor: Colors.transparent,
         ),
       ),
@@ -470,23 +470,23 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 16),
           decoration: BoxDecoration(
-            color: const Color(0xFFE24B4A).withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
+            color: LiftrColors.danger.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(LiftrRadii.field),
           ),
           child: const Icon(Icons.delete_outline,
-              size: 18, color: Color(0xFFE24B4A)),
+              size: 18, color: LiftrColors.danger),
         ),
         child: GestureDetector(
           onTap: () => _editSet(s),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
             decoration: BoxDecoration(
               color: isEditing ? lt.accentBg : lt.surface,
               border: Border.all(
                 color: isEditing ? LiftrColors.accent : lt.borderSubtle,
-                width: isEditing ? 1.0 : 0.5,
+                width: isEditing ? LiftrBorders.thin : LiftrBorders.hairline,
               ),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(LiftrRadii.field),
             ),
             child: Row(
               children: [
@@ -527,11 +527,11 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     final editing = _editing != null;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(LiftrSpacing.x14),
       decoration: BoxDecoration(
         color: lt.accentBg,
-        border: Border.all(color: LiftrColors.accent, width: 1.0),
-        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LiftrColors.accent, width: LiftrBorders.thin),
+        borderRadius: BorderRadius.circular(LiftrRadii.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,7 +565,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Row(
             children: [
               Expanded(
@@ -573,8 +573,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: lt.card,
-                    border: Border.all(color: lt.border, width: 0.5),
-                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                    borderRadius: BorderRadius.circular(LiftrRadii.control),
                   ),
                   child: TextField(
                     controller: _weightCtrl,
@@ -590,14 +590,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       hintText: '0',
                       hintStyle: TextStyle(fontSize: 20, color: lt.textDim),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
                       fillColor: Colors.transparent,
                     ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x6),
                 child: Text(
                   'kg',
                   style: TextStyle(
@@ -611,13 +611,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 children: [
                   Text('Reps',
                       style: TextStyle(fontSize: 11, color: lt.textMuted)),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: LiftrSpacing.x4),
                   Container(
                     width: 56,
                     decoration: BoxDecoration(
                       color: lt.card,
-                      border: Border.all(color: lt.border, width: 0.5),
-                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                      borderRadius: BorderRadius.circular(LiftrRadii.control),
                     ),
                     child: TextField(
                       controller: _repsCtrl,
@@ -634,21 +634,21 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         hintStyle: TextStyle(fontSize: 16, color: lt.textDim),
                         border: InputBorder.none,
                         contentPadding:
-                            const EdgeInsets.symmetric(vertical: 10),
+                            const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
                         fillColor: Colors.transparent,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: LiftrSpacing.x8),
               ElevatedButton(
                 onPressed: _isSaving ? null : _saveSet,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(LiftrRadii.control)),
                 ),
                 child: _isSaving
                     ? const SizedBox(
@@ -664,7 +664,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: LiftrSpacing.x6),
           Text(
             _hint,
             style: TextStyle(fontSize: 10, color: lt.textDim),
@@ -717,7 +717,7 @@ class _ConfirmDialog extends StatelessWidget {
     final lt = context.lt;
     return AlertDialog(
       backgroundColor: lt.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
       title: Text(title,
           style: TextStyle(fontSize: 16, color: lt.textPrimary)),
       content: Text(message,
@@ -729,7 +729,7 @@ class _ConfirmDialog extends StatelessWidget {
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('Delete', style: TextStyle(color: Color(0xFFE24B4A))),
+          child: const Text('Delete', style: TextStyle(color: LiftrColors.danger)),
         ),
       ],
     );
@@ -813,7 +813,7 @@ class _ChartPainter extends CustomPainter {
 
     final dotPaint = Paint()..color = accentColor;
     final holePaint =
-        Paint()..color = isDark ? const Color(0xFF15151A) : Colors.white;
+        Paint()..color = isDark ? LiftrColors.darkSurface : Colors.white;
     for (var i = 0; i < data.length; i++) {
       canvas.drawCircle(
           Offset(x(i), y(data[i])), i == data.length - 1 ? 4.5 : 3, dotPaint);

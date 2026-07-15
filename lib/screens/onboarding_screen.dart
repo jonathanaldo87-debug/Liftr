@@ -144,18 +144,18 @@ class _ActivityPage extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Text('What do you\ntrain?', style: tt.displayMedium),
-          const SizedBox(height: 6),
+          const SizedBox(height: LiftrSpacing.x6),
           Text(
             'Pick your primary workout type',
             style: TextStyle(fontSize: 13, color: lt.textMuted),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: LiftrSpacing.x24),
 
           GridView.count(
             crossAxisCount: 2,
@@ -199,18 +199,18 @@ class _LevelPage extends StatelessWidget {
     final tt = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Text('What\'s your\n$activityName level?', style: tt.displayMedium),
-          const SizedBox(height: 6),
+          const SizedBox(height: LiftrSpacing.x6),
           Text(
             'We\'ll personalise your experience',
             style: TextStyle(fontSize: 13, color: lt.textMuted),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: LiftrSpacing.x32),
 
           ...List.generate(levels.length, (i) {
             final isSelected = selected == i;
@@ -220,14 +220,14 @@ class _LevelPage extends StatelessWidget {
                 onTap: () => onSelect(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(LiftrSpacing.x18),
                   decoration: BoxDecoration(
                     color: isSelected ? lt.accentBg : lt.card,
                     border: Border.all(
                       color: isSelected ? LiftrColors.accent : lt.border,
-                      width: isSelected ? 1.0 : 0.5,
+                      width: isSelected ? LiftrBorders.thin : LiftrBorders.hairline,
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(LiftrRadii.card),
                   ),
                   child: Row(
                     children: [
@@ -256,7 +256,7 @@ class _LevelPage extends StatelessWidget {
                           height: 20,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: lt.border, width: 0.5),
+                            border: Border.all(color: lt.border, width: LiftrBorders.hairline),
                           ),
                         ),
                     ],
@@ -266,7 +266,7 @@ class _LevelPage extends StatelessWidget {
             );
           }),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Text(
             ['Start with the fundamentals and build habits.', 'You know the movements — let\'s push further.', 'Advanced programming, heavier loads.'][selected],
             style: TextStyle(fontSize: 12, color: lt.textMuted),
@@ -303,18 +303,18 @@ class _TemplatePage extends StatelessWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Text('How do you want\nto start?', style: tt.displayMedium),
-          const SizedBox(height: 6),
+          const SizedBox(height: LiftrSpacing.x6),
           Text(
             'You can always change this later',
             style: TextStyle(fontSize: 13, color: lt.textMuted),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: LiftrSpacing.x32),
 
           ...List.generate(options.length, (i) {
             final (emoji, title, desc, sub) = options[i];
@@ -325,19 +325,19 @@ class _TemplatePage extends StatelessWidget {
                 onTap: () => onSelect(i),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(LiftrSpacing.x20),
                   decoration: BoxDecoration(
                     color: isSelected ? lt.accentBg : lt.card,
                     border: Border.all(
                       color: isSelected ? LiftrColors.accent : lt.border,
-                      width: isSelected ? 1.0 : 0.5,
+                      width: isSelected ? LiftrBorders.thin : LiftrBorders.hairline,
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(LiftrRadii.panel),
                   ),
                   child: Row(
                     children: [
                       Text(emoji, style: const TextStyle(fontSize: 28)),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: LiftrSpacing.x16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,9 +350,9 @@ class _TemplatePage extends StatelessWidget {
                                 color: isSelected ? LiftrColors.accent : lt.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: LiftrSpacing.x3),
                             Text(desc, style: TextStyle(fontSize: 12, color: lt.textMuted)),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: LiftrSpacing.x4),
                             Text(
                               sub,
                               style: TextStyle(

@@ -167,7 +167,7 @@ class _TodayTabState extends State<_TodayTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Could not load this day: $e'),
-          backgroundColor: const Color(0xFFE24B4A),
+          backgroundColor: LiftrColors.danger,
         ));
       }
     } finally {
@@ -230,7 +230,7 @@ class _TodayTabState extends State<_TodayTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Could not remove it: $e'),
-          backgroundColor: const Color(0xFFE24B4A),
+          backgroundColor: LiftrColors.danger,
         ));
       }
     }
@@ -257,7 +257,7 @@ class _TodayTabState extends State<_TodayTab> {
                         _formattedFullDate(_selectedDate),
                         style: TextStyle(fontSize: 12, color: lt.textMuted),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: LiftrSpacing.x2),
                       Text(
                         // Was hardcoded to "Hey, Alex 👋". For a guest this is
                         // the generated username ("Hey, Swift 👋").
@@ -281,7 +281,7 @@ class _TodayTabState extends State<_TodayTab> {
             hasWorkout: _hasWorkout,
           ),
 
-          const SizedBox(height: 4),
+          const SizedBox(height: LiftrSpacing.x4),
 
           Expanded(
             child: Padding(
@@ -329,7 +329,7 @@ class _AvatarMenu extends StatelessWidget {
         if (v == 'signout') onSignOut();
       },
       offset: const Offset(0, 44),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.field)),
       color: lt.card,
       itemBuilder: (_) => [
         PopupMenuItem(
@@ -337,7 +337,7 @@ class _AvatarMenu extends StatelessWidget {
           child: Row(
             children: [
               Icon(Icons.logout, size: 16, color: lt.textSecondary),
-              const SizedBox(width: 10),
+              const SizedBox(width: LiftrSpacing.x10),
               Text('Sign out',
                   style: TextStyle(fontSize: 13, color: lt.textSecondary)),
             ],
@@ -395,7 +395,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
       child: Column(
         children: [
           Row(
@@ -414,7 +414,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                     size: 16, color: lt.textSecondary),
                 onTap: () => _shiftWeek(-1),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: LiftrSpacing.x8),
               IconSquareButton(
                 icon: Icon(Icons.chevron_right,
                     size: 16, color: lt.textSecondary),
@@ -422,7 +422,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: LiftrSpacing.x12),
           Row(
             children: List.generate(7, (i) {
               final day = _weekStart.add(Duration(days: i));
@@ -448,7 +448,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                           color: hasWork ? lt.accentMid : lt.textDim,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: LiftrSpacing.x4),
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         width: 28,
@@ -459,9 +459,9 @@ class _CalendarStripState extends State<_CalendarStrip> {
                               : isToday
                                   ? lt.accentBg
                                   : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(LiftrRadii.tile),
                           border: isToday && !isSelected
-                              ? Border.all(color: lt.accentBorder, width: 0.5)
+                              ? Border.all(color: lt.accentBorder, width: LiftrBorders.hairline)
                               : null,
                         ),
                         child: Center(
@@ -479,7 +479,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: LiftrSpacing.x4),
                       AnimatedOpacity(
                         opacity: hasWork ? 1 : 0,
                         duration: const Duration(milliseconds: 200),
@@ -548,8 +548,8 @@ class _WorkoutCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: 0.5),
-        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.sheet),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,7 +572,7 @@ class _WorkoutCard extends StatelessWidget {
                           color: lt.textMuted,
                         ),
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: LiftrSpacing.x3),
                       Text(
                         session?.name ?? 'No session',
                         style: TextStyle(
@@ -598,7 +598,7 @@ class _WorkoutCard extends StatelessWidget {
             onTap: onAddExercise,
             child: Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
               child: Row(
                 children: [
                   Container(
@@ -606,12 +606,12 @@ class _WorkoutCard extends StatelessWidget {
                     height: 24,
                     decoration: BoxDecoration(
                       color: lt.accentBg,
-                      border: Border.all(color: lt.accentBorder, width: 0.5),
-                      borderRadius: BorderRadius.circular(7),
+                      border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+                      borderRadius: BorderRadius.circular(LiftrRadii.inset),
                     ),
                     child: Icon(Icons.add, size: 14, color: lt.accentMid),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: LiftrSpacing.x8),
                   Text(
                     'Add exercise',
                     style: TextStyle(
@@ -646,7 +646,7 @@ class _WorkoutCard extends StatelessWidget {
                             message:
                                 'No exercises yet.\nTap "Add exercise" to get started.')
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x6),
                             itemCount: exercises.length,
                             itemBuilder: (_, i) => _ExerciseRow(
                               exercise: exercises[i],
@@ -672,7 +672,7 @@ class _EmptyState extends StatelessWidget {
     final lt = context.lt;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x32),
         child: Text(
           message,
           textAlign: TextAlign.center,
@@ -704,7 +704,7 @@ class _ExerciseRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
         child: Row(
           children: [
             Container(
@@ -712,7 +712,7 @@ class _ExerciseRow extends StatelessWidget {
               height: 34,
               decoration: BoxDecoration(
                 color: lt.card,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(LiftrRadii.control),
               ),
               child: Center(
                 child: Text(
@@ -721,7 +721,7 @@ class _ExerciseRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: LiftrSpacing.x10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -736,7 +736,7 @@ class _ExerciseRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: LiftrSpacing.x2),
                     Text(subtitle,
                         style: TextStyle(fontSize: 11, color: lt.textMuted)),
                   ],
@@ -762,7 +762,7 @@ class _ConfirmDialog extends StatelessWidget {
     final lt = context.lt;
     return AlertDialog(
       backgroundColor: lt.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
       title: Text(title, style: TextStyle(fontSize: 16, color: lt.textPrimary)),
       content: Text(message,
           style: TextStyle(fontSize: 13, color: lt.textSecondary)),
@@ -774,7 +774,7 @@ class _ConfirmDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.pop(context, true),
           child:
-              const Text('Delete', style: TextStyle(color: Color(0xFFE24B4A))),
+              const Text('Delete', style: TextStyle(color: LiftrColors.danger)),
         ),
       ],
     );

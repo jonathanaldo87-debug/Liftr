@@ -41,7 +41,7 @@ Future<void> confirmAndSignOut(
       final lt = ctx.lt;
       return AlertDialog(
         backgroundColor: lt.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
         title: Text('Sign out of a guest account?',
             style: TextStyle(fontSize: 16, color: lt.textPrimary)),
         content: Text(
@@ -65,7 +65,7 @@ Future<void> confirmAndSignOut(
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'signout'),
             child: const Text('Sign out anyway',
-                style: TextStyle(color: Color(0xFFE24B4A))),
+                style: TextStyle(color: LiftrColors.danger)),
           ),
         ],
       );
@@ -116,22 +116,22 @@ class _ProfileTabState extends State<ProfileTab> {
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
           Text('Account', style: TextStyle(fontSize: 12, color: lt.textMuted)),
-          const SizedBox(height: 2),
+          const SizedBox(height: LiftrSpacing.x2),
           Text('Profile', style: tt.displaySmall),
-          const SizedBox(height: 20),
+          const SizedBox(height: LiftrSpacing.x20),
 
           // Identity
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(LiftrSpacing.x16),
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: 0.5),
-              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              borderRadius: BorderRadius.circular(LiftrRadii.cardLarge),
             ),
             child: Row(
               children: [
                 AvatarCircle(AuthService.initials, size: 46),
-                const SizedBox(width: 14),
+                const SizedBox(width: LiftrSpacing.x14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,12 +151,12 @@ class _ProfileTabState extends State<ProfileTab> {
                             ),
                           ),
                           if (isGuest) ...[
-                            const SizedBox(width: 8),
+                            const SizedBox(width: LiftrSpacing.x8),
                             const AccentChip('guest'),
                           ],
                         ],
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: LiftrSpacing.x2),
                       Text(
                         AuthService.accountLabel,
                         maxLines: 1,
@@ -172,19 +172,19 @@ class _ProfileTabState extends State<ProfileTab> {
 
           // The one thing a guest most needs to know, stated where they'll see it.
           if (isGuest) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: LiftrSpacing.x10),
             _GuestWarningCard(onSave: _openUpgradeSheet),
           ],
 
-          const SizedBox(height: 20),
+          const SizedBox(height: LiftrSpacing.x20),
 
           const SectionLabel('Training'),
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Container(
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: 0.5),
-              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              borderRadius: BorderRadius.circular(LiftrRadii.card),
             ),
             child: ListTile(
               onTap: () async {
@@ -195,7 +195,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 if (mounted) setState(() {});
               },
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               leading: Icon(Icons.tune, size: 20, color: lt.textSecondary),
               title: Text(
                 // Answers from onboarding. They're recorded but don't change how
@@ -211,15 +211,15 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: LiftrSpacing.x20),
 
           const SectionLabel('Appearance'),
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Container(
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: 0.5),
-              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              borderRadius: BorderRadius.circular(LiftrRadii.card),
             ),
             child: SwitchListTile(
               value: isDark,
@@ -227,7 +227,7 @@ class _ProfileTabState extends State<ProfileTab> {
               activeThumbColor: LiftrColors.accentText,
               activeTrackColor: LiftrColors.accent,
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               title: Text(
                 'Dark mode',
                 style: TextStyle(fontSize: 14, color: lt.textPrimary),
@@ -243,25 +243,25 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: LiftrSpacing.x20),
 
           const SectionLabel('Session'),
-          const SizedBox(height: 8),
+          const SizedBox(height: LiftrSpacing.x8),
           Container(
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: 0.5),
-              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              borderRadius: BorderRadius.circular(LiftrRadii.card),
             ),
             child: ListTile(
               onTap: _confirmSignOut,
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               leading:
-                  const Icon(Icons.logout, size: 20, color: Color(0xFFE24B4A)),
+                  const Icon(Icons.logout, size: 20, color: LiftrColors.danger),
               title: const Text(
                 'Sign out',
-                style: TextStyle(fontSize: 14, color: Color(0xFFE24B4A)),
+                style: TextStyle(fontSize: 14, color: LiftrColors.danger),
               ),
               subtitle: isGuest
                   ? Text(
@@ -271,7 +271,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   : null,
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: LiftrSpacing.x24),
 
           Center(
             child: Text('Liftr',
@@ -292,11 +292,11 @@ class _GuestWarningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lt = context.lt;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(LiftrSpacing.x14),
       decoration: BoxDecoration(
         color: lt.accentBg,
-        border: Border.all(color: lt.accentBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,7 +304,7 @@ class _GuestWarningCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.info_outline, size: 16, color: lt.accentMid),
-              const SizedBox(width: 8),
+              const SizedBox(width: LiftrSpacing.x8),
               Text(
                 'This account lives on this phone only',
                 style: TextStyle(
@@ -315,7 +315,7 @@ class _GuestWarningCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: LiftrSpacing.x6),
           Text(
             'Add an email and password to back your workouts up and reach them '
             'from another device. Nothing you have already logged is lost — the '
@@ -323,7 +323,7 @@ class _GuestWarningCard extends StatelessWidget {
             style: TextStyle(
                 fontSize: 12, color: lt.textSecondary, height: 1.45),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: LiftrSpacing.x10),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -405,9 +405,9 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         decoration: BoxDecoration(
           color: lt.surface,
-          border: Border.all(color: lt.border, width: 0.5),
+          border: Border.all(color: lt.border, width: LiftrBorders.hairline),
           borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(24)),
+              const BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -419,22 +419,22 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 height: 4,
                 decoration: BoxDecoration(
                   color: lt.border,
-                  borderRadius: BorderRadius.circular(2),
+                  borderRadius: BorderRadius.circular(LiftrRadii.pip),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: LiftrSpacing.x16),
             Text('Save your account', style: tt.displaySmall),
-            const SizedBox(height: 4),
+            const SizedBox(height: LiftrSpacing.x4),
             Text(
               'Your ${AuthService.displayName} history stays exactly as it is — '
               'this just adds a way to sign back in.',
               style: TextStyle(fontSize: 12, color: lt.textMuted, height: 1.4),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: LiftrSpacing.x18),
 
             const SectionLabel('Email'),
-            const SizedBox(height: 6),
+            const SizedBox(height: LiftrSpacing.x6),
             TextField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
@@ -442,10 +442,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               style: TextStyle(fontSize: 14, color: lt.textPrimary),
               decoration: const InputDecoration(hintText: 'you@email.com'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: LiftrSpacing.x12),
 
             const SectionLabel('Password'),
-            const SizedBox(height: 6),
+            const SizedBox(height: LiftrSpacing.x6),
             TextField(
               controller: _passCtrl,
               obscureText: _obscure,
@@ -466,15 +466,15 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
             ),
 
             if (_error != null) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: LiftrSpacing.x10),
               Text(
                 _error!,
                 style:
-                    const TextStyle(fontSize: 12, color: Color(0xFFE24B4A)),
+                    const TextStyle(fontSize: 12, color: LiftrColors.danger),
               ),
             ],
 
-            const SizedBox(height: 18),
+            const SizedBox(height: LiftrSpacing.x18),
             ElevatedButton(
               onPressed: _isSaving ? null : _save,
               child: _isSaving

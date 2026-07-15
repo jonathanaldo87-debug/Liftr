@@ -8,6 +8,14 @@ class LiftrColors {
   static const accentDark = Color(0xFF80E850);
   static const accentText = Color(0xFF0F1A04); // text ON accent bg
 
+  // Destructive actions — delete, sign-out warnings, form errors. Same in both
+  // modes. Was copy-pasted as a raw 0xFFE24B4A in ~20 places; use this, or
+  // `context.lt.danger` where a theme is in hand.
+  static const danger = Color(0xFFE24B4A);
+
+  // Drop shadow beneath popovers (the exercise dropdown). Deliberately soft.
+  static const shadow = Color(0x33000000);
+
   // Dark mode palette
   static const darkBg = Color(0xFF0F0F10);
   static const darkSurface = Color(0xFF15151A);
@@ -57,6 +65,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
   final Color accentBorder;
   final Color accentMid;
   final Color accentTextColor;
+  final Color danger;
 
   const LiftrTheme({
     required this.surface,
@@ -71,6 +80,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     required this.accentBorder,
     required this.accentMid,
     required this.accentTextColor,
+    this.danger = LiftrColors.danger,
   });
 
   static const dark = LiftrTheme(
@@ -108,6 +118,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     Color? surface, Color? card, Color? border, Color? borderSubtle,
     Color? textPrimary, Color? textSecondary, Color? textMuted, Color? textDim,
     Color? accentBg, Color? accentBorder, Color? accentMid, Color? accentTextColor,
+    Color? danger,
   }) => LiftrTheme(
     surface: surface ?? this.surface,
     card: card ?? this.card,
@@ -121,6 +132,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     accentBorder: accentBorder ?? this.accentBorder,
     accentMid: accentMid ?? this.accentMid,
     accentTextColor: accentTextColor ?? this.accentTextColor,
+    danger: danger ?? this.danger,
   );
 
   @override
@@ -139,8 +151,66 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
       accentBorder: Color.lerp(accentBorder, other.accentBorder, t)!,
       accentMid: Color.lerp(accentMid, other.accentMid, t)!,
       accentTextColor: Color.lerp(accentTextColor, other.accentTextColor, t)!,
+      danger: Color.lerp(danger, other.danger, t)!,
     );
   }
+}
+
+// ── Shape tokens ──────────────────────────────────────────────
+// Corner radii and border widths don't change between light and dark, so they
+// live here as plain constants rather than in the theme extension. One entry
+// per value the design already uses — these preserve the exact numbers that
+// were scattered as literals, so adopting them is a rename, not a restyle.
+
+/// Corner radii, smallest to largest.
+class LiftrRadii {
+  static const pip = 2.0; // progress dots
+  static const inset = 7.0; // inner accent icon square
+  static const tile = 8.0; // emoji tiles, calendar day cells
+  static const control = 10.0; // icon buttons, set rows, inner input fields
+  static const field = 12.0; // text fields and most small cards
+  static const button = 14.0; // primary / cancel buttons
+  static const card = 16.0; // standard cards and list rows
+  static const cardLarge = 18.0; // chart card, profile identity block
+  static const panel = 20.0; // chips, toggles, section containers
+  static const sheet = 24.0; // workout card, bottom-sheet top
+
+  /// `BorderRadius.circular(field)` in one call.
+  static BorderRadius all(double r) => BorderRadius.circular(r);
+}
+
+/// Border stroke widths.
+class LiftrBorders {
+  static const hairline = 0.5; // the default divider/card outline
+  static const thin = 1.0; // selected / emphasised
+  static const medium = 1.5; // focused input, chart line
+}
+
+/// Layout spacing — gaps between widgets and padding inside them.
+///
+/// The suffix is the pixel value, so this is a rename that preserves every
+/// existing gap exactly; nothing shifts. Named `xN` rather than sm/md/lg because
+/// the design uses 16 distinct steps, more than a t-shirt scale can hold
+/// cleanly. Applied to SizedBox spacers and EdgeInsets.all/symmetric; positional
+/// fromLTRB paddings keep their literals, since they're layout-specific rather
+/// than part of this rhythm.
+class LiftrSpacing {
+  static const x2 = 2.0;
+  static const x3 = 3.0;
+  static const x4 = 4.0;
+  static const x5 = 5.0;
+  static const x6 = 6.0;
+  static const x8 = 8.0;
+  static const x10 = 10.0;
+  static const x12 = 12.0;
+  static const x14 = 14.0;
+  static const x16 = 16.0;
+  static const x18 = 18.0;
+  static const x20 = 20.0;
+  static const x24 = 24.0;
+  static const x28 = 28.0;
+  static const x32 = 32.0;
+  static const x36 = 36.0;
 }
 
 // ── Helper extension on BuildContext ──────────────────────────
@@ -170,7 +240,7 @@ class AppTheme {
         onPrimary: LiftrColors.accentText,
         secondary: LiftrColors.accentDark,
         onSecondary: LiftrColors.accentText,
-        error: const Color(0xFFE24B4A),
+        error: LiftrColors.danger,
         onError: Colors.white,
         surface: isDark ? LiftrColors.darkSurface : LiftrColors.lightSurface,
         onSurface: text,
@@ -218,24 +288,24 @@ class AppTheme {
         filled: true,
         fillColor: isDark ? LiftrColors.darkCard : LiftrColors.lightCard,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(LiftrRadii.field),
           borderSide: BorderSide(
             color: isDark ? LiftrColors.darkBorder : LiftrColors.lightBorder,
-            width: 0.5,
+            width: LiftrBorders.hairline,
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(LiftrRadii.field),
           borderSide: BorderSide(
             color: isDark ? LiftrColors.darkBorder : LiftrColors.lightBorder,
-            width: 0.5,
+            width: LiftrBorders.hairline,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: LiftrColors.accent, width: 1.5),
+          borderRadius: BorderRadius.circular(LiftrRadii.field),
+          borderSide: const BorderSide(color: LiftrColors.accent, width: LiftrBorders.medium),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x14),
         hintStyle: TextStyle(
           color: isDark ? LiftrColors.darkTextDim : LiftrColors.lightTextDim,
           fontSize: 14,
@@ -246,7 +316,7 @@ class AppTheme {
           backgroundColor: LiftrColors.accent,
           foregroundColor: LiftrColors.accentText,
           minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.button)),
           elevation: 0,
           textStyle: const TextStyle(
             fontFamily: 'DMSans',
@@ -265,10 +335,10 @@ class AppTheme {
         color: isDark ? LiftrColors.darkSurface : LiftrColors.lightSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(LiftrRadii.panel),
           side: BorderSide(
             color: isDark ? LiftrColors.darkBorderSubtle : LiftrColors.lightBorderSubtle,
-            width: 0.5,
+            width: LiftrBorders.hairline,
           ),
         ),
         margin: EdgeInsets.zero,
