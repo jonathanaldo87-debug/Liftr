@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../main.dart';
+import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/prefs.dart';
+import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import 'onboarding_screen.dart';
@@ -95,6 +97,32 @@ Future<bool> openUpgradeSheet(BuildContext context) async {
 }
 
 class _ProfileTabState extends State<ProfileTab> {
+  /// The catalog, only so saved discipline *keys* can be shown as labels.
+  List<Discipline> _disciplines = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisciplines();
+  }
+
+  Future<void> _loadDisciplines() async {
+    final list = await WorkoutService.getDisciplines();
+    if (mounted) setState(() => _disciplines = list);
+  }
+
+  /// e.g. "Gym · Running". Falls back to the raw key if the catalog hasn't
+  /// loaded yet, so the row never sits empty.
+  String get _disciplineLabel {
+    final enabled = Prefs.enabledDisciplines;
+    if (enabled.isEmpty) return 'Set up your training';
+
+    return enabled.map((disciplineKey) {
+      final match = _disciplines.where((d) => d.key == disciplineKey);
+      return match.isEmpty ? disciplineKey : match.first.label;
+    }).join(' · ');
+  }
+
   Future<void> _confirmSignOut() =>
       confirmAndSignOut(context, widget.onSignOut);
 
@@ -198,11 +226,9 @@ class _ProfileTabState extends State<ProfileTab> {
                   const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               leading: Icon(Icons.tune, size: 20, color: lt.textSecondary),
               title: Text(
-                // Answers from onboarding. They're recorded but don't change how
-                // the app behaves yet — it logs gym lifts either way.
-                (Prefs.activity == null || Prefs.level == null)
-                    ? 'Set up your training'
-                    : '${Prefs.activity} · ${Prefs.level}',
+                // The disciplines you picked in onboarding. These are now
+                // load-bearing: they decide which chips the home screen offers.
+                _disciplineLabel,
                 style: TextStyle(fontSize: 14, color: lt.textPrimary),
               ),
               subtitle: Text(

@@ -1,4 +1,5 @@
 export 'catalog_exercises.dart';
+export 'discipline.dart';
 export 'exercise_sets.dart';
 export 'workout_exercises.dart';
 export 'workout_exercises_payload.dart';

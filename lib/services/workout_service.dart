@@ -1,6 +1,19 @@
 import 'package:liftr/models/models.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Thrown when starting a session while a different one is still active.
+///
+/// A typed exception rather than a generic Exception so the UI can offer to end
+/// [active] and carry on, instead of matching on an error string.
+class ActiveSessionExists implements Exception {
+  final WorkoutSessions active;
+  const ActiveSessionExists(this.active);
+
+  @override
+  String toString() =>
+      'ActiveSessionExists(${active.discipline} on ${active.sessionDate})';
+}
+
 class WorkoutService {
   static final _db = Supabase.instance.client;
 
@@ -10,25 +23,76 @@ class WorkoutService {
     return user.id;
   }
 
+  static const _sessionCols = 'session_id, session_date, name, notes, '
+      'discipline, is_active, created_at, updated_at';
+
+  // ── Disciplines ─────────────────────────────────────────────
+
+  /// The disciplines the app can log, from the `disciplines` table.
+  ///
+  /// Read from the database rather than a Dart enum on purpose: adding swimming
+  /// should be an INSERT, not a release. Inactive rows are filtered out, which
+  /// is how a discipline can be seeded before its logging UI exists.
+  ///
+  /// Falls back to gym if the fetch fails — an empty list would leave the user
+  /// unable to log anything at all.
+  static Future<List<Discipline>> getDisciplines() async {
+    try {
+      final data = await _db
+          .from('disciplines')
+          .select('discipline_key, label, emoji, description, sort_order')
+          .eq('is_active', true)
+          .order('sort_order', ascending: true);
+
+      final list = data.map((j) => Discipline.fromJson(j)).toList();
+      if (list.isEmpty) return const [_gymFallback];
+      return list;
+    } catch (_) {
+      return const [_gymFallback];
+    }
+  }
+
+  static const _gymFallback =
+      Discipline(key: Discipline.gymKey, label: 'Gym', emoji: '🏋️');
+
   // ── Sessions ────────────────────────────────────────────────
 
-  /// The session logged on [date], or null.
+  /// The [discipline] session logged on [date], or null.
+  ///
+  /// Scoped by discipline because a day can now hold one session per discipline
+  /// — a gym workout and a run are separate sessions on the same date. Migration
+  /// 009 widened the unique index to (user, date, discipline) to allow exactly
+  /// that.
   ///
   /// Deliberately not `.maybeSingle()`: that throws if a day somehow holds more
-  /// than one session, which would take the whole home screen down. Taking the
-  /// oldest keeps the screen up even if a duplicate slipped in before migration
-  /// 006 added the unique index.
-  static Future<WorkoutSessions?> getWorkoutSession(DateTime date) async {
+  /// than one matching session, which would take the whole home screen down.
+  static Future<WorkoutSessions?> getWorkoutSession(
+    DateTime date, {
+    String discipline = Discipline.gymKey,
+  }) async {
     final data = await _db
         .from('workout_sessions')
-        .select('session_id, session_date, name, notes, created_at, updated_at')
+        .select(_sessionCols)
         .eq('user_id', _userId)
         .eq('session_date', _formatDate(date))
+        .eq('discipline', discipline)
         .order('created_at', ascending: true)
         .limit(1);
 
     if (data.isEmpty) return null;
     return WorkoutSessions.fromJson(data.first);
+  }
+
+  /// Every session on [date], across all disciplines — what the "All" chip shows.
+  static Future<List<WorkoutSessions>> getSessionsForDate(DateTime date) async {
+    final data = await _db
+        .from('workout_sessions')
+        .select(_sessionCols)
+        .eq('user_id', _userId)
+        .eq('session_date', _formatDate(date))
+        .order('created_at', ascending: true);
+
+    return data.map((j) => WorkoutSessions.fromJson(j)).toList();
   }
 
   static Future<String> createWorkoutSession(
@@ -40,26 +104,105 @@ class WorkoutService {
           'name': payload.name,
           'session_date': _formatDate(payload.sessionDate),
           'notes': payload.notes,
+          'discipline': payload.discipline,
         })
         .select('session_id')
         .single();
     return result['session_id'] as String;
   }
 
-  /// The session for [date], creating it with [name] if there isn't one yet.
+  /// The [discipline] session for [date], creating it with [name] if absent.
   ///
-  /// Adding an exercise must never mint a second session for the same day. It
-  /// used to, which is what broke adding a second exercise to a workout.
-  static Future<String> getOrCreateSession(DateTime date, String name) async {
-    final existing = await getWorkoutSession(date);
+  /// Adding an exercise must never mint a second session for the same day and
+  /// discipline. It used to, which is what broke adding a second exercise.
+  static Future<String> getOrCreateSession(
+    DateTime date,
+    String name, {
+    String discipline = Discipline.gymKey,
+  }) async {
+    final existing = await getWorkoutSession(date, discipline: discipline);
     final id = existing?.sessionId;
     if (id != null) return id;
 
     return createWorkoutSession(
-      WorkoutSessionsPayload(sessionDate: date, name: name),
+      WorkoutSessionsPayload(
+        sessionDate: date,
+        name: name,
+        discipline: discipline,
+      ),
     );
   }
 
+  // ── The active session ──────────────────────────────────────
+
+  /// The session you're on right now, or null.
+  ///
+  /// At most one exists — migration 010's partial unique index guarantees it, so
+  /// this can safely take the first row. This is the answer to "which session am
+  /// I currently in"; nothing about it is timed.
+  static Future<WorkoutSessions?> getActiveSession() async {
+    final data = await _db
+        .from('workout_sessions')
+        .select(_sessionCols)
+        .eq('user_id', _userId)
+        .eq('is_active', true)
+        .limit(1);
+
+    if (data.isEmpty) return null;
+    return WorkoutSessions.fromJson(data.first);
+  }
+
+  /// Marks a session as no longer current. Its data stays exactly as it is —
+  /// ending is a flag flip, not a delete, and an ended session is still
+  /// editable.
+  static Future<void> endSession(String sessionId) async {
+    await _db
+        .from('workout_sessions')
+        .update({'is_active': false}).eq('session_id', sessionId);
+  }
+
+  /// Starts (or resumes) the [discipline] session for [date] and makes it the
+  /// active one.
+  ///
+  /// Throws [ActiveSessionExists] if a *different* session is already active —
+  /// you can't be doing gym and running at once. The caller is expected to offer
+  /// to end that one first. Re-starting the session that's already active is a
+  /// no-op rather than an error.
+  static Future<String> startSession(
+    DateTime date,
+    String name, {
+    String discipline = Discipline.gymKey,
+  }) async {
+    final active = await getActiveSession();
+    final sessionId = await getOrCreateSession(date, name, discipline: discipline);
+
+    if (active != null) {
+      if (active.sessionId == sessionId) return sessionId; // already on it
+      throw ActiveSessionExists(active);
+    }
+
+    await _db
+        .from('workout_sessions')
+        .update({'is_active': true}).eq('session_id', sessionId);
+    return sessionId;
+  }
+
+  /// Ends [previous] and starts the requested session in one go — what the
+  /// "you left a session open" prompt calls once the user confirms.
+  static Future<String> endAndStartSession(
+    WorkoutSessions previous,
+    DateTime date,
+    String name, {
+    String discipline = Discipline.gymKey,
+  }) async {
+    final id = previous.sessionId;
+    if (id != null) await endSession(id);
+    return startSession(date, name, discipline: discipline);
+  }
+
+  /// Renames / re-notes a session. Deliberately does not touch `discipline`:
+  /// a session's discipline decides which child rows are valid under it, so
+  /// changing it after the fact would orphan them.
   static Future<void> updateWorkoutSession(
       String sessionId, WorkoutSessionsPayload payload) async {
     await _db.from('workout_sessions').update({
@@ -111,8 +254,7 @@ class WorkoutService {
   static Future<List<SessionSummary>> getSessionHistory({int limit = 50}) async {
     final data = await _db
         .from('workout_sessions')
-        .select('session_id, session_date, name, notes, created_at, updated_at, '
-            'workout_exercises(exercise_id)')
+        .select('$_sessionCols, workout_exercises(exercise_id)')
         .eq('user_id', _userId)
         .order('session_date', ascending: false)
         .limit(limit);

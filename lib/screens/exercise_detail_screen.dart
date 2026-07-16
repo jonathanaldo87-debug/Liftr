@@ -9,10 +9,18 @@ class ExerciseDetailScreen extends StatefulWidget {
   final WorkoutExercises exercise;
   final DateTime selectedDate;
 
+  /// Opened from a session that isn't active and hasn't been unlocked.
+  ///
+  /// You can still read everything — the chart and the sets are the point of
+  /// looking at history — but nothing here may change it. Without this the lock
+  /// on the home card would be cosmetic: you'd just tap through and edit anyway.
+  final bool readOnly;
+
   const ExerciseDetailScreen({
     super.key,
     required this.exercise,
     required this.selectedDate,
+    this.readOnly = false,
   });
 
   @override
@@ -92,6 +100,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   /// lift at all. Never overwrites what you've already typed, and never fights
   /// an edit in progress.
   void _prefill() {
+    // Nothing to prefill when there's no input to prefill into.
+    if (widget.readOnly) return;
     if (_editing != null) return;
     if (_weightCtrl.text.isNotEmpty || _repsCtrl.text.isNotEmpty) return;
 
@@ -253,16 +263,24 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         )
                       else if (_sets.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x14),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: LiftrSpacing.x14),
                           child: Text(
-                            'No sets yet. Log your first one below.',
+                            widget.readOnly
+                                ? 'No sets were logged for this exercise.'
+                                : 'No sets yet. Log your first one below.',
                             style: TextStyle(fontSize: 13, color: lt.textDim),
                           ),
                         )
                       else
                         ..._sets.map((s) => _setRow(lt, s)),
-                      const SizedBox(height: LiftrSpacing.x4),
-                      _weightInput(lt),
+
+                      // The whole logging surface, gone when read-only — there's
+                      // nothing to type into a session you're only looking at.
+                      if (!widget.readOnly) ...[
+                        const SizedBox(height: LiftrSpacing.x4),
+                        _weightInput(lt),
+                      ],
                     ],
                   ),
                 ),
@@ -312,10 +330,33 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               ],
             ),
           ),
-          ThreeDotMenu(
-            onEdit: _saveNotes,
-            onDelete: _deleteExercise,
-          ),
+          if (widget.readOnly)
+            // Says why the controls are missing, rather than leaving them
+            // mysteriously absent.
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x5),
+              decoration: BoxDecoration(
+                color: lt.card,
+                border:
+                    Border.all(color: lt.border, width: LiftrBorders.hairline),
+                borderRadius: BorderRadius.circular(LiftrRadii.panel),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_outline, size: 12, color: lt.textMuted),
+                  const SizedBox(width: LiftrSpacing.x5),
+                  Text('Read only',
+                      style: TextStyle(fontSize: 12, color: lt.textSecondary)),
+                ],
+              ),
+            )
+          else
+            ThreeDotMenu(
+              onEdit: _saveNotes,
+              onDelete: _deleteExercise,
+            ),
         ],
       ),
     );
@@ -408,20 +449,28 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       child: TextField(
         controller: _noteCtrl,
         maxLines: 2,
+        readOnly: widget.readOnly,
         // Persist on blur: typing a note and walking away used to silently
         // discard it, because the field had no controller at all.
         onTapOutside: (_) {
           FocusScope.of(context).unfocus();
+          if (widget.readOnly) return;
           if (_noteCtrl.text.trim() != (widget.exercise.notes ?? '').trim()) {
             _saveNotes();
           }
         },
-        onSubmitted: (_) => _saveNotes(),
-        style: TextStyle(fontSize: 13, color: lt.textPrimary),
-        decoration: const InputDecoration(
-          hintText: 'Add a note for this exercise…',
+        onSubmitted: widget.readOnly ? null : (_) => _saveNotes(),
+        style: TextStyle(
+          fontSize: 13,
+          color: widget.readOnly ? lt.textSecondary : lt.textPrimary,
+        ),
+        decoration: InputDecoration(
+          hintText: widget.readOnly
+              ? 'No note for this exercise'
+              : 'Add a note for this exercise…',
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
+          contentPadding: const EdgeInsets.symmetric(
+              horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
           fillColor: Colors.transparent,
         ),
       ),
@@ -460,6 +509,15 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   Widget _setRow(LiftrTheme lt, ExerciseSets s) {
     final isEditing = _editing?.setId != null && _editing!.setId == s.setId;
 
+    // Read-only: no swipe-to-delete and no tap-to-edit. Wrapping in Dismissible
+    // at all would leave the swipe live even with the handler stubbed out.
+    if (widget.readOnly) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: LiftrSpacing.x8),
+        child: _setRowBody(lt, s, isEditing: false),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Dismissible(
@@ -478,7 +536,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         ),
         child: GestureDetector(
           onTap: () => _editSet(s),
-          child: Container(
+          child: _setRowBody(lt, s, isEditing: isEditing),
+        ),
+      ),
+    );
+  }
+
+  Widget _setRowBody(LiftrTheme lt, ExerciseSets s, {required bool isEditing}) {
+    return Container(
             padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
             decoration: BoxDecoration(
               color: isEditing ? lt.accentBg : lt.surface,
@@ -517,9 +582,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
     );
   }
 
