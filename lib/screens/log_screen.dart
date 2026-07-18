@@ -88,7 +88,8 @@ class _LogTabState extends State<LogTab> {
                   _isLoading
                       ? 'Loading…'
                       : '${_sessions.length} workout${_sessions.length == 1 ? '' : 's'}',
-                  style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
+                  style:
+                      TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
                 ),
                 const SizedBox(height: LiftrSpacing.x2),
                 Text('History', style: tt.displaySmall),
@@ -124,7 +125,8 @@ class _LogTabState extends State<LogTab> {
         child: Text(
           'Could not load your history.\n$_error',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
+          style: TextStyle(
+              fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
         ),
       );
     }
@@ -134,7 +136,8 @@ class _LogTabState extends State<LogTab> {
         child: Text(
           'No workouts yet.\nLog one from the Home tab and it shows up here.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
+          style: TextStyle(
+              fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
         ),
       );
     }
@@ -168,7 +171,8 @@ class _Scrollable extends StatelessWidget {
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x32),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: LiftrSpacing.x32),
                 child: child,
               ),
             ),
@@ -200,10 +204,12 @@ class _SessionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(LiftrRadii.card),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
+          padding: const EdgeInsets.symmetric(
+              horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
           decoration: BoxDecoration(
             color: lt.surface,
-            border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+            border: Border.all(
+                color: lt.borderSubtle, width: LiftrBorders.hairline),
             borderRadius: BorderRadius.circular(LiftrRadii.card),
           ),
           child: Row(
@@ -214,7 +220,8 @@ class _SessionCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x6),
                 decoration: BoxDecoration(
                   color: lt.accentBg,
-                  border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+                  border: Border.all(
+                      color: lt.accentBorder, width: LiftrBorders.hairline),
                   borderRadius: BorderRadius.circular(LiftrRadii.control),
                 ),
                 child: Column(
@@ -259,7 +266,8 @@ class _SessionCard extends StatelessWidget {
                       '${summary.exerciseCount} exercise'
                       '${summary.exerciseCount == 1 ? '' : 's'}'
                       '${date == null ? '' : ' · ${_relative(date)}'}',
-                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                      style: TextStyle(
+                          fontSize: LiftrType.x11, color: lt.textMuted),
                     ),
                   ],
                 ),
@@ -274,8 +282,18 @@ class _SessionCard extends StatelessWidget {
 
   static String _month(DateTime d) {
     const months = [
-      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
     ];
     return months[d.month - 1];
   }
@@ -305,10 +323,12 @@ class _ConfirmDialog extends StatelessWidget {
     final lt = context.lt;
     return AlertDialog(
       backgroundColor: lt.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
-      title: Text(title, style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
-      content:
-          Text(message, style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LiftrRadii.card)),
+      title: Text(title,
+          style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
+      content: Text(message,
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),

@@ -115,25 +115,35 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
 
   @override
   LiftrTheme copyWith({
-    Color? surface, Color? card, Color? border, Color? borderSubtle,
-    Color? textPrimary, Color? textSecondary, Color? textMuted, Color? textDim,
-    Color? accentBg, Color? accentBorder, Color? accentMid, Color? accentTextColor,
+    Color? surface,
+    Color? card,
+    Color? border,
+    Color? borderSubtle,
+    Color? textPrimary,
+    Color? textSecondary,
+    Color? textMuted,
+    Color? textDim,
+    Color? accentBg,
+    Color? accentBorder,
+    Color? accentMid,
+    Color? accentTextColor,
     Color? danger,
-  }) => LiftrTheme(
-    surface: surface ?? this.surface,
-    card: card ?? this.card,
-    border: border ?? this.border,
-    borderSubtle: borderSubtle ?? this.borderSubtle,
-    textPrimary: textPrimary ?? this.textPrimary,
-    textSecondary: textSecondary ?? this.textSecondary,
-    textMuted: textMuted ?? this.textMuted,
-    textDim: textDim ?? this.textDim,
-    accentBg: accentBg ?? this.accentBg,
-    accentBorder: accentBorder ?? this.accentBorder,
-    accentMid: accentMid ?? this.accentMid,
-    accentTextColor: accentTextColor ?? this.accentTextColor,
-    danger: danger ?? this.danger,
-  );
+  }) =>
+      LiftrTheme(
+        surface: surface ?? this.surface,
+        card: card ?? this.card,
+        border: border ?? this.border,
+        borderSubtle: borderSubtle ?? this.borderSubtle,
+        textPrimary: textPrimary ?? this.textPrimary,
+        textSecondary: textSecondary ?? this.textSecondary,
+        textMuted: textMuted ?? this.textMuted,
+        textDim: textDim ?? this.textDim,
+        accentBg: accentBg ?? this.accentBg,
+        accentBorder: accentBorder ?? this.accentBorder,
+        accentMid: accentMid ?? this.accentMid,
+        accentTextColor: accentTextColor ?? this.accentTextColor,
+        danger: danger ?? this.danger,
+      );
 
   @override
   LiftrTheme lerp(LiftrTheme? other, double t) {
@@ -279,21 +289,43 @@ class AppTheme {
       ),
       fontFamily: 'DMSans',
       textTheme: TextTheme(
-        displayLarge: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: LiftrType.x32, fontWeight: FontWeight.w400),
-        displayMedium: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: LiftrType.x26, fontWeight: FontWeight.w400),
-        displaySmall: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: LiftrType.x22, fontWeight: FontWeight.w400),
-        headlineMedium: TextStyle(color: text, fontSize: LiftrType.x18, fontWeight: FontWeight.w500, letterSpacing: -0.3),
-        titleLarge: TextStyle(color: text, fontSize: LiftrType.x16, fontWeight: FontWeight.w500),
-        titleMedium: TextStyle(color: text, fontSize: LiftrType.x14, fontWeight: FontWeight.w500),
-        bodyLarge: TextStyle(color: text, fontSize: LiftrType.x15, fontWeight: FontWeight.w400),
-        bodyMedium: TextStyle(color: text, fontSize: LiftrType.x13, fontWeight: FontWeight.w400),
+        displayLarge: TextStyle(
+            fontFamily: 'DMSerifDisplay',
+            color: text,
+            fontSize: LiftrType.x32,
+            fontWeight: FontWeight.w400),
+        displayMedium: TextStyle(
+            fontFamily: 'DMSerifDisplay',
+            color: text,
+            fontSize: LiftrType.x26,
+            fontWeight: FontWeight.w400),
+        displaySmall: TextStyle(
+            fontFamily: 'DMSerifDisplay',
+            color: text,
+            fontSize: LiftrType.x22,
+            fontWeight: FontWeight.w400),
+        headlineMedium: TextStyle(
+            color: text,
+            fontSize: LiftrType.x18,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.3),
+        titleLarge: TextStyle(
+            color: text, fontSize: LiftrType.x16, fontWeight: FontWeight.w500),
+        titleMedium: TextStyle(
+            color: text, fontSize: LiftrType.x14, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(
+            color: text, fontSize: LiftrType.x15, fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(
+            color: text, fontSize: LiftrType.x13, fontWeight: FontWeight.w400),
         bodySmall: TextStyle(
-          color: isDark ? LiftrColors.darkTextMuted : LiftrColors.lightTextMuted,
+          color:
+              isDark ? LiftrColors.darkTextMuted : LiftrColors.lightTextMuted,
           fontSize: LiftrType.x12,
           fontWeight: FontWeight.w400,
         ),
         labelSmall: TextStyle(
-          color: isDark ? LiftrColors.darkTextMuted : LiftrColors.lightTextMuted,
+          color:
+              isDark ? LiftrColors.darkTextMuted : LiftrColors.lightTextMuted,
           fontSize: LiftrType.x11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.08,
@@ -306,13 +338,16 @@ class AppTheme {
         elevation: 0,
         iconTheme: IconThemeData(color: text),
         systemOverlayStyle: isDark
-            ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
-            : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+            ? SystemUiOverlayStyle.light
+                .copyWith(statusBarColor: Colors.transparent)
+            : SystemUiOverlayStyle.dark
+                .copyWith(statusBarColor: Colors.transparent),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: bg,
         selectedItemColor: LiftrColors.accent,
-        unselectedItemColor: isDark ? LiftrColors.darkTextDim : LiftrColors.lightTextDim,
+        unselectedItemColor:
+            isDark ? LiftrColors.darkTextDim : LiftrColors.lightTextDim,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
       ),
@@ -335,9 +370,11 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(LiftrRadii.field),
-          borderSide: const BorderSide(color: LiftrColors.accent, width: LiftrBorders.medium),
+          borderSide: const BorderSide(
+              color: LiftrColors.accent, width: LiftrBorders.medium),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x14),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x14),
         hintStyle: TextStyle(
           color: isDark ? LiftrColors.darkTextDim : LiftrColors.lightTextDim,
           fontSize: LiftrType.x14,
@@ -348,7 +385,8 @@ class AppTheme {
           backgroundColor: LiftrColors.accent,
           foregroundColor: LiftrColors.accentText,
           minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.button)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(LiftrRadii.button)),
           elevation: 0,
           textStyle: const TextStyle(
             fontFamily: 'DMSans',
@@ -359,7 +397,9 @@ class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: isDark ? LiftrColors.darkBorderSubtle : LiftrColors.lightBorderSubtle,
+        color: isDark
+            ? LiftrColors.darkBorderSubtle
+            : LiftrColors.lightBorderSubtle,
         thickness: 0.5,
         space: 0,
       ),
@@ -369,7 +409,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(LiftrRadii.panel),
           side: BorderSide(
-            color: isDark ? LiftrColors.darkBorderSubtle : LiftrColors.lightBorderSubtle,
+            color: isDark
+                ? LiftrColors.darkBorderSubtle
+                : LiftrColors.lightBorderSubtle,
             width: LiftrBorders.hairline,
           ),
         ),

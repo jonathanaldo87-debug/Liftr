@@ -43,7 +43,8 @@ Future<void> confirmAndSignOut(
       final lt = ctx.lt;
       return AlertDialog(
         backgroundColor: lt.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LiftrRadii.card)),
         title: Text('Sign out of a guest account?',
             style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
         content: Text(
@@ -51,8 +52,8 @@ Future<void> confirmAndSignOut(
           'there is no way to sign back into it.\n\n'
           'Signing out permanently loses access to every workout you have '
           'logged. Add an email and password first to keep them.',
-          style:
-              TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
+          style: TextStyle(
+              fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
         ),
         actions: [
           TextButton(
@@ -143,7 +144,8 @@ class _ProfileTabState extends State<ProfileTab> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          Text('Account', style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
+          Text('Account',
+              style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
           const SizedBox(height: LiftrSpacing.x2),
           Text('Profile', style: tt.displaySmall),
           const SizedBox(height: LiftrSpacing.x20),
@@ -153,7 +155,8 @@ class _ProfileTabState extends State<ProfileTab> {
             padding: const EdgeInsets.all(LiftrSpacing.x16),
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              border: Border.all(
+                  color: lt.borderSubtle, width: LiftrBorders.hairline),
               borderRadius: BorderRadius.circular(LiftrRadii.cardLarge),
             ),
             child: Row(
@@ -189,7 +192,8 @@ class _ProfileTabState extends State<ProfileTab> {
                         AuthService.accountLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
+                        style: TextStyle(
+                            fontSize: LiftrType.x12, color: lt.textMuted),
                       ),
                     ],
                   ),
@@ -211,7 +215,8 @@ class _ProfileTabState extends State<ProfileTab> {
           Container(
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              border: Border.all(
+                  color: lt.borderSubtle, width: LiftrBorders.hairline),
               borderRadius: BorderRadius.circular(LiftrRadii.card),
             ),
             child: ListTile(
@@ -222,14 +227,15 @@ class _ProfileTabState extends State<ProfileTab> {
                 );
                 if (mounted) setState(() {});
               },
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               leading: Icon(Icons.tune, size: 20, color: lt.textSecondary),
               title: Text(
                 // The disciplines you picked in onboarding. These are now
                 // load-bearing: they decide which chips the home screen offers.
                 _disciplineLabel,
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
               ),
               subtitle: Text(
                 'Tap to run through setup again',
@@ -244,7 +250,8 @@ class _ProfileTabState extends State<ProfileTab> {
           Container(
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              border: Border.all(
+                  color: lt.borderSubtle, width: LiftrBorders.hairline),
               borderRadius: BorderRadius.circular(LiftrRadii.card),
             ),
             child: SwitchListTile(
@@ -252,11 +259,12 @@ class _ProfileTabState extends State<ProfileTab> {
               onChanged: (_) => LiftrApp.of(context).toggleTheme(),
               activeThumbColor: LiftrColors.accentText,
               activeTrackColor: LiftrColors.accent,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               title: Text(
                 'Dark mode',
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
               ),
               subtitle: Text(
                 isDark ? 'Dark theme is on' : 'Light theme is on',
@@ -276,23 +284,26 @@ class _ProfileTabState extends State<ProfileTab> {
           Container(
             decoration: BoxDecoration(
               color: lt.surface,
-              border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+              border: Border.all(
+                  color: lt.borderSubtle, width: LiftrBorders.hairline),
               borderRadius: BorderRadius.circular(LiftrRadii.card),
             ),
             child: ListTile(
               onTap: _confirmSignOut,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               leading:
                   const Icon(Icons.logout, size: 20, color: LiftrColors.danger),
               title: const Text(
                 'Sign out',
-                style: TextStyle(fontSize: LiftrType.x14, color: LiftrColors.danger),
+                style: TextStyle(
+                    fontSize: LiftrType.x14, color: LiftrColors.danger),
               ),
               subtitle: isGuest
                   ? Text(
                       'Ends this guest account for good',
-                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                      style: TextStyle(
+                          fontSize: LiftrType.x11, color: lt.textMuted),
                     )
                   : null,
             ),
@@ -321,7 +332,8 @@ class _GuestWarningCard extends StatelessWidget {
       padding: const EdgeInsets.all(LiftrSpacing.x14),
       decoration: BoxDecoration(
         color: lt.accentBg,
-        border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+        border:
+            Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.card),
       ),
       child: Column(
@@ -432,8 +444,8 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
         decoration: BoxDecoration(
           color: lt.surface,
           border: Border.all(color: lt.border, width: LiftrBorders.hairline),
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
+          borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(LiftrRadii.sheet)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -455,10 +467,10 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
             Text(
               'Your ${AuthService.displayName} history stays exactly as it is — '
               'this just adds a way to sign back in.',
-              style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted, height: 1.4),
+              style: TextStyle(
+                  fontSize: LiftrType.x12, color: lt.textMuted, height: 1.4),
             ),
             const SizedBox(height: LiftrSpacing.x18),
-
             const SectionLabel('Email'),
             const SizedBox(height: LiftrSpacing.x6),
             TextField(
@@ -469,7 +481,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               decoration: const InputDecoration(hintText: 'you@email.com'),
             ),
             const SizedBox(height: LiftrSpacing.x12),
-
             const SectionLabel('Password'),
             const SizedBox(height: LiftrSpacing.x6),
             TextField(
@@ -490,16 +501,14 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
                 ),
               ),
             ),
-
             if (_error != null) ...[
               const SizedBox(height: LiftrSpacing.x10),
               Text(
                 _error!,
-                style:
-                    const TextStyle(fontSize: LiftrType.x12, color: LiftrColors.danger),
+                style: const TextStyle(
+                    fontSize: LiftrType.x12, color: LiftrColors.danger),
               ),
             ],
-
             const SizedBox(height: LiftrSpacing.x18),
             ElevatedButton(
               onPressed: _isSaving ? null : _save,

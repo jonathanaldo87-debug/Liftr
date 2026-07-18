@@ -165,10 +165,12 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       height: 32,
                       decoration: BoxDecoration(
                         color: lt.card,
-                        border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                        border: Border.all(
+                            color: lt.border, width: LiftrBorders.hairline),
                         borderRadius: BorderRadius.circular(LiftrRadii.control),
                       ),
-                      child: Icon(Icons.chevron_left, size: 20, color: lt.textSecondary),
+                      child: Icon(Icons.chevron_left,
+                          size: 20, color: lt.textSecondary),
                     ),
                   ),
                   const SizedBox(width: LiftrSpacing.x10),
@@ -185,7 +187,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
             // ── Form ────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -197,7 +200,9 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         color: lt.card,
                         border: Border.all(
                           color: _nameError ? LiftrColors.danger : lt.border,
-                          width: _nameError ? LiftrBorders.thin : LiftrBorders.hairline,
+                          width: _nameError
+                              ? LiftrBorders.thin
+                              : LiftrBorders.hairline,
                         ),
                         borderRadius: BorderRadius.circular(LiftrRadii.field),
                       ),
@@ -206,11 +211,14 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         onChanged: (_) {
                           if (_nameError) setState(() => _nameError = false);
                         },
-                        style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                        style: TextStyle(
+                            fontSize: LiftrType.x14, color: lt.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'e.g. Push Day A',
                           border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x14),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: LiftrSpacing.x14,
+                              vertical: LiftrSpacing.x14),
                           fillColor: Colors.transparent,
                         ),
                       ),
@@ -219,7 +227,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       const SizedBox(height: LiftrSpacing.x5),
                       const Text(
                         'Session name is required',
-                        style: TextStyle(fontSize: LiftrType.x11, color: LiftrColors.danger),
+                        style: TextStyle(
+                            fontSize: LiftrType.x11, color: LiftrColors.danger),
                       ),
                     ],
                     const SizedBox(height: LiftrSpacing.x20),
@@ -236,13 +245,15 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     Container(
                       decoration: BoxDecoration(
                         color: lt.card,
-                        border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                        border: Border.all(
+                            color: lt.border, width: LiftrBorders.hairline),
                         borderRadius: BorderRadius.circular(LiftrRadii.field),
                       ),
                       child: TextField(
                         controller: _noteCtrl,
                         maxLines: 4,
-                        style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                        style: TextStyle(
+                            fontSize: LiftrType.x14, color: lt.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'Optional notes for this exercise…',
                           border: InputBorder.none,
@@ -269,8 +280,10 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         height: 50,
                         decoration: BoxDecoration(
                           color: lt.card,
-                          border: Border.all(color: lt.border, width: LiftrBorders.hairline),
-                          borderRadius: BorderRadius.circular(LiftrRadii.button),
+                          border: Border.all(
+                              color: lt.border, width: LiftrBorders.hairline),
+                          borderRadius:
+                              BorderRadius.circular(LiftrRadii.button),
                         ),
                         child: Center(
                           child: Text(
@@ -351,7 +364,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     child: TextField(
                       controller: controller,
                       focusNode: focusNode,
-                      style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                      style: TextStyle(
+                          fontSize: LiftrType.x14, color: lt.textPrimary),
                       onChanged: (v) {
                         // Typing past a selection invalidates it, which disables Save.
                         if (selected != null && v.trim() != selected.name) {
@@ -360,10 +374,12 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       },
                       decoration: InputDecoration(
                         hintText: 'Search exercises…',
-                        hintStyle: TextStyle(fontSize: LiftrType.x14, color: lt.textDim),
+                        hintStyle: TextStyle(
+                            fontSize: LiftrType.x14, color: lt.textDim),
                         border: InputBorder.none,
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x14),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: LiftrSpacing.x14),
                         fillColor: Colors.transparent,
                       ),
                     ),
@@ -382,8 +398,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
           },
           optionsViewBuilder: (context, onSelected, options) {
             final list = options.toList();
-            final showingRecents = _exerciseCtrl.text.trim().isEmpty &&
-                _recent.isNotEmpty;
+            final showingRecents =
+                _exerciseCtrl.text.trim().isEmpty && _recent.isNotEmpty;
 
             return Align(
               alignment: Alignment.topLeft,
@@ -396,7 +412,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     constraints: const BoxConstraints(maxHeight: 300),
                     decoration: BoxDecoration(
                       color: lt.surface,
-                      border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                      border: Border.all(
+                          color: lt.border, width: LiftrBorders.hairline),
                       borderRadius: BorderRadius.circular(LiftrRadii.field),
                       boxShadow: const [
                         BoxShadow(
@@ -427,7 +444,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                           ),
                         Flexible(
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x4),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: LiftrSpacing.x4),
                             shrinkWrap: true,
                             itemCount: list.length,
                             itemBuilder: (_, i) {
@@ -437,12 +455,15 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                 onTap: () => onSelected(e),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: LiftrSpacing.x14, vertical: 9),
+                                      horizontal: LiftrSpacing.x14,
+                                      vertical: 9),
                                   child: Row(
                                     children: [
                                       Text(
-                                        exerciseEmoji(e.category, e.muscleGroup),
-                                        style: const TextStyle(fontSize: LiftrType.x15),
+                                        exerciseEmoji(
+                                            e.category, e.muscleGroup),
+                                        style: const TextStyle(
+                                            fontSize: LiftrType.x15),
                                       ),
                                       const SizedBox(width: LiftrSpacing.x10),
                                       Expanded(
@@ -461,7 +482,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                               ),
                                             ),
                                             if (sub.isNotEmpty) ...[
-                                              const SizedBox(height: LiftrSpacing.x2),
+                                              const SizedBox(
+                                                  height: LiftrSpacing.x2),
                                               Text(
                                                 sub,
                                                 maxLines: 1,

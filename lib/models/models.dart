@@ -6,5 +6,6 @@ export 'workout_exercises_payload.dart';
 export 'workout_sessions.dart';
 export 'workout_sessions_payload.dart';
 export 'exercise_sets_payload.dart';
+export 'distance_intervals.dart';
 export 'stats.dart';
 export 'user_machines.dart';

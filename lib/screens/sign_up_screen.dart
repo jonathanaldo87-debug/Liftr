@@ -38,7 +38,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    setState(() { _isLoading = true; _errorMsg = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMsg = null;
+    });
     try {
       final res = await Supabase.instance.client.auth.signUp(
         email: email,
@@ -57,7 +60,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       } else {
         // Email confirmation is required — show a message and go back to login
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Check your email to confirm your account.')),
+          const SnackBar(
+              content: Text('Check your email to confirm your account.')),
         );
         Navigator.pop(context);
       }
@@ -92,7 +96,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: LiftrSpacing.x3),
                     Text(
                       'Track every rep',
-                      style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
+                      style: TextStyle(
+                          fontSize: LiftrType.x12, color: lt.textMuted),
                     ),
                   ],
                 ),
@@ -113,7 +118,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: const InputDecoration(hintText: 'you@email.com'),
               ),
               const SizedBox(height: LiftrSpacing.x14),
@@ -124,16 +130,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscurePass,
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: InputDecoration(
                   hintText: '••••••••••',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscurePass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 18,
                       color: lt.textMuted,
                     ),
-                    onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                    onPressed: () =>
+                        setState(() => _obscurePass = !_obscurePass),
                   ),
                 ),
               ),
@@ -145,16 +155,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _confirmPassCtrl,
                 obscureText: _obscureConfirm,
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: InputDecoration(
                   hintText: '••••••••••',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscureConfirm
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 18,
                       color: lt.textMuted,
                     ),
-                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                    onPressed: () =>
+                        setState(() => _obscureConfirm = !_obscureConfirm),
                   ),
                 ),
               ),
@@ -164,7 +178,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: LiftrSpacing.x10),
                 Text(
                   _errorMsg!,
-                  style: const TextStyle(fontSize: LiftrType.x12, color: LiftrColors.danger),
+                  style: const TextStyle(
+                      fontSize: LiftrType.x12, color: LiftrColors.danger),
                 ),
               ],
 
@@ -177,7 +192,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: LiftrColors.accentText),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: LiftrColors.accentText),
                       )
                     : const Text('Create Account'),
               ),
@@ -187,7 +203,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Center(
                 child: RichText(
                   text: TextSpan(
-                    style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
+                    style:
+                        TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
                     children: [
                       const TextSpan(text: 'Already have an account? '),
                       WidgetSpan(

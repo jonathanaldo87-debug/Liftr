@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/prefs.dart';
+import '../services/run_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import '../utils/format.dart';
+import '../utils/run_math.dart';
 import 'add_exercise_screen.dart';
+import 'add_run_screen.dart';
 import 'exercise_detail_screen.dart';
 import 'log_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
+import 'session_switch.dart';
 
 /// Shell for the four tabs. The bottom bar used to move its own highlight and
 /// nothing else — every tab but Home showed the Home screen.
@@ -80,7 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _navIndex,
         onTap: (i) => setState(() {
-          if (i == 0 && _navIndex == 0) _homeEpoch++; // re-tapping Home refreshes
+          // Re-tapping Home refreshes it.
+          if (i == 0 && _navIndex == 0) _homeEpoch++;
           _navIndex = i;
         }),
         items: const [
@@ -140,6 +145,9 @@ class _TodayTabState extends State<_TodayTab> {
   /// Exercises keyed by session id. Only gym sessions have any — it's the one
   /// discipline with a child table so far.
   Map<String, List<WorkoutExercises>> _exercisesBySession = {};
+
+  /// Intervals for the day's distance sessions, keyed the same way.
+  Map<String, List<DistanceInterval>> _runsBySession = {};
 
   /// `yyyy-MM-dd` of every day that has a session — the calendar dots. The strip
   /// used to hardcode `hasWorkout: (_) => false`, so no dot ever appeared.
@@ -215,18 +223,49 @@ class _TodayTabState extends State<_TodayTab> {
   List<WorkoutExercises> _exercisesFor(WorkoutSessions? s) =>
       _exercisesBySession[s?.sessionId] ?? const [];
 
+  List<DistanceInterval> _intervalsFor(WorkoutSessions? s) =>
+      _runsBySession[s?.sessionId] ?? const [];
+
+  /// The day's session for a discipline, if there is one.
+  WorkoutSessions? _sessionFor(String disciplineKey) {
+    for (final s in _sessions) {
+      if (s.discipline == disciplineKey) return s;
+    }
+    return null;
+  }
+
+  /// How a discipline logs — 'sets', 'distance', or 'none'.
+  ///
+  /// Falls back to 'none' for a discipline the catalog hasn't loaded yet, which
+  /// renders as "nothing to log into" rather than guessing at a UI that can't
+  /// save anywhere.
+  String _lookupLogging(String key) {
+    for (final d in _disciplines) {
+      if (d.key == key) return d.loggingType;
+    }
+    return Discipline.loggingNone;
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
       final sessions = await WorkoutService.getSessionsForDate(_selectedDate);
 
-      // Only gym has children today; when running gets its own child table this
-      // is where its rows get loaded alongside.
+      // Each discipline's children, loaded by what that discipline logs rather
+      // than by its key — migration 013 gave disciplines a logging_type exactly
+      // so this doesn't become a growing chain of `if (key == ...)`.
       final byId = <String, List<WorkoutExercises>>{};
+      final runsById = <String, List<DistanceInterval>>{};
       for (final s in sessions) {
         final id = s.sessionId;
-        if (id == null || s.discipline != Discipline.gymKey) continue;
-        byId[id] = await WorkoutService.getWorkoutExercises(id);
+        if (id == null) continue;
+
+        final logging = _lookupLogging(s.discipline);
+        if (logging == Discipline.loggingSets) {
+          byId[id] = await WorkoutService.getWorkoutExercises(id);
+        } else if (logging == Discipline.loggingDistance) {
+          runsById[id] = await RunService.getIntervals(id);
+        }
       }
 
       // A generous window around the selected day so paging the calendar left
@@ -244,6 +283,7 @@ class _TodayTabState extends State<_TodayTab> {
         setState(() {
           _sessions = sessions;
           _exercisesBySession = byId;
+          _runsBySession = runsById;
           _sessionDates = dates;
           _activeSession = active;
         });
@@ -286,9 +326,8 @@ class _TodayTabState extends State<_TodayTab> {
     if (_disciplines.isEmpty) return;
 
     // Nothing to choose between — don't make them tap through a one-item menu.
-    final chosen = _disciplines.length == 1
-        ? _disciplines.first
-        : await _pickDiscipline();
+    final chosen =
+        _disciplines.length == 1 ? _disciplines.first : await _pickDiscipline();
 
     if (chosen == null || !mounted) return;
 
@@ -334,21 +373,23 @@ class _TodayTabState extends State<_TodayTab> {
           children: [
             const SizedBox(height: LiftrSpacing.x18),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
+              padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
               child: Text('What are you doing?',
                   style: Theme.of(ctx).textTheme.displaySmall),
             ),
             const SizedBox(height: LiftrSpacing.x12),
             for (final d in _disciplines)
               ListTile(
-                leading: Text(d.emoji, style: const TextStyle(fontSize: LiftrType.x22)),
+                leading: Text(d.emoji,
+                    style: const TextStyle(fontSize: LiftrType.x22)),
                 title: Text(d.label,
-                    style: TextStyle(fontSize: LiftrType.x15, color: lt.textPrimary)),
+                    style: TextStyle(
+                        fontSize: LiftrType.x15, color: lt.textPrimary)),
                 subtitle: d.description.isEmpty
                     ? null
                     : Text(d.description,
-                        style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
+                        style: TextStyle(
+                            fontSize: LiftrType.x12, color: lt.textMuted)),
                 onTap: () => Navigator.pop(ctx, d),
               ),
             const SizedBox(height: LiftrSpacing.x12),
@@ -362,8 +403,13 @@ class _TodayTabState extends State<_TodayTab> {
   /// one so far; the rest only move the filter, so no empty session row gets
   /// written for a discipline that can't log anything yet.
   Future<void> _openDiscipline(Discipline d) async {
-    // No logging screen yet, so don't write an empty session row for it — that
-    // would be junk data for something you can't put anything in.
+    // Anything that isn't gym just moves the filter.
+    //
+    // For a discipline with no logging yet, that avoids writing an empty
+    // session row you can't put anything into. For running it's deliberate too:
+    // logging a run you already did isn't starting anything, so the card's own
+    // "Add a run" is the way in and no session is claimed until the tracked
+    // flow exists to claim it.
     if (!d.isGym) {
       setState(() => _selectedDiscipline = d.key);
       return;
@@ -384,17 +430,42 @@ class _TodayTabState extends State<_TodayTab> {
         discipline: d.key,
       );
     } on ActiveSessionExists catch (e) {
-      // The check in _startSession is racy by nature — the database is the real
-      // guard. Reload so the UI reflects whatever actually won.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'A ${_labelFor(e.active.discipline)} session is already active.'),
-          backgroundColor: LiftrColors.danger,
-        ));
+      // The check inside startSession is racy by nature — the database is the
+      // real guard, and this is how we find out it fired.
+      //
+      // Offering the switch rather than just reporting the clash: you asked to
+      // start something, and "no" with no way forward leaves you to go hunting
+      // for the other session yourself.
+      if (!mounted) return;
+      final switched = await confirmSessionSwitch(
+        context,
+        active: e.active,
+        activeLabel: _labelFor(e.active.discipline).toLowerCase(),
+        startingLabel: d.label.toLowerCase(),
+      );
+
+      if (!switched) {
+        await _loadData();
+        return;
       }
-      await _loadData();
-      return;
+
+      try {
+        await WorkoutService.endAndStartSession(
+          e.active,
+          _selectedDate,
+          '${d.label} session',
+          discipline: d.key,
+        );
+      } catch (err) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not switch sessions: $err'),
+            backgroundColor: LiftrColors.danger,
+          ));
+        }
+        await _loadData();
+        return;
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -465,8 +536,8 @@ class _TodayTabState extends State<_TodayTab> {
                 : 'Only one session can be active at a time, so your '
                     '$activeLabel session ends before ${next.label.toLowerCase()} '
                     'starts.\n\nEverything you logged is kept.',
-            style:
-                TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
+            style: TextStyle(
+                fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
           ),
           actions: [
             TextButton(
@@ -575,7 +646,8 @@ class _TodayTabState extends State<_TodayTab> {
                     children: [
                       Text(
                         _formattedFullDate(_selectedDate),
-                        style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
+                        style: TextStyle(
+                            fontSize: LiftrType.x12, color: lt.textMuted),
                       ),
                       const SizedBox(height: LiftrSpacing.x2),
                       Text(
@@ -662,6 +734,20 @@ class _TodayTabState extends State<_TodayTab> {
     );
   }
 
+  /// Opens the manual run form for the selected day.
+  ///
+  /// Deliberately not routed through startSession: logging a run you already
+  /// did isn't starting anything, so it neither claims the single active-session
+  /// slot nor collides with a gym session you're in the middle of.
+  Future<void> _addRun() async {
+    _relock();
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => AddRunScreen(date: _selectedDate)),
+    );
+    if (saved == true) await _loadData();
+  }
+
   /// The card(s) under the chips: every discipline's session on "All", or just
   /// the one you filtered to.
   Widget _dayContent() {
@@ -675,22 +761,36 @@ class _TodayTabState extends State<_TodayTab> {
         isEditable: _canEdit(gym),
         // Null for the active session: it's always editable, so there's nothing
         // to toggle — and offering "Cancel" would imply you could lock it.
-        onToggleEdit: (gym == null || gym.isActive)
-            ? null
-            : () => _toggleEdit(gym),
+        onToggleEdit:
+            (gym == null || gym.isActive) ? null : () => _toggleEdit(gym),
         onAddExercise: _addExercise,
         onExerciseTap: _openExercise,
         onExerciseDelete: _deleteExercise,
       );
     }
 
-    // A non-gym discipline: the session row is real, but nothing can log into it
-    // until that discipline grows a child table and a UI.
     if (_selectedDiscipline != null) {
       final d = _disciplines.firstWhere(
         (x) => x.key == _selectedDiscipline,
-        orElse: () => Discipline(key: _selectedDiscipline!, label: '', emoji: '•'),
+        orElse: () =>
+            Discipline(key: _selectedDiscipline!, label: '', emoji: '•'),
       );
+
+      // Distance disciplines log runs. Keyed off what the discipline says it
+      // logs, not off 'running' — seeding cycling with logging_type 'distance'
+      // gets this card without touching Dart, which is the promise 009 made.
+      if (d.logsDistance) {
+        final session = _sessionFor(d.key);
+        return _RunCard(
+          discipline: d,
+          session: session,
+          intervals: _intervalsFor(session),
+          isLoading: _isLoading,
+          onAddRun: _addRun,
+        );
+      }
+
+      // Seeded, but with no child table or UI yet.
       return _ComingSoonCard(discipline: d);
     }
 
@@ -707,15 +807,29 @@ class _TodayTabState extends State<_TodayTab> {
     );
   }
 
-
   String _formattedFullDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     const days = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-      'Friday', 'Saturday', 'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
     ];
     return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}';
   }
@@ -798,7 +912,8 @@ class _ActiveSessionBanner extends StatelessWidget {
                   const SizedBox(height: LiftrSpacing.x2),
                   Text(
                     'from $dateLabel',
-                    style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                    style:
+                        TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                   ),
                 ],
               ],
@@ -925,7 +1040,8 @@ class _DisciplineChips extends StatelessWidget {
       context: context,
       backgroundColor: lt.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
       ),
       builder: (ctx) => SafeArea(
         child: Column(
@@ -936,9 +1052,11 @@ class _DisciplineChips extends StatelessWidget {
             const SizedBox(height: LiftrSpacing.x8),
             for (final d in hidden)
               ListTile(
-                leading: Text(d.emoji, style: const TextStyle(fontSize: LiftrType.x20)),
+                leading: Text(d.emoji,
+                    style: const TextStyle(fontSize: LiftrType.x20)),
                 title: Text(d.label,
-                    style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary)),
+                    style: TextStyle(
+                        fontSize: LiftrType.x14, color: lt.textPrimary)),
                 onTap: () => Navigator.pop(ctx, d.key),
               ),
             const SizedBox(height: LiftrSpacing.x8),
@@ -1105,7 +1223,8 @@ class _SessionSummaryRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(discipline.emoji, style: const TextStyle(fontSize: LiftrType.x18)),
+            Text(discipline.emoji,
+                style: const TextStyle(fontSize: LiftrType.x18)),
             const SizedBox(width: LiftrSpacing.x10),
             Expanded(
               child: Column(
@@ -1123,7 +1242,8 @@ class _SessionSummaryRow extends StatelessWidget {
                   ),
                   const SizedBox(height: LiftrSpacing.x2),
                   Text(subtitle,
-                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted)),
+                      style: TextStyle(
+                          fontSize: LiftrType.x11, color: lt.textMuted)),
                 ],
               ),
             ),
@@ -1146,7 +1266,8 @@ class _ComingSoonCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.sheet),
       ),
       child: Center(
@@ -1155,7 +1276,8 @@ class _ComingSoonCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(discipline.emoji, style: const TextStyle(fontSize: LiftrType.x32)),
+              Text(discipline.emoji,
+                  style: const TextStyle(fontSize: LiftrType.x32)),
               const SizedBox(height: LiftrSpacing.x12),
               Text(
                 '${discipline.label} logging is on the way',
@@ -1169,10 +1291,175 @@ class _ComingSoonCard extends StatelessWidget {
               Text(
                 'The discipline is set up — its logging screen is next.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim, height: 1.5),
+                style: TextStyle(
+                    fontSize: LiftrType.x12, color: lt.textDim, height: 1.5),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Run card ──────────────────────────────────────────────────
+/// The day's running: its intervals, the totals across them, and a way to add
+/// one more.
+///
+/// A session holds several intervals rather than one — "go again" after a
+/// kilometre appends, which is also what keeps a second run on the same day
+/// from colliding with the one-session-per-day-per-discipline index from 009.
+class _RunCard extends StatelessWidget {
+  final Discipline discipline;
+  final WorkoutSessions? session;
+  final List<DistanceInterval> intervals;
+  final bool isLoading;
+  final VoidCallback onAddRun;
+
+  const _RunCard({
+    required this.discipline,
+    required this.session,
+    required this.intervals,
+    required this.isLoading,
+    required this.onAddRun,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+    final totals = RunTotals.from(intervals);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: lt.surface,
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.sheet),
+      ),
+      padding: const EdgeInsets.all(LiftrSpacing.x18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(discipline.emoji,
+                  style: const TextStyle(fontSize: LiftrType.x16)),
+              const SizedBox(width: LiftrSpacing.x8),
+              Text(
+                discipline.label.toUpperCase(),
+                style: TextStyle(
+                  fontSize: LiftrType.x11,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.08,
+                  color: lt.textMuted,
+                ),
+              ),
+              const Spacer(),
+              if (intervals.isNotEmpty)
+                Text(
+                  formatDistance(totals.distanceMeters),
+                  style: const TextStyle(
+                    fontSize: LiftrType.x16,
+                    fontWeight: FontWeight.w600,
+                    color: LiftrColors.accent,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: LiftrSpacing.x14),
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: LiftrSpacing.x24),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: LiftrColors.accent),
+                ),
+              ),
+            )
+          else if (intervals.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: LiftrSpacing.x14),
+              child: Text(
+                'Nothing logged for this day yet.',
+                style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim),
+              ),
+            )
+          else ...[
+            for (final i in intervals) _intervalRow(lt, i),
+            const SizedBox(height: LiftrSpacing.x10),
+            // Only worth a totals line once there's more than one leg to total.
+            if (intervals.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: LiftrSpacing.x10),
+                child: Row(
+                  children: [
+                    Text('${totals.intervalCount} intervals',
+                        style: TextStyle(
+                            fontSize: LiftrType.x11, color: lt.textMuted)),
+                    const Spacer(),
+                    Text(
+                      '${formatDuration(totals.durationSeconds)} · '
+                      '${formatPace(totals.distanceMeters, totals.durationSeconds)}',
+                      style: TextStyle(
+                          fontSize: LiftrType.x11, color: lt.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: onAddRun,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                side:
+                    BorderSide(color: lt.border, width: LiftrBorders.hairline),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(LiftrRadii.button)),
+              ),
+              child: Text(
+                intervals.isEmpty ? 'Add a run' : 'Add another',
+                style:
+                    TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _intervalRow(LiftrTheme lt, DistanceInterval i) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: LiftrSpacing.x8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
+        decoration: BoxDecoration(
+          color: lt.card,
+          border:
+              Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+          borderRadius: BorderRadius.circular(LiftrRadii.field),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${formatDistance(i.actualDistanceMeters)} · '
+                '${formatDuration(i.durationSeconds)}',
+                style:
+                    TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary),
+              ),
+            ),
+            Text(
+              formatPace(i.actualDistanceMeters, i.durationSeconds),
+              style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim),
+            ),
+          ],
         ),
       ),
     );
@@ -1193,7 +1480,8 @@ class _AvatarMenu extends StatelessWidget {
         if (v == 'signout') onSignOut();
       },
       offset: const Offset(0, 44),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.field)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LiftrRadii.field)),
       color: lt.card,
       itemBuilder: (_) => [
         PopupMenuItem(
@@ -1203,7 +1491,8 @@ class _AvatarMenu extends StatelessWidget {
               Icon(Icons.logout, size: 16, color: lt.textSecondary),
               const SizedBox(width: LiftrSpacing.x10),
               Text('Sign out',
-                  style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
+                  style: TextStyle(
+                      fontSize: LiftrType.x13, color: lt.textSecondary)),
             ],
           ),
         ),
@@ -1254,8 +1543,18 @@ class _CalendarStripState extends State<_CalendarStrip> {
     final now = DateTime.now();
     const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     const monthNames = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     return Padding(
@@ -1274,8 +1573,8 @@ class _CalendarStripState extends State<_CalendarStrip> {
               ),
               const Spacer(),
               IconSquareButton(
-                icon: Icon(Icons.chevron_left,
-                    size: 16, color: lt.textSecondary),
+                icon:
+                    Icon(Icons.chevron_left, size: 16, color: lt.textSecondary),
                 onTap: () => _shiftWeek(-1),
               ),
               const SizedBox(width: LiftrSpacing.x8),
@@ -1325,7 +1624,9 @@ class _CalendarStripState extends State<_CalendarStrip> {
                                   : Colors.transparent,
                           borderRadius: BorderRadius.circular(LiftrRadii.tile),
                           border: isToday && !isSelected
-                              ? Border.all(color: lt.accentBorder, width: LiftrBorders.hairline)
+                              ? Border.all(
+                                  color: lt.accentBorder,
+                                  width: LiftrBorders.hairline)
                               : null,
                         ),
                         child: Center(
@@ -1405,8 +1706,18 @@ class _WorkoutCard extends StatelessWidget {
       return 'Today';
     }
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }
@@ -1415,14 +1726,25 @@ class _WorkoutCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lt = context.lt;
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     return Container(
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.sheet),
       ),
       child: Column(
@@ -1452,8 +1774,7 @@ class _WorkoutCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: LiftrType.x16,
                           fontWeight: FontWeight.w500,
-                          color:
-                              session != null ? lt.textPrimary : lt.textDim,
+                          color: session != null ? lt.textPrimary : lt.textDim,
                         ),
                       ),
                     ],
@@ -1537,7 +1858,8 @@ class _WorkoutCard extends StatelessWidget {
                                 ? 'No exercises yet.\nTap "Add exercise" to get started.'
                                 : 'Nothing was logged in this session.')
                         : ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x6),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: LiftrSpacing.x6),
                             itemCount: exercises.length,
                             itemBuilder: (_, i) => _ExerciseRow(
                               exercise: exercises[i],
@@ -1618,7 +1940,8 @@ class _EmptyState extends StatelessWidget {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
+          style: TextStyle(
+              fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
         ),
       ),
     );
@@ -1652,7 +1975,8 @@ class _ExerciseRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
+        padding: const EdgeInsets.symmetric(
+            horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
         child: Row(
           children: [
             Container(
@@ -1686,7 +2010,8 @@ class _ExerciseRow extends StatelessWidget {
                   if (subtitle.isNotEmpty) ...[
                     const SizedBox(height: LiftrSpacing.x2),
                     Text(subtitle,
-                        style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted)),
+                        style: TextStyle(
+                            fontSize: LiftrType.x11, color: lt.textMuted)),
                   ],
                 ],
               ),
@@ -1713,8 +2038,10 @@ class _ConfirmDialog extends StatelessWidget {
     final lt = context.lt;
     return AlertDialog(
       backgroundColor: lt.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
-      title: Text(title, style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LiftrRadii.card)),
+      title: Text(title,
+          style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
       content: Text(message,
           style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
       actions: [

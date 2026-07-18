@@ -55,7 +55,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    setState(() { _isLoading = true; _errorMsg = null; });
+    setState(() {
+      _isLoading = true;
+      _errorMsg = null;
+    });
     try {
       await Supabase.instance.client.auth.signInWithPassword(
         email: _emailCtrl.text.trim(),
@@ -101,7 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: LiftrSpacing.x3),
                     Text(
                       'Track every rep',
-                      style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
+                      style: TextStyle(
+                          fontSize: LiftrType.x12, color: lt.textMuted),
                     ),
                   ],
                 ),
@@ -123,7 +127,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: const InputDecoration(hintText: 'you@email.com'),
               ),
               const SizedBox(height: LiftrSpacing.x14),
@@ -134,16 +139,20 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscurePass,
-                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: InputDecoration(
                   hintText: '••••••••••',
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscurePass
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 18,
                       color: lt.textMuted,
                     ),
-                    onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                    onPressed: () =>
+                        setState(() => _obscurePass = !_obscurePass),
                   ),
                 ),
               ),
@@ -154,7 +163,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: () {},
                   child: Text(
                     'Forgot password?',
-                    style: TextStyle(fontSize: LiftrType.x12, color: lt.accentMid),
+                    style:
+                        TextStyle(fontSize: LiftrType.x12, color: lt.accentMid),
                   ),
                 ),
               ),
@@ -165,7 +175,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: LiftrSpacing.x4),
                 Text(
                   _errorMsg!,
-                  style: const TextStyle(fontSize: LiftrType.x12, color: LiftrColors.danger),
+                  style: const TextStyle(
+                      fontSize: LiftrType.x12, color: LiftrColors.danger),
                 ),
                 const SizedBox(height: LiftrSpacing.x8),
               ],
@@ -177,7 +188,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: LiftrColors.accentText),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: LiftrColors.accentText),
                       )
                     : const Text('Continue'),
               ),
@@ -188,8 +200,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Expanded(child: Divider()),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x12),
-                    child: Text('or', style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: LiftrSpacing.x12),
+                    child: Text('or',
+                        style: TextStyle(
+                            fontSize: LiftrType.x12, color: lt.textDim)),
                   ),
                   const Expanded(child: Divider()),
                 ],
@@ -210,9 +225,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x10),
               _SocialButton(
-                label: _isGuestLoading
-                    ? 'Setting you up…'
-                    : 'Continue as guest',
+                label:
+                    _isGuestLoading ? 'Setting you up…' : 'Continue as guest',
                 icon: _isGuestLoading
                     ? SizedBox(
                         width: 16,
@@ -234,7 +248,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   'No email needed. Your workouts stay on this device\n'
                   'until you add a login.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim, height: 1.5),
+                  style: TextStyle(
+                      fontSize: LiftrType.x11, color: lt.textDim, height: 1.5),
                 ),
               ),
               const SizedBox(height: LiftrSpacing.x24),
@@ -243,12 +258,16 @@ class _LoginScreenState extends State<LoginScreen> {
               Center(
                 child: RichText(
                   text: TextSpan(
-                    style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
+                    style:
+                        TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
                     children: [
                       const TextSpan(text: "Don't have an account? "),
                       WidgetSpan(
                         child: GestureDetector(
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SignUpScreen())),
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const SignUpScreen())),
                           child: const Text(
                             'Sign up',
                             style: TextStyle(
@@ -276,7 +295,8 @@ class _SocialButton extends StatelessWidget {
   final String label;
   final Widget icon;
   final VoidCallback onTap;
-  const _SocialButton({required this.label, required this.icon, required this.onTap});
+  const _SocialButton(
+      {required this.label, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +318,8 @@ class _SocialButton extends StatelessWidget {
             const SizedBox(width: LiftrSpacing.x8),
             Text(
               label,
-              style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary),
+              style:
+                  TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary),
             ),
           ],
         ),

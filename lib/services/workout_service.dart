@@ -174,7 +174,8 @@ class WorkoutService {
     String discipline = Discipline.gymKey,
   }) async {
     final active = await getActiveSession();
-    final sessionId = await getOrCreateSession(date, name, discipline: discipline);
+    final sessionId =
+        await getOrCreateSession(date, name, discipline: discipline);
 
     if (active != null) {
       if (active.sessionId == sessionId) return sessionId; // already on it
@@ -251,7 +252,8 @@ class WorkoutService {
   }
 
   /// Sessions newest-first, each with its exercise count, for the Log tab.
-  static Future<List<SessionSummary>> getSessionHistory({int limit = 50}) async {
+  static Future<List<SessionSummary>> getSessionHistory(
+      {int limit = 50}) async {
     final data = await _db
         .from('workout_sessions')
         .select('$_sessionCols, workout_exercises(exercise_id)')
@@ -329,8 +331,7 @@ class WorkoutService {
       String exerciseId, String? notes) async {
     await _db
         .from('workout_exercises')
-        .update({'notes': notes})
-        .eq('exercise_id', exerciseId);
+        .update({'notes': notes}).eq('exercise_id', exerciseId);
   }
 
   static Future<void> deleteWorkoutExercise(String exerciseId) async {
@@ -365,7 +366,10 @@ class WorkoutService {
     final existing = await getExerciseSets(exerciseId);
     final nextNumber = existing.isEmpty
         ? 1
-        : (existing.map((s) => s.setNumber ?? 0).reduce((a, b) => a > b ? a : b)) + 1;
+        : (existing
+                .map((s) => s.setNumber ?? 0)
+                .reduce((a, b) => a > b ? a : b)) +
+            1;
 
     await createExerciseSets(ExerciseSetsPayload(
       exerciseId: exerciseId,
@@ -392,7 +396,8 @@ class WorkoutService {
     try {
       final data = await _db
           .from('exercise_sets')
-          .select('set_id, exercise_id, set_number, weight_kg, reps, logged_at, '
+          .select(
+              'set_id, exercise_id, set_number, weight_kg, reps, logged_at, '
               'workout_exercises!inner(catalog_id, '
               'workout_sessions!inner(user_id))')
           .eq('workout_exercises.catalog_id', catalogId)
@@ -447,7 +452,8 @@ class WorkoutService {
   ///
   /// Returns an empty list rather than throwing: recents are a convenience, and
   /// failing to load them must never block the picker.
-  static Future<List<CatalogExercises>> getRecentExercises({int limit = 8}) async {
+  static Future<List<CatalogExercises>> getRecentExercises(
+      {int limit = 8}) async {
     try {
       final data = await _db
           .from('workout_exercises')

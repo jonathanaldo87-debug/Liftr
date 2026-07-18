@@ -53,7 +53,9 @@ class _ProgressTabState extends State<ProgressTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('All time', style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
+                Text('All time',
+                    style: TextStyle(
+                        fontSize: LiftrType.x12, color: lt.textMuted)),
                 const SizedBox(height: LiftrSpacing.x2),
                 Text('Progress', style: tt.displaySmall),
               ],
@@ -86,7 +88,9 @@ class _ProgressTabState extends State<ProgressTab> {
                         'Could not load your stats.\n$_error',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
+                            fontSize: LiftrType.x13,
+                            color: lt.textDim,
+                            height: 1.6),
                       ),
                     )
                   else if (s == null || s.totalSessions == 0)
@@ -97,7 +101,9 @@ class _ProgressTabState extends State<ProgressTab> {
                         'numbers show up here.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
+                            fontSize: LiftrType.x13,
+                            color: lt.textDim,
+                            height: 1.6),
                       ),
                     )
                   else ...[
@@ -151,7 +157,9 @@ class _ProgressTabState extends State<ProgressTab> {
                       'Per-exercise trends live on each exercise — open one from '
                       'a workout to see its weight chart.',
                       style: TextStyle(
-                          fontSize: LiftrType.x11, color: lt.textDim, height: 1.5),
+                          fontSize: LiftrType.x11,
+                          color: lt.textDim,
+                          height: 1.5),
                     ),
                   ],
                 ],
@@ -187,12 +195,14 @@ class _StreakCard extends StatelessWidget {
       padding: const EdgeInsets.all(LiftrSpacing.x18),
       decoration: BoxDecoration(
         color: lt.accentBg,
-        border: Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
+        border:
+            Border.all(color: lt.accentBorder, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.panel),
       ),
       child: Row(
         children: [
-          Text(days > 0 ? '🔥' : '💤', style: const TextStyle(fontSize: LiftrType.x30)),
+          Text(days > 0 ? '🔥' : '💤',
+              style: const TextStyle(fontSize: LiftrType.x30)),
           const SizedBox(width: LiftrSpacing.x14),
           Expanded(
             child: Column(
@@ -211,7 +221,8 @@ class _StreakCard extends StatelessWidget {
                   days == 0
                       ? 'Log a workout today to start one.'
                       : 'Consecutive days trained. Keep it going.',
-                  style: TextStyle(fontSize: LiftrType.x12, color: lt.textSecondary),
+                  style: TextStyle(
+                      fontSize: LiftrType.x12, color: lt.textSecondary),
                 ),
               ],
             ),
@@ -240,7 +251,8 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.all(LiftrSpacing.x14),
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.card),
       ),
       child: Column(
@@ -270,7 +282,8 @@ class _StatCard extends StatelessWidget {
           ),
           if (hint.isNotEmpty) ...[
             const SizedBox(height: LiftrSpacing.x3),
-            Text(hint, style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim)),
+            Text(hint,
+                style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim)),
           ],
         ],
       ),

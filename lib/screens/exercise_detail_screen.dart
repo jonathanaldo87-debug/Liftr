@@ -382,7 +382,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       const SizedBox(height: LiftrSpacing.x10),
                       if (_isLoading)
                         const Padding(
-                          padding: EdgeInsets.symmetric(vertical: LiftrSpacing.x24),
+                          padding:
+                              EdgeInsets.symmetric(vertical: LiftrSpacing.x24),
                           child: Center(
                             child: SizedBox(
                               width: 20,
@@ -402,7 +403,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                             widget.readOnly
                                 ? 'No sets were logged for this exercise.'
                                 : 'No sets yet. Log your first one below.',
-                            style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim),
+                            style: TextStyle(
+                                fontSize: LiftrType.x13, color: lt.textDim),
                           ),
                         )
                       else
@@ -437,7 +439,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               height: 32,
               decoration: BoxDecoration(
                 color: lt.card,
-                border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                border:
+                    Border.all(color: lt.border, width: LiftrBorders.hairline),
                 borderRadius: BorderRadius.circular(LiftrRadii.control),
               ),
               child:
@@ -458,7 +461,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 if (_subtitle.isNotEmpty)
                   Text(
                     _subtitle,
-                    style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                    style:
+                        TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                   ),
               ],
             ),
@@ -512,7 +516,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     return Container(
       decoration: BoxDecoration(
         color: lt.surface,
-        border: Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.cardLarge),
       ),
       padding: const EdgeInsets.all(LiftrSpacing.x14),
@@ -552,7 +557,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                           ? 'Log a set to start tracking this lift.'
                           : 'One session logged. The trend appears after the next one.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
+                      style:
+                          TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
                     ),
                   )
                 : CustomPaint(
@@ -612,8 +618,18 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   Widget _setsHeader(LiftrTheme lt) {
     const months = [
-      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
     ];
     final d = widget.selectedDate;
     final volume = _sets.fold<double>(0, (sum, s) => sum + s.volume);
@@ -677,44 +693,45 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   Widget _setRowBody(LiftrTheme lt, ExerciseSets s, {required bool isEditing}) {
     return Container(
-            padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
-            decoration: BoxDecoration(
-              color: isEditing ? lt.accentBg : lt.surface,
-              border: Border.all(
-                color: isEditing ? LiftrColors.accent : lt.borderSubtle,
-                width: isEditing ? LiftrBorders.thin : LiftrBorders.hairline,
+      padding: const EdgeInsets.symmetric(
+          horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
+      decoration: BoxDecoration(
+        color: isEditing ? lt.accentBg : lt.surface,
+        border: Border.all(
+          color: isEditing ? LiftrColors.accent : lt.borderSubtle,
+          width: isEditing ? LiftrBorders.thin : LiftrBorders.hairline,
+        ),
+        borderRadius: BorderRadius.circular(LiftrRadii.field),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 26,
+            child: Text(
+              'S${s.setNumber ?? 0}',
+              style: TextStyle(
+                fontSize: LiftrType.x11,
+                fontWeight: FontWeight.w600,
+                color: isEditing ? lt.accentMid : lt.textMuted,
               ),
-              borderRadius: BorderRadius.circular(LiftrRadii.field),
             ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 26,
-                  child: Text(
-                    'S${s.setNumber ?? 0}',
-                    style: TextStyle(
-                      fontSize: LiftrType.x11,
-                      fontWeight: FontWeight.w600,
-                      color: isEditing ? lt.accentMid : lt.textMuted,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    '${s.reps ?? 0} reps · ${_trim(s.weightKg ?? 0)} kg',
-                    style: TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary),
-                  ),
-                ),
-                Text(
-                  isEditing ? 'Editing' : '${_trim(s.volume)} kg',
-                  style: TextStyle(
-                    fontSize: LiftrType.x11,
-                    fontWeight: FontWeight.w500,
-                    color: isEditing ? lt.accentMid : lt.textDim,
-                  ),
-                ),
-              ],
+          ),
+          Expanded(
+            child: Text(
+              '${s.reps ?? 0} reps · ${_trim(s.weightKg ?? 0)} kg',
+              style: TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary),
             ),
+          ),
+          Text(
+            isEditing ? 'Editing' : '${_trim(s.volume)} kg',
+            style: TextStyle(
+              fontSize: LiftrType.x11,
+              fontWeight: FontWeight.w500,
+              color: isEditing ? lt.accentMid : lt.textDim,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -755,7 +772,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   },
                   child: Text(
                     'Cancel',
-                    style: TextStyle(fontSize: LiftrType.x11, color: lt.textSecondary),
+                    style: TextStyle(
+                        fontSize: LiftrType.x11, color: lt.textSecondary),
                   ),
                 ),
             ],
@@ -768,7 +786,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: lt.card,
-                    border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                    border: Border.all(
+                        color: lt.border, width: LiftrBorders.hairline),
                     borderRadius: BorderRadius.circular(LiftrRadii.control),
                   ),
                   child: TextField(
@@ -783,16 +802,19 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     ),
                     decoration: InputDecoration(
                       hintText: '0',
-                      hintStyle: TextStyle(fontSize: LiftrType.x20, color: lt.textDim),
+                      hintStyle:
+                          TextStyle(fontSize: LiftrType.x20, color: lt.textDim),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: LiftrSpacing.x10),
                       fillColor: Colors.transparent,
                     ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: LiftrSpacing.x6),
                 child: Text(
                   'kg',
                   style: TextStyle(
@@ -805,13 +827,15 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               Column(
                 children: [
                   Text('Reps',
-                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted)),
+                      style: TextStyle(
+                          fontSize: LiftrType.x11, color: lt.textMuted)),
                   const SizedBox(height: LiftrSpacing.x4),
                   Container(
                     width: 56,
                     decoration: BoxDecoration(
                       color: lt.card,
-                      border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+                      border: Border.all(
+                          color: lt.border, width: LiftrBorders.hairline),
                       borderRadius: BorderRadius.circular(LiftrRadii.control),
                     ),
                     child: TextField(
@@ -826,10 +850,11 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       ),
                       decoration: InputDecoration(
                         hintText: '0',
-                        hintStyle: TextStyle(fontSize: LiftrType.x16, color: lt.textDim),
+                        hintStyle: TextStyle(
+                            fontSize: LiftrType.x16, color: lt.textDim),
                         border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: LiftrSpacing.x10),
                         fillColor: Colors.transparent,
                       ),
                     ),
@@ -841,7 +866,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 onPressed: _isSaving ? null : _saveSet,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(64, 44),
-                  padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(LiftrRadii.control)),
                 ),
@@ -881,7 +907,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
     final last = _lastTime;
     if (last != null) {
-      final when = last.loggedAt == null ? '' : ' (${_shortDate(last.loggedAt!)})';
+      final when =
+          last.loggedAt == null ? '' : ' (${_shortDate(last.loggedAt!)})';
       return 'Last time$when: ${_trim(last.weightKg ?? 0)} kg × ${last.reps ?? 0}';
     }
 
@@ -894,8 +921,18 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   static String _shortDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }
@@ -912,7 +949,8 @@ class _ConfirmDialog extends StatelessWidget {
     final lt = context.lt;
     return AlertDialog(
       backgroundColor: lt.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LiftrRadii.card)),
       title: Text(title,
           style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
       content: Text(message,
@@ -924,7 +962,8 @@ class _ConfirmDialog extends StatelessWidget {
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('Delete', style: TextStyle(color: LiftrColors.danger)),
+          child:
+              const Text('Delete', style: TextStyle(color: LiftrColors.danger)),
         ),
       ],
     );
@@ -996,7 +1035,8 @@ class _ChartPainter extends CustomPainter {
     final linePath = Path()..moveTo(x(0), y(data[0]));
     for (var i = 1; i < data.length; i++) {
       final cp1x = x(i - 1) + (x(i) - x(i - 1)) * 0.5;
-      linePath.cubicTo(cp1x, y(data[i - 1]), cp1x, y(data[i]), x(i), y(data[i]));
+      linePath.cubicTo(
+          cp1x, y(data[i - 1]), cp1x, y(data[i]), x(i), y(data[i]));
     }
     final linePaint = Paint()
       ..color = accentColor
@@ -1007,8 +1047,8 @@ class _ChartPainter extends CustomPainter {
     canvas.drawPath(linePath, linePaint);
 
     final dotPaint = Paint()..color = accentColor;
-    final holePaint =
-        Paint()..color = isDark ? LiftrColors.darkSurface : Colors.white;
+    final holePaint = Paint()
+      ..color = isDark ? LiftrColors.darkSurface : Colors.white;
     for (var i = 0; i < data.length; i++) {
       canvas.drawCircle(
           Offset(x(i), y(data[i])), i == data.length - 1 ? 4.5 : 3, dotPaint);
@@ -1021,7 +1061,8 @@ class _ChartPainter extends CustomPainter {
     void drawLabel(String text, Offset pos, TextAlign align) {
       tp.text = TextSpan(
         text: text,
-        style: TextStyle(fontSize: LiftrType.x9, color: labelColor, fontFamily: 'DMSans'),
+        style: TextStyle(
+            fontSize: LiftrType.x9, color: labelColor, fontFamily: 'DMSans'),
       );
       tp.textAlign = align;
       tp.layout();

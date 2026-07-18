@@ -26,23 +26,25 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # To enable custom fonts, download from Google Fonts and place in assets/fonts/:
-  # https://fonts.google.com/specimen/DM+Sans
-  # https://fonts.google.com/specimen/DM+Serif+Display
-  # Then uncomment the section below:
-  # fonts:
-  #   - family: DMSans
-  #     fonts:
-  #       - asset: assets/fonts/DMSans-Regular.ttf
-  #         weight: 400
-  #       - asset: assets/fonts/DMSans-Medium.ttf
-  #         weight: 500
-  #       - asset: assets/fonts/DMSans-SemiBold.ttf
-  #         weight: 600
-  #   - family: DMSerifDisplay
-  #     fonts:
-  #       - asset: assets/fonts/DMSerifDisplay-Regular.ttf
-  #         weight: 400
-  #       - asset: assets/fonts/DMSerifDisplay-Italic.ttf
-  #         weight: 400
-  #         style: italic
+  # Bundled, not fetched at runtime. This app is used in gym basements and on
+  # roads with no signal, so a font that downloads on first launch would show
+  # the wrong one exactly when it matters. Both families are OFL — licences are
+  # in assets/fonts/ alongside the files.
+  #
+  # DM Sans upstream is now a single variable font. These are static instances
+  # of the wght axis instead, because the app styles text with `fontWeight:` in
+  # roughly a hundred places, and a variable file would need every one of them
+  # rewritten as `fontVariations:` to render at the right weight.
+  fonts:
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-400.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans-500.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans-600.ttf
+          weight: 600
+    - family: DMSerifDisplay
+      fonts:
+        - asset: assets/fonts/DMSerifDisplay-Regular.ttf
+          weight: 400

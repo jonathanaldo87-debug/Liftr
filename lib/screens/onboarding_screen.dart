@@ -95,10 +95,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     // Save in catalog order, so the home chips are stable rather than ordered by
     // whatever the user happened to tap first.
-    final ordered = _disciplines
-        .map((d) => d.key)
-        .where(_selected.contains)
-        .toList();
+    final ordered =
+        _disciplines.map((d) => d.key).where(_selected.contains).toList();
     await Prefs.completeOnboarding(disciplines: ordered);
 
     if (!mounted) return;
@@ -214,7 +212,6 @@ class _DisciplinePage extends StatelessWidget {
             style: TextStyle(fontSize: LiftrType.x13, color: lt.textMuted),
           ),
           const SizedBox(height: LiftrSpacing.x24),
-
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -232,12 +229,9 @@ class _DisciplinePage extends StatelessWidget {
                     ))
                 .toList(),
           ),
-
           const SizedBox(height: LiftrSpacing.x12),
           Text(
-            selected.length == 1
-                ? '1 selected'
-                : '${selected.length} selected',
+            selected.length == 1 ? '1 selected' : '${selected.length} selected',
             style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
           ),
         ],
@@ -285,7 +279,6 @@ class _TemplatePage extends StatelessWidget {
             style: TextStyle(fontSize: LiftrType.x13, color: lt.textMuted),
           ),
           const SizedBox(height: LiftrSpacing.x32),
-
           ...List.generate(options.length, (i) {
             final (emoji, title, desc, sub) = options[i];
             final isSelected = selected == i;
@@ -300,14 +293,16 @@ class _TemplatePage extends StatelessWidget {
                     color: isSelected ? lt.accentBg : lt.card,
                     border: Border.all(
                       color: isSelected ? LiftrColors.accent : lt.border,
-                      width:
-                          isSelected ? LiftrBorders.thin : LiftrBorders.hairline,
+                      width: isSelected
+                          ? LiftrBorders.thin
+                          : LiftrBorders.hairline,
                     ),
                     borderRadius: BorderRadius.circular(LiftrRadii.panel),
                   ),
                   child: Row(
                     children: [
-                      Text(emoji, style: const TextStyle(fontSize: LiftrType.x28)),
+                      Text(emoji,
+                          style: const TextStyle(fontSize: LiftrType.x28)),
                       const SizedBox(width: LiftrSpacing.x16),
                       Expanded(
                         child: Column(
@@ -326,7 +321,8 @@ class _TemplatePage extends StatelessWidget {
                             const SizedBox(height: LiftrSpacing.x3),
                             Text(desc,
                                 style: TextStyle(
-                                    fontSize: LiftrType.x12, color: lt.textMuted)),
+                                    fontSize: LiftrType.x12,
+                                    color: lt.textMuted)),
                             const SizedBox(height: LiftrSpacing.x4),
                             Text(
                               sub,

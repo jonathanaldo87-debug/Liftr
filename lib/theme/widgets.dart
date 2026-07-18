@@ -47,8 +47,10 @@ class _LogoPainter extends CustomPainter {
 
     // Arrow right through center
     canvas.drawLine(Offset(cx - r * 0.8, cy), Offset(cx + r * 0.8, cy), paint);
-    canvas.drawLine(Offset(cx + r * 0.2, cy - r * 0.5), Offset(cx + r * 0.8, cy), paint);
-    canvas.drawLine(Offset(cx + r * 0.2, cy + r * 0.5), Offset(cx + r * 0.8, cy), paint);
+    canvas.drawLine(
+        Offset(cx + r * 0.2, cy - r * 0.5), Offset(cx + r * 0.8, cy), paint);
+    canvas.drawLine(
+        Offset(cx + r * 0.2, cy + r * 0.5), Offset(cx + r * 0.8, cy), paint);
   }
 
   @override
@@ -82,10 +84,12 @@ class AccentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
+      padding: const EdgeInsets.symmetric(
+          horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
       decoration: BoxDecoration(
         color: context.lt.accentBg,
-        border: Border.all(color: context.lt.accentBorder, width: LiftrBorders.hairline),
+        border: Border.all(
+            color: context.lt.accentBorder, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.panel),
       ),
       child: Text(
@@ -131,7 +135,8 @@ class ThreeDotMenu extends StatelessWidget {
       color: context.lt.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(LiftrRadii.field),
-        side: BorderSide(color: context.lt.border, width: LiftrBorders.hairline),
+        side:
+            BorderSide(color: context.lt.border, width: LiftrBorders.hairline),
       ),
       onSelected: (v) {
         if (v == 'edit') onEdit?.call();
@@ -141,12 +146,16 @@ class ThreeDotMenu extends StatelessWidget {
         PopupMenuItem(
           value: 'edit',
           height: 40,
-          child: Text('Edit', style: TextStyle(fontSize: LiftrType.x13, color: context.lt.textPrimary)),
+          child: Text('Edit',
+              style: TextStyle(
+                  fontSize: LiftrType.x13, color: context.lt.textPrimary)),
         ),
         const PopupMenuItem(
           value: 'delete',
           height: 40,
-          child: Text('Delete', style: TextStyle(fontSize: LiftrType.x13, color: LiftrColors.danger)),
+          child: Text('Delete',
+              style: TextStyle(
+                  fontSize: LiftrType.x13, color: LiftrColors.danger)),
         ),
       ],
     );
@@ -202,7 +211,8 @@ class IconSquareButton extends StatelessWidget {
         height: 32,
         decoration: BoxDecoration(
           color: context.lt.card,
-          border: Border.all(color: context.lt.border, width: LiftrBorders.hairline),
+          border: Border.all(
+              color: context.lt.border, width: LiftrBorders.hairline),
           borderRadius: BorderRadius.circular(LiftrRadii.control),
         ),
         child: Center(child: icon),
@@ -287,7 +297,8 @@ class ActivityCard extends StatelessWidget {
                 const SizedBox(height: LiftrSpacing.x2),
                 Text(
                   description,
-                  style: TextStyle(fontSize: LiftrType.x11, color: context.lt.textMuted),
+                  style: TextStyle(
+                      fontSize: LiftrType.x11, color: context.lt.textMuted),
                 ),
               ],
             ),

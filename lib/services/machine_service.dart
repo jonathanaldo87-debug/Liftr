@@ -170,7 +170,8 @@ class MachineService {
 
   /// Records which station an exercise was done on. Passing null clears it,
   /// which is how you undo a mis-tap without inventing a "no machine" row.
-  static Future<void> assignMachine(String exerciseId, String? machineId) async {
+  static Future<void> assignMachine(
+      String exerciseId, String? machineId) async {
     await _db
         .from('workout_exercises')
         .update({'machine_id': machineId}).eq('exercise_id', exerciseId);
