@@ -92,7 +92,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     const SizedBox(height: LiftrSpacing.x3),
                     Text(
                       'Track every rep',
-                      style: TextStyle(fontSize: 12, color: lt.textMuted),
+                      style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
                     ),
                   ],
                 ),
@@ -103,7 +103,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: LiftrSpacing.x6),
               Text(
                 'Start tracking your workouts today',
-                style: TextStyle(fontSize: 13, color: lt.textMuted),
+                style: TextStyle(fontSize: LiftrType.x13, color: lt.textMuted),
               ),
               const SizedBox(height: LiftrSpacing.x28),
 
@@ -113,7 +113,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: const InputDecoration(hintText: 'you@email.com'),
               ),
               const SizedBox(height: LiftrSpacing.x14),
@@ -124,7 +124,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _passCtrl,
                 obscureText: _obscurePass,
-                style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: InputDecoration(
                   hintText: '••••••••••',
                   suffixIcon: IconButton(
@@ -145,7 +145,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               TextField(
                 controller: _confirmPassCtrl,
                 obscureText: _obscureConfirm,
-                style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                 decoration: InputDecoration(
                   hintText: '••••••••••',
                   suffixIcon: IconButton(
@@ -164,7 +164,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: LiftrSpacing.x10),
                 Text(
                   _errorMsg!,
-                  style: const TextStyle(fontSize: 12, color: LiftrColors.danger),
+                  style: const TextStyle(fontSize: LiftrType.x12, color: LiftrColors.danger),
                 ),
               ],
 
@@ -187,7 +187,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               Center(
                 child: RichText(
                   text: TextSpan(
-                    style: TextStyle(fontSize: 12, color: lt.textDim),
+                    style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
                     children: [
                       const TextSpan(text: 'Already have an account? '),
                       WidgetSpan(
@@ -196,7 +196,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           child: const Text(
                             'Log in',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: LiftrType.x12,
                               color: LiftrColors.accent,
                               fontWeight: FontWeight.w500,
                             ),

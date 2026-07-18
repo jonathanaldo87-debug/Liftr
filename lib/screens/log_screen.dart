@@ -88,7 +88,7 @@ class _LogTabState extends State<LogTab> {
                   _isLoading
                       ? 'Loading…'
                       : '${_sessions.length} workout${_sessions.length == 1 ? '' : 's'}',
-                  style: TextStyle(fontSize: 12, color: lt.textMuted),
+                  style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
                 ),
                 const SizedBox(height: LiftrSpacing.x2),
                 Text('History', style: tt.displaySmall),
@@ -124,7 +124,7 @@ class _LogTabState extends State<LogTab> {
         child: Text(
           'Could not load your history.\n$_error',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: lt.textDim, height: 1.6),
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
         ),
       );
     }
@@ -134,7 +134,7 @@ class _LogTabState extends State<LogTab> {
         child: Text(
           'No workouts yet.\nLog one from the Home tab and it shows up here.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: lt.textDim, height: 1.6),
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
         ),
       );
     }
@@ -222,7 +222,7 @@ class _SessionCard extends StatelessWidget {
                     Text(
                       date == null ? '—' : _month(date),
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: LiftrType.x9,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                         color: lt.accentMid,
@@ -231,7 +231,7 @@ class _SessionCard extends StatelessWidget {
                     Text(
                       date == null ? '' : '${date.day}',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: LiftrType.x16,
                         fontWeight: FontWeight.w600,
                         color: lt.accentTextColor,
                       ),
@@ -249,7 +249,7 @@ class _SessionCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: LiftrType.x14,
                         fontWeight: FontWeight.w500,
                         color: lt.textPrimary,
                       ),
@@ -259,7 +259,7 @@ class _SessionCard extends StatelessWidget {
                       '${summary.exerciseCount} exercise'
                       '${summary.exerciseCount == 1 ? '' : 's'}'
                       '${date == null ? '' : ' · ${_relative(date)}'}',
-                      style: TextStyle(fontSize: 11, color: lt.textMuted),
+                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                     ),
                   ],
                 ),
@@ -306,9 +306,9 @@ class _ConfirmDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: lt.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
-      title: Text(title, style: TextStyle(fontSize: 16, color: lt.textPrimary)),
+      title: Text(title, style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
       content:
-          Text(message, style: TextStyle(fontSize: 13, color: lt.textSecondary)),
+          Text(message, style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),

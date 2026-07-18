@@ -173,8 +173,10 @@ class _TodayTabState extends State<_TodayTab> {
   ///
   /// The active session never gets here — it's always editable, so there'd be
   /// nothing to toggle.
-  void _unlock(WorkoutSessions s) =>
-      setState(() => _editableSessionId = s.sessionId);
+  void _toggleEdit(WorkoutSessions s) => setState(() {
+        _editableSessionId =
+            _editableSessionId == s.sessionId ? null : s.sessionId;
+      });
 
   /// Re-locks whatever was unlocked. Called on any navigation away from the
   /// thing you unlocked.
@@ -340,13 +342,13 @@ class _TodayTabState extends State<_TodayTab> {
             const SizedBox(height: LiftrSpacing.x12),
             for (final d in _disciplines)
               ListTile(
-                leading: Text(d.emoji, style: const TextStyle(fontSize: 22)),
+                leading: Text(d.emoji, style: const TextStyle(fontSize: LiftrType.x22)),
                 title: Text(d.label,
-                    style: TextStyle(fontSize: 15, color: lt.textPrimary)),
+                    style: TextStyle(fontSize: LiftrType.x15, color: lt.textPrimary)),
                 subtitle: d.description.isEmpty
                     ? null
                     : Text(d.description,
-                        style: TextStyle(fontSize: 12, color: lt.textMuted)),
+                        style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
                 onTap: () => Navigator.pop(ctx, d),
               ),
             const SizedBox(height: LiftrSpacing.x12),
@@ -453,7 +455,7 @@ class _TodayTabState extends State<_TodayTab> {
             isStale
                 ? 'You left a $activeLabel session open'
                 : 'End your $activeLabel session?',
-            style: TextStyle(fontSize: 16, color: lt.textPrimary),
+            style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary),
           ),
           content: Text(
             isStale
@@ -464,7 +466,7 @@ class _TodayTabState extends State<_TodayTab> {
                     '$activeLabel session ends before ${next.label.toLowerCase()} '
                     'starts.\n\nEverything you logged is kept.',
             style:
-                TextStyle(fontSize: 13, color: lt.textSecondary, height: 1.5),
+                TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
           ),
           actions: [
             TextButton(
@@ -573,7 +575,7 @@ class _TodayTabState extends State<_TodayTab> {
                     children: [
                       Text(
                         _formattedFullDate(_selectedDate),
-                        style: TextStyle(fontSize: 12, color: lt.textMuted),
+                        style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
                       ),
                       const SizedBox(height: LiftrSpacing.x2),
                       Text(
@@ -671,7 +673,11 @@ class _TodayTabState extends State<_TodayTab> {
         exercises: _exercisesFor(gym),
         isLoading: _isLoading,
         isEditable: _canEdit(gym),
-        onUnlock: gym == null ? null : () => _unlock(gym),
+        // Null for the active session: it's always editable, so there's nothing
+        // to toggle — and offering "Cancel" would imply you could lock it.
+        onToggleEdit: (gym == null || gym.isActive)
+            ? null
+            : () => _toggleEdit(gym),
         onAddExercise: _addExercise,
         onExerciseTap: _openExercise,
         onExerciseDelete: _deleteExercise,
@@ -749,7 +755,7 @@ class _ActiveSessionBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
+          Text(emoji, style: const TextStyle(fontSize: LiftrType.x18)),
           const SizedBox(width: LiftrSpacing.x10),
           Expanded(
             child: Column(
@@ -769,7 +775,7 @@ class _ActiveSessionBanner extends StatelessWidget {
                     Text(
                       isStale ? 'STILL OPEN' : 'IN THIS SESSION',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: LiftrType.x10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.6,
                         color: lt.accentMid,
@@ -783,7 +789,7 @@ class _ActiveSessionBanner extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: LiftrType.x14,
                     fontWeight: FontWeight.w500,
                     color: lt.textPrimary,
                   ),
@@ -792,7 +798,7 @@ class _ActiveSessionBanner extends StatelessWidget {
                   const SizedBox(height: LiftrSpacing.x2),
                   Text(
                     'from $dateLabel',
-                    style: TextStyle(fontSize: 11, color: lt.textMuted),
+                    style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                   ),
                 ],
               ],
@@ -826,7 +832,7 @@ class _EndSessionButton extends StatelessWidget {
         child: Text(
           'End ${label.toLowerCase()} session',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: LiftrType.x15,
             fontWeight: FontWeight.w600,
             color: lt.textPrimary,
           ),
@@ -930,9 +936,9 @@ class _DisciplineChips extends StatelessWidget {
             const SizedBox(height: LiftrSpacing.x8),
             for (final d in hidden)
               ListTile(
-                leading: Text(d.emoji, style: const TextStyle(fontSize: 20)),
+                leading: Text(d.emoji, style: const TextStyle(fontSize: LiftrType.x20)),
                 title: Text(d.label,
-                    style: TextStyle(fontSize: 14, color: lt.textPrimary)),
+                    style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary)),
                 onTap: () => Navigator.pop(ctx, d.key),
               ),
             const SizedBox(height: LiftrSpacing.x8),
@@ -978,13 +984,13 @@ class _Chip extends StatelessWidget {
         child: Row(
           children: [
             if (emoji != null) ...[
-              Text(emoji!, style: const TextStyle(fontSize: 13)),
+              Text(emoji!, style: const TextStyle(fontSize: LiftrType.x13)),
               const SizedBox(width: LiftrSpacing.x6),
             ],
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: LiftrType.x13,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected ? LiftrColors.accentText : lt.textSecondary,
               ),
@@ -1099,7 +1105,7 @@ class _SessionSummaryRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(discipline.emoji, style: const TextStyle(fontSize: 18)),
+            Text(discipline.emoji, style: const TextStyle(fontSize: LiftrType.x18)),
             const SizedBox(width: LiftrSpacing.x10),
             Expanded(
               child: Column(
@@ -1110,14 +1116,14 @@ class _SessionSummaryRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: LiftrType.x14,
                       fontWeight: FontWeight.w500,
                       color: lt.textPrimary,
                     ),
                   ),
                   const SizedBox(height: LiftrSpacing.x2),
                   Text(subtitle,
-                      style: TextStyle(fontSize: 11, color: lt.textMuted)),
+                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted)),
                 ],
               ),
             ),
@@ -1149,12 +1155,12 @@ class _ComingSoonCard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(discipline.emoji, style: const TextStyle(fontSize: 32)),
+              Text(discipline.emoji, style: const TextStyle(fontSize: LiftrType.x32)),
               const SizedBox(height: LiftrSpacing.x12),
               Text(
                 '${discipline.label} logging is on the way',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: LiftrType.x14,
                   fontWeight: FontWeight.w500,
                   color: lt.textPrimary,
                 ),
@@ -1163,7 +1169,7 @@ class _ComingSoonCard extends StatelessWidget {
               Text(
                 'The discipline is set up — its logging screen is next.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: lt.textDim, height: 1.5),
+                style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim, height: 1.5),
               ),
             ],
           ),
@@ -1197,7 +1203,7 @@ class _AvatarMenu extends StatelessWidget {
               Icon(Icons.logout, size: 16, color: lt.textSecondary),
               const SizedBox(width: LiftrSpacing.x10),
               Text('Sign out',
-                  style: TextStyle(fontSize: 13, color: lt.textSecondary)),
+                  style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
             ],
           ),
         ),
@@ -1261,7 +1267,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
               Text(
                 '${monthNames[_weekStart.month - 1]} ${_weekStart.year}',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: LiftrType.x13,
                   fontWeight: FontWeight.w500,
                   color: lt.textPrimary,
                 ),
@@ -1301,7 +1307,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                       Text(
                         dayNames[i],
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: LiftrType.x10,
                           fontWeight: FontWeight.w500,
                           color: hasWork ? lt.accentMid : lt.textDim,
                         ),
@@ -1326,7 +1332,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                           child: Text(
                             '${day.day}',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: LiftrType.x13,
                               fontWeight: isSelected
                                   ? FontWeight.w600
                                   : FontWeight.w400,
@@ -1372,8 +1378,9 @@ class _WorkoutCard extends StatelessWidget {
   /// Read-only unless this is the session you're in, or you've tapped Edit.
   final bool isEditable;
 
-  /// Tapping Edit. Null when there's no session to unlock.
-  final VoidCallback? onUnlock;
+  /// Toggles Edit ⇄ Cancel. Null when there's nothing to toggle — no session, or
+  /// the active one (always editable).
+  final VoidCallback? onToggleEdit;
 
   final VoidCallback onAddExercise;
   final ValueChanged<WorkoutExercises> onExerciseTap;
@@ -1385,7 +1392,7 @@ class _WorkoutCard extends StatelessWidget {
     required this.exercises,
     required this.isLoading,
     required this.isEditable,
-    required this.onUnlock,
+    required this.onToggleEdit,
     required this.onAddExercise,
     required this.onExerciseTap,
     required this.onExerciseDelete,
@@ -1433,7 +1440,7 @@ class _WorkoutCard extends StatelessWidget {
                       Text(
                         '${_dayLabel(date)} · ${months[date.month - 1]} ${date.day}',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: LiftrType.x11,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.08,
                           color: lt.textMuted,
@@ -1443,7 +1450,7 @@ class _WorkoutCard extends StatelessWidget {
                       Text(
                         session?.name ?? 'No session',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: LiftrType.x16,
                           fontWeight: FontWeight.w500,
                           color:
                               session != null ? lt.textPrimary : lt.textDim,
@@ -1454,13 +1461,15 @@ class _WorkoutCard extends StatelessWidget {
                 ),
                 if (exercises.isNotEmpty) ...[
                   AccentChip('${exercises.length} EX'),
-                  const SizedBox(width: LiftrSpacing.x8),
+                  const SizedBox(width: LiftrSpacing.x6),
                 ],
-                // The way back in to a finished session. Read-only is the
-                // default for anything you're not currently doing, so editing
-                // history is a deliberate act rather than a stray tap.
-                if (session != null && !isEditable)
-                  _EditLockButton(onTap: onUnlock),
+                // Stays put and flips label rather than disappearing — a control
+                // that vanishes on tap gives you nothing to undo with.
+                if (onToggleEdit != null)
+                  _EditToggleChip(
+                    isEditing: isEditable,
+                    onTap: onToggleEdit!,
+                  ),
               ],
             ),
           ),
@@ -1495,7 +1504,7 @@ class _WorkoutCard extends StatelessWidget {
                     Text(
                       'Add exercise',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: LiftrType.x13,
                         fontWeight: FontWeight.w500,
                         color: lt.accentMid,
                       ),
@@ -1544,13 +1553,20 @@ class _WorkoutCard extends StatelessWidget {
   }
 }
 
-/// Unlocks a finished session for editing.
+/// Edit ⇄ Cancel on a finished session.
 ///
-/// Small and quiet on purpose: correcting history is the exception, and the
-/// unlock lasts only until you change date or filter.
-class _EditLockButton extends StatelessWidget {
-  final VoidCallback? onTap;
-  const _EditLockButton({required this.onTap});
+/// Text-only, no padlock: a lock icon reads as "you can't", when the whole point
+/// of the control is that you can.
+///
+/// Metrics deliberately mirror [AccentChip] exactly — padding, font size,
+/// weight, letter spacing and radius — so it sits level with the "3 EX" chip
+/// beside it instead of towering over it.
+class _EditToggleChip extends StatelessWidget {
+  /// True once unlocked, when the chip becomes the way back out.
+  final bool isEditing;
+  final VoidCallback onTap;
+
+  const _EditToggleChip({required this.isEditing, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1558,28 +1574,28 @@ class _EditLockButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(
-            horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x5),
+            horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
         decoration: BoxDecoration(
-          color: lt.card,
-          border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+          // Tinted while editing: the state is worth seeing at a glance, since
+          // it silently expires when you change date or filter.
+          color: isEditing ? lt.accentBg : lt.card,
+          border: Border.all(
+            color: isEditing ? lt.accentBorder : lt.border,
+            width: LiftrBorders.hairline,
+          ),
           borderRadius: BorderRadius.circular(LiftrRadii.panel),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_outline, size: 12, color: lt.textMuted),
-            const SizedBox(width: LiftrSpacing.x5),
-            Text(
-              'Edit',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: lt.textSecondary,
-              ),
-            ),
-          ],
+        child: Text(
+          isEditing ? 'CANCEL' : 'EDIT',
+          style: TextStyle(
+            fontSize: LiftrType.x10,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.06,
+            color: isEditing ? lt.accentTextColor : lt.textSecondary,
+          ),
         ),
       ),
     );
@@ -1602,7 +1618,7 @@ class _EmptyState extends StatelessWidget {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: lt.textDim, height: 1.6),
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
         ),
       ),
     );
@@ -1649,7 +1665,7 @@ class _ExerciseRow extends StatelessWidget {
               child: Center(
                 child: Text(
                   exerciseEmoji(detail?.category, detail?.muscleGroup),
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: LiftrType.x16),
                 ),
               ),
             ),
@@ -1661,7 +1677,7 @@ class _ExerciseRow extends StatelessWidget {
                   Text(
                     exercise.name,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: LiftrType.x13,
                       fontWeight: FontWeight.w500,
                       color: lt.textPrimary,
                     ),
@@ -1670,7 +1686,7 @@ class _ExerciseRow extends StatelessWidget {
                   if (subtitle.isNotEmpty) ...[
                     const SizedBox(height: LiftrSpacing.x2),
                     Text(subtitle,
-                        style: TextStyle(fontSize: 11, color: lt.textMuted)),
+                        style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted)),
                   ],
                 ],
               ),
@@ -1698,9 +1714,9 @@ class _ConfirmDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: lt.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
-      title: Text(title, style: TextStyle(fontSize: 16, color: lt.textPrimary)),
+      title: Text(title, style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
       content: Text(message,
-          style: TextStyle(fontSize: 13, color: lt.textSecondary)),
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),

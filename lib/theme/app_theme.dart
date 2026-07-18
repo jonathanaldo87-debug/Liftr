@@ -213,6 +213,38 @@ class LiftrSpacing {
   static const x36 = 36.0;
 }
 
+/// Font sizes.
+///
+/// Same convention as [LiftrSpacing]: the suffix is the pixel value, so
+/// adopting these is a rename that preserves every existing size exactly.
+/// Named `xN` rather than by role because the design uses 15 distinct steps —
+/// and because the same size does different jobs in different places (13 is
+/// both a set row and a button label), so a role name would be a lie at half
+/// the call sites.
+///
+/// These are the raw scale. Where a piece of text fits one of the roles in
+/// `AppTheme`'s `textTheme` — screen titles, section headers, body copy — reach
+/// for `Theme.of(context).textTheme` instead; it carries colour and weight too.
+/// This class is for the rest: the one-off labels, hints and chips that make up
+/// most of the app's text.
+class LiftrType {
+  static const x9 = 9.0; // chart axis labels
+  static const x10 = 10.0; // input hints, badge text
+  static const x11 = 11.0; // section headers, chip labels, metadata
+  static const x12 = 12.0; // secondary labels, card captions
+  static const x13 = 13.0; // body text, set rows, button labels
+  static const x14 = 14.0; // emphasised body, list titles
+  static const x15 = 15.0; // primary buttons, field text
+  static const x16 = 16.0; // card titles, stat values
+  static const x18 = 18.0; // section titles
+  static const x20 = 20.0; // the weight input
+  static const x22 = 22.0; // screen titles (serif)
+  static const x26 = 26.0; // large display (serif)
+  static const x28 = 28.0; // stat headline
+  static const x30 = 30.0; // onboarding emoji
+  static const x32 = 32.0; // hero display (serif)
+}
+
 // ── Helper extension on BuildContext ──────────────────────────
 extension LiftrThemeX on BuildContext {
   LiftrTheme get lt => Theme.of(this).extension<LiftrTheme>()!;
@@ -247,22 +279,22 @@ class AppTheme {
       ),
       fontFamily: 'DMSans',
       textTheme: TextTheme(
-        displayLarge: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: 32, fontWeight: FontWeight.w400),
-        displayMedium: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: 26, fontWeight: FontWeight.w400),
-        displaySmall: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: 22, fontWeight: FontWeight.w400),
-        headlineMedium: TextStyle(color: text, fontSize: 18, fontWeight: FontWeight.w500, letterSpacing: -0.3),
-        titleLarge: TextStyle(color: text, fontSize: 16, fontWeight: FontWeight.w500),
-        titleMedium: TextStyle(color: text, fontSize: 14, fontWeight: FontWeight.w500),
-        bodyLarge: TextStyle(color: text, fontSize: 15, fontWeight: FontWeight.w400),
-        bodyMedium: TextStyle(color: text, fontSize: 13, fontWeight: FontWeight.w400),
+        displayLarge: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: LiftrType.x32, fontWeight: FontWeight.w400),
+        displayMedium: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: LiftrType.x26, fontWeight: FontWeight.w400),
+        displaySmall: TextStyle(fontFamily: 'DMSerifDisplay', color: text, fontSize: LiftrType.x22, fontWeight: FontWeight.w400),
+        headlineMedium: TextStyle(color: text, fontSize: LiftrType.x18, fontWeight: FontWeight.w500, letterSpacing: -0.3),
+        titleLarge: TextStyle(color: text, fontSize: LiftrType.x16, fontWeight: FontWeight.w500),
+        titleMedium: TextStyle(color: text, fontSize: LiftrType.x14, fontWeight: FontWeight.w500),
+        bodyLarge: TextStyle(color: text, fontSize: LiftrType.x15, fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(color: text, fontSize: LiftrType.x13, fontWeight: FontWeight.w400),
         bodySmall: TextStyle(
           color: isDark ? LiftrColors.darkTextMuted : LiftrColors.lightTextMuted,
-          fontSize: 12,
+          fontSize: LiftrType.x12,
           fontWeight: FontWeight.w400,
         ),
         labelSmall: TextStyle(
           color: isDark ? LiftrColors.darkTextMuted : LiftrColors.lightTextMuted,
-          fontSize: 11,
+          fontSize: LiftrType.x11,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.08,
         ),
@@ -308,7 +340,7 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x14),
         hintStyle: TextStyle(
           color: isDark ? LiftrColors.darkTextDim : LiftrColors.lightTextDim,
-          fontSize: 14,
+          fontSize: LiftrType.x14,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -320,7 +352,7 @@ class AppTheme {
           elevation: 0,
           textStyle: const TextStyle(
             fontFamily: 'DMSans',
-            fontSize: 15,
+            fontSize: LiftrType.x15,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.01,
           ),

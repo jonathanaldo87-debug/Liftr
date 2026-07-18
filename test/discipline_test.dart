@@ -127,6 +127,27 @@ void main() {
       expect(canEdit(null, 'anything'), isFalse);
       expect(canEdit(const WorkoutSessions(), 'anything'), isFalse);
     });
+
+    // Mirrors _toggleEdit: the chip flips Edit <-> Cancel rather than vanishing.
+    String? toggle(String? unlockedId, String sessionId) =>
+        unlockedId == sessionId ? null : sessionId;
+
+    test('the chip toggles unlock on and back off', () {
+      var unlocked = toggle(null, 'b'); // tap EDIT
+      expect(canEdit(ended, unlocked), isTrue);
+
+      unlocked = toggle(unlocked, 'b'); // tap CANCEL
+      expect(canEdit(ended, unlocked), isFalse);
+    });
+
+    test('unlocking a second session releases the first', () {
+      // Only one can be unlocked at a time — the state is a single id, so
+      // switching sessions can't leave the previous one silently writable.
+      var unlocked = toggle(null, 'b');
+      unlocked = toggle(unlocked, 'c');
+      expect(unlocked, 'c');
+      expect(canEdit(ended, unlocked), isFalse);
+    });
   });
 
   group('ActiveSessionExists', () {

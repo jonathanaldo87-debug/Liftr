@@ -206,7 +206,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                         onChanged: (_) {
                           if (_nameError) setState(() => _nameError = false);
                         },
-                        style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                        style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'e.g. Push Day A',
                           border: InputBorder.none,
@@ -219,7 +219,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       const SizedBox(height: LiftrSpacing.x5),
                       const Text(
                         'Session name is required',
-                        style: TextStyle(fontSize: 11, color: LiftrColors.danger),
+                        style: TextStyle(fontSize: LiftrType.x11, color: LiftrColors.danger),
                       ),
                     ],
                     const SizedBox(height: LiftrSpacing.x20),
@@ -242,7 +242,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       child: TextField(
                         controller: _noteCtrl,
                         maxLines: 4,
-                        style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                        style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                         decoration: const InputDecoration(
                           hintText: 'Optional notes for this exercise…',
                           border: InputBorder.none,
@@ -276,7 +276,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                           child: Text(
                             'Cancel',
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: LiftrType.x15,
                               fontWeight: FontWeight.w500,
                               color: lt.textSecondary,
                             ),
@@ -342,7 +342,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                   if (hasSelection) ...[
                     Text(
                       exerciseEmoji(selected.category, selected.muscleGroup),
-                      style: const TextStyle(fontSize: 16),
+                      style: const TextStyle(fontSize: LiftrType.x16),
                     ),
                     const SizedBox(width: LiftrSpacing.x8),
                   ] else
@@ -351,7 +351,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     child: TextField(
                       controller: controller,
                       focusNode: focusNode,
-                      style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                      style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
                       onChanged: (v) {
                         // Typing past a selection invalidates it, which disables Save.
                         if (selected != null && v.trim() != selected.name) {
@@ -360,7 +360,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       },
                       decoration: InputDecoration(
                         hintText: 'Search exercises…',
-                        hintStyle: TextStyle(fontSize: 14, color: lt.textDim),
+                        hintStyle: TextStyle(fontSize: LiftrType.x14, color: lt.textDim),
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x14),
@@ -417,7 +417,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                               child: Text(
                                 'RECENT',
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: LiftrType.x10,
                                   letterSpacing: 0.8,
                                   fontWeight: FontWeight.w600,
                                   color: lt.textMuted,
@@ -442,7 +442,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                     children: [
                                       Text(
                                         exerciseEmoji(e.category, e.muscleGroup),
-                                        style: const TextStyle(fontSize: 15),
+                                        style: const TextStyle(fontSize: LiftrType.x15),
                                       ),
                                       const SizedBox(width: LiftrSpacing.x10),
                                       Expanded(
@@ -455,7 +455,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                fontSize: 13,
+                                                fontSize: LiftrType.x13,
                                                 fontWeight: FontWeight.w500,
                                                 color: lt.textPrimary,
                                               ),
@@ -467,7 +467,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                  fontSize: 11,
+                                                  fontSize: LiftrType.x11,
                                                   color: lt.textMuted,
                                                 ),
                                               ),

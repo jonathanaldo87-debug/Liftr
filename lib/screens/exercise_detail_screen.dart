@@ -269,7 +269,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                             widget.readOnly
                                 ? 'No sets were logged for this exercise.'
                                 : 'No sets yet. Log your first one below.',
-                            style: TextStyle(fontSize: 13, color: lt.textDim),
+                            style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim),
                           ),
                         )
                       else
@@ -325,31 +325,31 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 if (_subtitle.isNotEmpty)
                   Text(
                     _subtitle,
-                    style: TextStyle(fontSize: 11, color: lt.textMuted),
+                    style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                   ),
               ],
             ),
           ),
           if (widget.readOnly)
             // Says why the controls are missing, rather than leaving them
-            // mysteriously absent.
+            // mysteriously absent. Same metrics as the chips on the home card.
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x5),
+                  horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
               decoration: BoxDecoration(
                 color: lt.card,
                 border:
                     Border.all(color: lt.border, width: LiftrBorders.hairline),
                 borderRadius: BorderRadius.circular(LiftrRadii.panel),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_outline, size: 12, color: lt.textMuted),
-                  const SizedBox(width: LiftrSpacing.x5),
-                  Text('Read only',
-                      style: TextStyle(fontSize: 12, color: lt.textSecondary)),
-                ],
+              child: Text(
+                'READ ONLY',
+                style: TextStyle(
+                  fontSize: LiftrType.x10,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.06,
+                  color: lt.textSecondary,
+                ),
               ),
             )
           else
@@ -391,7 +391,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               Text(
                 'Weight progress',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: LiftrType.x12,
                   fontWeight: FontWeight.w500,
                   color: lt.textSecondary,
                 ),
@@ -402,7 +402,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     ? '—'
                     : '${_trim(best)} kg${improving ? ' ↑' : ''}',
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: LiftrType.x16,
                   fontWeight: FontWeight.w600,
                   color: LiftrColors.accent,
                 ),
@@ -419,7 +419,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                           ? 'Log a set to start tracking this lift.'
                           : 'One session logged. The trend appears after the next one.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: lt.textDim),
+                      style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
                     ),
                   )
                 : CustomPaint(
@@ -461,7 +461,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         },
         onSubmitted: widget.readOnly ? null : (_) => _saveNotes(),
         style: TextStyle(
-          fontSize: 13,
+          fontSize: LiftrType.x13,
           color: widget.readOnly ? lt.textSecondary : lt.textPrimary,
         ),
         decoration: InputDecoration(
@@ -490,7 +490,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         Text(
           'SETS · ${months[d.month - 1]} ${d.day}',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: LiftrType.x11,
             fontWeight: FontWeight.w500,
             letterSpacing: 0.08,
             color: lt.textMuted,
@@ -500,7 +500,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         if (volume > 0)
           Text(
             '${_trim(volume)} kg volume',
-            style: TextStyle(fontSize: 11, color: lt.textMuted),
+            style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
           ),
       ],
     );
@@ -560,7 +560,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   child: Text(
                     'S${s.setNumber ?? 0}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: LiftrType.x11,
                       fontWeight: FontWeight.w600,
                       color: isEditing ? lt.accentMid : lt.textMuted,
                     ),
@@ -569,13 +569,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 Expanded(
                   child: Text(
                     '${s.reps ?? 0} reps · ${_trim(s.weightKg ?? 0)} kg',
-                    style: TextStyle(fontSize: 13, color: lt.textPrimary),
+                    style: TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary),
                   ),
                 ),
                 Text(
                   isEditing ? 'Editing' : '${_trim(s.volume)} kg',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: LiftrType.x11,
                     fontWeight: FontWeight.w500,
                     color: isEditing ? lt.accentMid : lt.textDim,
                   ),
@@ -605,7 +605,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     ? 'EDITING SET ${_editing!.setNumber ?? 0}'
                     : 'SET ${_sets.length + 1} · LOG WEIGHT',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: LiftrType.x11,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.08,
                   color: lt.textMuted,
@@ -622,7 +622,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                   },
                   child: Text(
                     'Cancel',
-                    style: TextStyle(fontSize: 11, color: lt.textSecondary),
+                    style: TextStyle(fontSize: LiftrType.x11, color: lt.textSecondary),
                   ),
                 ),
             ],
@@ -644,13 +644,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         const TextInputType.numberWithOptions(decimal: true),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: LiftrType.x20,
                       fontWeight: FontWeight.w600,
                       color: LiftrColors.accent,
                     ),
                     decoration: InputDecoration(
                       hintText: '0',
-                      hintStyle: TextStyle(fontSize: 20, color: lt.textDim),
+                      hintStyle: TextStyle(fontSize: LiftrType.x20, color: lt.textDim),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
                       fillColor: Colors.transparent,
@@ -663,7 +663,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 child: Text(
                   'kg',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: LiftrType.x13,
                     color: lt.textMuted,
                     fontWeight: FontWeight.w500,
                   ),
@@ -672,7 +672,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               Column(
                 children: [
                   Text('Reps',
-                      style: TextStyle(fontSize: 11, color: lt.textMuted)),
+                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted)),
                   const SizedBox(height: LiftrSpacing.x4),
                   Container(
                     width: 56,
@@ -687,13 +687,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       textAlign: TextAlign.center,
                       onSubmitted: (_) => _saveSet(),
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: LiftrType.x16,
                         fontWeight: FontWeight.w600,
                         color: lt.textPrimary,
                       ),
                       decoration: InputDecoration(
                         hintText: '0',
-                        hintStyle: TextStyle(fontSize: 16, color: lt.textDim),
+                        hintStyle: TextStyle(fontSize: LiftrType.x16, color: lt.textDim),
                         border: InputBorder.none,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
@@ -722,14 +722,14 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         ),
                       )
                     : Text(editing ? 'Update' : 'Save',
-                        style: const TextStyle(fontSize: 13)),
+                        style: const TextStyle(fontSize: LiftrType.x13)),
               ),
             ],
           ),
           const SizedBox(height: LiftrSpacing.x6),
           Text(
             _hint,
-            style: TextStyle(fontSize: 10, color: lt.textDim),
+            style: TextStyle(fontSize: LiftrType.x10, color: lt.textDim),
           ),
         ],
       ),
@@ -781,9 +781,9 @@ class _ConfirmDialog extends StatelessWidget {
       backgroundColor: lt.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
       title: Text(title,
-          style: TextStyle(fontSize: 16, color: lt.textPrimary)),
+          style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
       content: Text(message,
-          style: TextStyle(fontSize: 13, color: lt.textSecondary)),
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
@@ -888,7 +888,7 @@ class _ChartPainter extends CustomPainter {
     void drawLabel(String text, Offset pos, TextAlign align) {
       tp.text = TextSpan(
         text: text,
-        style: TextStyle(fontSize: 9, color: labelColor, fontFamily: 'DMSans'),
+        style: TextStyle(fontSize: LiftrType.x9, color: labelColor, fontFamily: 'DMSans'),
       );
       tp.textAlign = align;
       tp.layout();

@@ -45,14 +45,14 @@ Future<void> confirmAndSignOut(
         backgroundColor: lt.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LiftrRadii.card)),
         title: Text('Sign out of a guest account?',
-            style: TextStyle(fontSize: 16, color: lt.textPrimary)),
+            style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
         content: Text(
           'A guest account only exists on this device. It has no email, so '
           'there is no way to sign back into it.\n\n'
           'Signing out permanently loses access to every workout you have '
           'logged. Add an email and password first to keep them.',
           style:
-              TextStyle(fontSize: 13, color: lt.textSecondary, height: 1.5),
+              TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
         ),
         actions: [
           TextButton(
@@ -143,7 +143,7 @@ class _ProfileTabState extends State<ProfileTab> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         children: [
-          Text('Account', style: TextStyle(fontSize: 12, color: lt.textMuted)),
+          Text('Account', style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
           const SizedBox(height: LiftrSpacing.x2),
           Text('Profile', style: tt.displaySmall),
           const SizedBox(height: LiftrSpacing.x20),
@@ -172,7 +172,7 @@ class _ProfileTabState extends State<ProfileTab> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: LiftrType.x15,
                                 fontWeight: FontWeight.w500,
                                 color: lt.textPrimary,
                               ),
@@ -189,7 +189,7 @@ class _ProfileTabState extends State<ProfileTab> {
                         AuthService.accountLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: lt.textMuted),
+                        style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
                       ),
                     ],
                   ),
@@ -229,11 +229,11 @@ class _ProfileTabState extends State<ProfileTab> {
                 // The disciplines you picked in onboarding. These are now
                 // load-bearing: they decide which chips the home screen offers.
                 _disciplineLabel,
-                style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
               ),
               subtitle: Text(
                 'Tap to run through setup again',
-                style: TextStyle(fontSize: 11, color: lt.textMuted),
+                style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
               ),
             ),
           ),
@@ -256,11 +256,11 @@ class _ProfileTabState extends State<ProfileTab> {
                   const EdgeInsets.symmetric(horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               title: Text(
                 'Dark mode',
-                style: TextStyle(fontSize: 14, color: lt.textPrimary),
+                style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
               ),
               subtitle: Text(
                 isDark ? 'Dark theme is on' : 'Light theme is on',
-                style: TextStyle(fontSize: 11, color: lt.textMuted),
+                style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
               ),
               secondary: Icon(
                 isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
@@ -287,12 +287,12 @@ class _ProfileTabState extends State<ProfileTab> {
                   const Icon(Icons.logout, size: 20, color: LiftrColors.danger),
               title: const Text(
                 'Sign out',
-                style: TextStyle(fontSize: 14, color: LiftrColors.danger),
+                style: TextStyle(fontSize: LiftrType.x14, color: LiftrColors.danger),
               ),
               subtitle: isGuest
                   ? Text(
                       'Ends this guest account for good',
-                      style: TextStyle(fontSize: 11, color: lt.textMuted),
+                      style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                     )
                   : null,
             ),
@@ -301,7 +301,7 @@ class _ProfileTabState extends State<ProfileTab> {
 
           Center(
             child: Text('Liftr',
-                style: TextStyle(fontSize: 12, color: lt.textDim)),
+                style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim)),
           ),
         ],
       ),
@@ -334,7 +334,7 @@ class _GuestWarningCard extends StatelessWidget {
               Text(
                 'This account lives on this phone only',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: LiftrType.x13,
                   fontWeight: FontWeight.w500,
                   color: lt.accentTextColor,
                 ),
@@ -347,7 +347,7 @@ class _GuestWarningCard extends StatelessWidget {
             'from another device. Nothing you have already logged is lost — the '
             'account is upgraded in place.',
             style: TextStyle(
-                fontSize: 12, color: lt.textSecondary, height: 1.45),
+                fontSize: LiftrType.x12, color: lt.textSecondary, height: 1.45),
           ),
           const SizedBox(height: LiftrSpacing.x10),
           SizedBox(
@@ -455,7 +455,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
             Text(
               'Your ${AuthService.displayName} history stays exactly as it is — '
               'this just adds a way to sign back in.',
-              style: TextStyle(fontSize: 12, color: lt.textMuted, height: 1.4),
+              style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted, height: 1.4),
             ),
             const SizedBox(height: LiftrSpacing.x18),
 
@@ -465,7 +465,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
-              style: TextStyle(fontSize: 14, color: lt.textPrimary),
+              style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
               decoration: const InputDecoration(hintText: 'you@email.com'),
             ),
             const SizedBox(height: LiftrSpacing.x12),
@@ -475,7 +475,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
             TextField(
               controller: _passCtrl,
               obscureText: _obscure,
-              style: TextStyle(fontSize: 14, color: lt.textPrimary),
+              style: TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
               decoration: InputDecoration(
                 hintText: 'At least 6 characters',
                 suffixIcon: IconButton(
@@ -496,7 +496,7 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
               Text(
                 _error!,
                 style:
-                    const TextStyle(fontSize: 12, color: LiftrColors.danger),
+                    const TextStyle(fontSize: LiftrType.x12, color: LiftrColors.danger),
               ),
             ],
 

@@ -53,7 +53,7 @@ class _ProgressTabState extends State<ProgressTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('All time', style: TextStyle(fontSize: 12, color: lt.textMuted)),
+                Text('All time', style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
                 const SizedBox(height: LiftrSpacing.x2),
                 Text('Progress', style: tt.displaySmall),
               ],
@@ -86,7 +86,7 @@ class _ProgressTabState extends State<ProgressTab> {
                         'Could not load your stats.\n$_error',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13, color: lt.textDim, height: 1.6),
+                            fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
                       ),
                     )
                   else if (s == null || s.totalSessions == 0)
@@ -97,7 +97,7 @@ class _ProgressTabState extends State<ProgressTab> {
                         'numbers show up here.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            fontSize: 13, color: lt.textDim, height: 1.6),
+                            fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
                       ),
                     )
                   else ...[
@@ -151,7 +151,7 @@ class _ProgressTabState extends State<ProgressTab> {
                       'Per-exercise trends live on each exercise — open one from '
                       'a workout to see its weight chart.',
                       style: TextStyle(
-                          fontSize: 11, color: lt.textDim, height: 1.5),
+                          fontSize: LiftrType.x11, color: lt.textDim, height: 1.5),
                     ),
                   ],
                 ],
@@ -192,7 +192,7 @@ class _StreakCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(days > 0 ? '🔥' : '💤', style: const TextStyle(fontSize: 30)),
+          Text(days > 0 ? '🔥' : '💤', style: const TextStyle(fontSize: LiftrType.x30)),
           const SizedBox(width: LiftrSpacing.x14),
           Expanded(
             child: Column(
@@ -201,7 +201,7 @@ class _StreakCard extends StatelessWidget {
                 Text(
                   days == 0 ? 'No active streak' : '$days day streak',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: LiftrType.x18,
                     fontWeight: FontWeight.w600,
                     color: lt.accentTextColor,
                   ),
@@ -211,7 +211,7 @@ class _StreakCard extends StatelessWidget {
                   days == 0
                       ? 'Log a workout today to start one.'
                       : 'Consecutive days trained. Keep it going.',
-                  style: TextStyle(fontSize: 12, color: lt.textSecondary),
+                  style: TextStyle(fontSize: LiftrType.x12, color: lt.textSecondary),
                 ),
               ],
             ),
@@ -249,7 +249,7 @@ class _StatCard extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: LiftrType.x10,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.6,
               color: lt.textMuted,
@@ -262,7 +262,7 @@ class _StatCard extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 22,
+                fontSize: LiftrType.x22,
                 fontWeight: FontWeight.w600,
                 color: LiftrColors.accent,
               ),
@@ -270,7 +270,7 @@ class _StatCard extends StatelessWidget {
           ),
           if (hint.isNotEmpty) ...[
             const SizedBox(height: LiftrSpacing.x3),
-            Text(hint, style: TextStyle(fontSize: 11, color: lt.textDim)),
+            Text(hint, style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim)),
           ],
         ],
       ),

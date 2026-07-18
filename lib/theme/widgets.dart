@@ -65,7 +65,7 @@ class SectionLabel extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: TextStyle(
-        fontSize: 11,
+        fontSize: LiftrType.x11,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.08,
         color: context.lt.textMuted,
@@ -91,7 +91,7 @@ class AccentChip extends StatelessWidget {
       child: Text(
         label.toUpperCase(),
         style: TextStyle(
-          fontSize: 10,
+          fontSize: LiftrType.x10,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.06,
           color: context.lt.accentTextColor,
@@ -141,12 +141,12 @@ class ThreeDotMenu extends StatelessWidget {
         PopupMenuItem(
           value: 'edit',
           height: 40,
-          child: Text('Edit', style: TextStyle(fontSize: 13, color: context.lt.textPrimary)),
+          child: Text('Edit', style: TextStyle(fontSize: LiftrType.x13, color: context.lt.textPrimary)),
         ),
         const PopupMenuItem(
           value: 'delete',
           height: 40,
-          child: Text('Delete', style: TextStyle(fontSize: 13, color: LiftrColors.danger)),
+          child: Text('Delete', style: TextStyle(fontSize: LiftrType.x13, color: LiftrColors.danger)),
         ),
       ],
     );
@@ -177,7 +177,7 @@ class AvatarCircle extends StatelessWidget {
           initials,
           style: const TextStyle(
             color: LiftrColors.accentText,
-            fontSize: 14,
+            fontSize: LiftrType.x14,
             fontWeight: FontWeight.w600,
             fontFamily: 'DMSans',
           ),
@@ -274,12 +274,12 @@ class ActivityCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(emoji, style: const TextStyle(fontSize: 22)),
+                Text(emoji, style: const TextStyle(fontSize: LiftrType.x22)),
                 const SizedBox(height: LiftrSpacing.x8),
                 Text(
                   name,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: LiftrType.x13,
                     fontWeight: FontWeight.w500,
                     color: context.lt.textPrimary,
                   ),
@@ -287,7 +287,7 @@ class ActivityCard extends StatelessWidget {
                 const SizedBox(height: LiftrSpacing.x2),
                 Text(
                   description,
-                  style: TextStyle(fontSize: 11, color: context.lt.textMuted),
+                  style: TextStyle(fontSize: LiftrType.x11, color: context.lt.textMuted),
                 ),
               ],
             ),

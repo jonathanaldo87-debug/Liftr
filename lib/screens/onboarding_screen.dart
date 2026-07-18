@@ -211,7 +211,7 @@ class _DisciplinePage extends StatelessWidget {
           const SizedBox(height: LiftrSpacing.x6),
           Text(
             'Pick everything you do — you can change this later.',
-            style: TextStyle(fontSize: 13, color: lt.textMuted),
+            style: TextStyle(fontSize: LiftrType.x13, color: lt.textMuted),
           ),
           const SizedBox(height: LiftrSpacing.x24),
 
@@ -238,7 +238,7 @@ class _DisciplinePage extends StatelessWidget {
             selected.length == 1
                 ? '1 selected'
                 : '${selected.length} selected',
-            style: TextStyle(fontSize: 12, color: lt.textDim),
+            style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
           ),
         ],
       ),
@@ -282,7 +282,7 @@ class _TemplatePage extends StatelessWidget {
           const SizedBox(height: LiftrSpacing.x6),
           Text(
             'For your gym sessions. You can always change this later.',
-            style: TextStyle(fontSize: 13, color: lt.textMuted),
+            style: TextStyle(fontSize: LiftrType.x13, color: lt.textMuted),
           ),
           const SizedBox(height: LiftrSpacing.x32),
 
@@ -307,7 +307,7 @@ class _TemplatePage extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Text(emoji, style: const TextStyle(fontSize: 28)),
+                      Text(emoji, style: const TextStyle(fontSize: LiftrType.x28)),
                       const SizedBox(width: LiftrSpacing.x16),
                       Expanded(
                         child: Column(
@@ -316,7 +316,7 @@ class _TemplatePage extends StatelessWidget {
                             Text(
                               title,
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: LiftrType.x15,
                                 fontWeight: FontWeight.w500,
                                 color: isSelected
                                     ? LiftrColors.accent
@@ -326,12 +326,12 @@ class _TemplatePage extends StatelessWidget {
                             const SizedBox(height: LiftrSpacing.x3),
                             Text(desc,
                                 style: TextStyle(
-                                    fontSize: 12, color: lt.textMuted)),
+                                    fontSize: LiftrType.x12, color: lt.textMuted)),
                             const SizedBox(height: LiftrSpacing.x4),
                             Text(
                               sub,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: LiftrType.x11,
                                 color: isSelected ? lt.accentMid : lt.textDim,
                                 fontWeight: FontWeight.w500,
                               ),
