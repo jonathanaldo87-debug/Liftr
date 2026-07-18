@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
+import '../services/machine_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import '../utils/format.dart';
+import 'machine_sheets.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
   final WorkoutExercises exercise;
@@ -47,7 +49,23 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   /// Set to true by any change that the previous screen needs to see.
   bool _dirty = false;
 
+  /// Machines you could be on for this lift. Empty unless you've registered
+  /// any, which most people never will — the strip renders nothing then.
+  List<UserMachine> _machines = [];
+
+  /// The station this exercise is recorded against. Null means unspecified,
+  /// which is the honest default rather than a missing value to be filled.
+  String? _machineId;
+
+  /// How the selected machine is set up for this exercise — seat 4, back pad 2.
+  MachineExerciseSettings? _machineSettings;
+
   String get _exerciseId => widget.exercise.exerciseId ?? '';
+
+  String? get _catalogId => widget.exercise.catalogId;
+
+  bool get _hasMachines =>
+      exerciseHasMachines(widget.exercise.catalogDetail?.equipment);
 
   @override
   void initState() {
@@ -88,9 +106,108 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         });
         _prefill();
       }
+
+      await _loadMachines();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Loads the stations you could be on, and the setup for the one you're on.
+  ///
+  /// Skipped entirely for barbells and bodyweight: a bench press has no seat
+  /// height and no stack, so there is nothing here worth a round trip.
+  Future<void> _loadMachines() async {
+    final catalogId = _catalogId;
+    if (!_hasMachines || catalogId == null) return;
+
+    final machines = await MachineService.getCandidates(catalogId);
+    var machineId = widget.exercise.machineId;
+
+    // Exactly one registered station means there is no ambiguity to resolve —
+    // you registered it because it's the one you use. Recording it silently is
+    // what keeps the common case free of taps. With two or more, nothing is
+    // chosen for you: which one you're on is decided by whichever was free, so
+    // a guess would be wrong about half the time and would quietly corrupt the
+    // history the whole feature depends on.
+    if (machineId == null &&
+        machines.length == 1 &&
+        !widget.readOnly &&
+        machines.first.machineId != null) {
+      machineId = machines.first.machineId;
+      await MachineService.assignMachine(_exerciseId, machineId);
+      _dirty = true;
+    }
+
+    final settings = machineId == null
+        ? null
+        : await MachineService.getSettings(machineId, catalogId);
+
+    if (!mounted) return;
+    setState(() {
+      _machines = machines;
+      _machineId = machineId;
+      _machineSettings = settings;
+    });
+  }
+
+  Future<void> _selectMachine(String? machineId) async {
+    final catalogId = _catalogId;
+    if (catalogId == null) return;
+
+    setState(() {
+      _machineId = machineId;
+      _machineSettings = null; // cleared until the new one's setup loads
+    });
+
+    try {
+      await MachineService.assignMachine(_exerciseId, machineId);
+      _dirty = true;
+
+      final settings = machineId == null
+          ? null
+          : await MachineService.getSettings(machineId, catalogId);
+      if (mounted) setState(() => _machineSettings = settings);
+    } catch (e) {
+      _toast('Could not record the machine: $e', error: true);
+    }
+  }
+
+  /// Opens the editor for [machine], or for a new one when null.
+  ///
+  /// The inferred step is worked out first so the sheet can offer it as a fact
+  /// to accept rather than a field to fill. For a machine that already exists
+  /// the evidence is its own logged weights; for a new one it's this exercise's
+  /// history, which is weaker — that history may be a blend of two stations.
+  Future<void> _editMachine(UserMachine? machine) async {
+    final catalogId = _catalogId;
+    if (catalogId == null) return;
+
+    final machineId = machine?.machineId;
+    final inferred = machineId == null
+        ? await MachineService.inferIncrementForExercise(catalogId)
+        : await MachineService.inferIncrementFor(machineId);
+
+    if (!mounted) return;
+    final saved = await showMachineEditor(
+      context,
+      catalogId: catalogId,
+      machine: machine,
+      inferredIncrement: inferred,
+    );
+
+    if (!saved || !mounted) return;
+
+    // A machine that was just deleted must not stay selected.
+    if (machineId != null && _machineId == machineId) {
+      final still = await MachineService.getMachines();
+      if (!still.any((m) => m.machineId == machineId)) {
+        await _selectMachine(null);
+      }
+    }
+
+    _dirty = true;
+    await _loadMachines();
   }
 
   /// Carries the last set forward into the input fields, so a working set of
@@ -241,6 +358,22 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     children: [
+                      // Above the chart because it says which station the
+                      // numbers below it belong to. Renders nothing at all for
+                      // barbell and bodyweight work, or before you've
+                      // registered a machine.
+                      if (_hasMachines) ...[
+                        MachineStrip(
+                          candidates: _machines,
+                          selectedId: _machineId,
+                          settings: _machineSettings,
+                          readOnly: widget.readOnly,
+                          onSelect: _selectMachine,
+                          onAdd: () => _editMachine(null),
+                          onEdit: _editMachine,
+                        ),
+                        const SizedBox(height: LiftrSpacing.x10),
+                      ],
                       _chartCard(lt),
                       const SizedBox(height: LiftrSpacing.x14),
                       _notesCard(lt),

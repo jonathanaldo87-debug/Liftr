@@ -274,9 +274,13 @@ class WorkoutService {
     final data = await _db
         .from('workout_exercises')
         .select('exercise_id, session_id, catalog_id, order_index, notes, '
-            'created_at, catalog_detail:exercise_catalog(catalog_id, name, '
-            'category, muscle_group, equipment, is_compound, is_global, '
-            'created_by, created_at)')
+            'created_at, machine_id, catalog_detail:exercise_catalog(catalog_id, '
+            'name, category, muscle_group, equipment, is_compound, is_global, '
+            'created_by, created_at), '
+            // Left join, not inner: the vast majority of exercises have no
+            // machine recorded, and !inner here would hide every one of them.
+            'machine:user_machines(machine_id, label, weight_increment_kg, '
+            'min_weight_kg, notes, created_at)')
         .eq('session_id', sessionId)
         .order('order_index', ascending: true);
 
