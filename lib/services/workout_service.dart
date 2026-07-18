@@ -40,7 +40,12 @@ class WorkoutService {
     try {
       final data = await _db
           .from('disciplines')
-          .select('discipline_key, label, emoji, description, sort_order')
+          // logging_type decides which logging UI a discipline opens, so
+          // leaving it out of this list silently makes every discipline look
+          // like it has none — which is exactly what made running keep saying
+          // its logger was "on the way" after the logger existed.
+          .select('discipline_key, label, emoji, description, sort_order, '
+              'logging_type')
           .eq('is_active', true)
           .order('sort_order', ascending: true);
 
@@ -48,6 +53,24 @@ class WorkoutService {
       if (list.isEmpty) return const [_gymFallback];
       return list;
     } catch (_) {
+      // The column above only exists from migration 013. Against an older
+      // database the whole query fails, and falling straight to gym would make
+      // every other discipline's chip vanish — a much stranger symptom than the
+      // missing feature actually behind it. Retry without it: disciplines load,
+      // each reporting no logging type, which renders as "logger on the way".
+      // Self-heals the moment 013 is applied.
+      try {
+        final data = await _db
+            .from('disciplines')
+            .select('discipline_key, label, emoji, description, sort_order')
+            .eq('is_active', true)
+            .order('sort_order', ascending: true);
+
+        final list = data.map((j) => Discipline.fromJson(j)).toList();
+        if (list.isNotEmpty) return list;
+      } catch (_) {
+        // Genuinely can't reach the table — fall through.
+      }
       return const [_gymFallback];
     }
   }
