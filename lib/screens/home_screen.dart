@@ -748,6 +748,37 @@ class _TodayTabState extends State<_TodayTab> {
     if (saved == true) await _loadData();
   }
 
+  /// Whether the day's runs can be changed.
+  ///
+  /// Today plays the role `is_active` plays for the gym: a manually logged run
+  /// never sets that flag — logManualRun records history rather than starting
+  /// anything — so keying off it would lock every run session the instant it
+  /// was created. Today is live, the past is history until you unlock it.
+  bool _canEditRun(WorkoutSessions? s) =>
+      _isToday(_selectedDate) || _canEdit(s);
+
+  /// Opens a logged run. Editing and deleting both happen in there, the way an
+  /// exercise is changed from its detail screen rather than from the card.
+  Future<void> _openRun(
+    DistanceInterval interval, {
+    required bool readOnly,
+    required int otherRunsToday,
+  }) async {
+    _relock();
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddRunScreen(
+          date: _selectedDate,
+          interval: interval,
+          readOnly: readOnly,
+          otherRunsToday: otherRunsToday,
+        ),
+      ),
+    );
+    if (changed == true) await _loadData();
+  }
+
   /// The card(s) under the chips: every discipline's session on "All", or just
   /// the one you filtered to.
   Widget _dayContent() {
@@ -782,11 +813,25 @@ class _TodayTabState extends State<_TodayTab> {
       if (d.logsDistance) {
         final session = _sessionFor(d.key);
         return _RunCard(
+          date: _selectedDate,
           discipline: d,
           session: session,
           intervals: _intervalsFor(session),
           isLoading: _isLoading,
+          isEditable: _canEditRun(session),
+          // Nothing to toggle on today (always editable) or on a day with no
+          // session yet.
+          onToggleEdit: (session == null || _isToday(_selectedDate))
+              ? null
+              : () => _toggleEdit(session),
           onAddRun: _addRun,
+          onOpenInterval: (i) => _openRun(
+            i,
+            readOnly: !_canEditRun(session),
+            // Every run on the day but this one — the ones whose name would
+            // change along with it.
+            otherRunsToday: _intervalsFor(session).length - 1,
+          ),
         );
       }
 
@@ -1306,23 +1351,62 @@ class _ComingSoonCard extends StatelessWidget {
 /// The day's running: its intervals, the totals across them, and a way to add
 /// one more.
 ///
-/// A session holds several intervals rather than one — "go again" after a
+/// Deliberately built to the same shape as [_WorkoutCard] — same header, same
+/// inline add row, same divider, same Expanded list region — so switching the
+/// discipline chip changes what's in the card rather than how the screen works.
+///
+/// A session holds several intervals rather than one: "go again" after a
 /// kilometre appends, which is also what keeps a second run on the same day
 /// from colliding with the one-session-per-day-per-discipline index from 009.
 class _RunCard extends StatelessWidget {
+  final DateTime date;
+
+  /// Supplies the row emoji, so this card serves any distance discipline rather
+  /// than assuming running.
   final Discipline discipline;
+
   final WorkoutSessions? session;
   final List<DistanceInterval> intervals;
   final bool isLoading;
+
+  /// Read-only unless this is the session you're in, or you've tapped Edit —
+  /// same rule as the gym card, so a finished day can't be altered by a stray
+  /// tap while you're looking back at it.
+  final bool isEditable;
+
+  /// Toggles Edit ⇄ Cancel. Null when there's nothing to toggle — no session,
+  /// or the active one.
+  final VoidCallback? onToggleEdit;
+
   final VoidCallback onAddRun;
 
+  /// Opens a logged run. Deleting it happens in there, not from this card.
+  final ValueChanged<DistanceInterval> onOpenInterval;
+
   const _RunCard({
+    required this.date,
     required this.discipline,
     required this.session,
     required this.intervals,
     required this.isLoading,
+    required this.isEditable,
+    required this.onToggleEdit,
     required this.onAddRun,
+    required this.onOpenInterval,
   });
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _dayLabel(DateTime d) {
+    final now = DateTime.now();
+    if (d.year == now.year && d.month == now.month && d.day == now.day) {
+      return 'Today';
+    }
+    return '${_months[d.month - 1]} ${d.day}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1336,129 +1420,255 @@ class _RunCard extends StatelessWidget {
             Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
         borderRadius: BorderRadius.circular(LiftrRadii.sheet),
       ),
-      padding: const EdgeInsets.all(LiftrSpacing.x18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(discipline.emoji,
-                  style: const TextStyle(fontSize: LiftrType.x16)),
-              const SizedBox(width: LiftrSpacing.x8),
-              Text(
-                discipline.label.toUpperCase(),
-                style: TextStyle(
-                  fontSize: LiftrType.x11,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.08,
-                  color: lt.textMuted,
-                ),
-              ),
-              const Spacer(),
-              if (intervals.isNotEmpty)
-                Text(
-                  formatDistance(totals.distanceMeters),
-                  style: const TextStyle(
-                    fontSize: LiftrType.x16,
-                    fontWeight: FontWeight.w600,
-                    color: LiftrColors.accent,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_dayLabel(date)} · ${_months[date.month - 1]} ${date.day}',
+                        style: TextStyle(
+                          fontSize: LiftrType.x11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.08,
+                          color: lt.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: LiftrSpacing.x3),
+                      Text(
+                        session?.name ?? 'No session',
+                        style: TextStyle(
+                          fontSize: LiftrType.x16,
+                          fontWeight: FontWeight.w500,
+                          color: session != null ? lt.textPrimary : lt.textDim,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+                // The total distance is to this card what "3 EX" is to the gym
+                // one: the single number worth seeing before opening anything.
+                if (intervals.isNotEmpty) ...[
+                  AccentChip(formatDistance(totals.distanceMeters)),
+                  const SizedBox(width: LiftrSpacing.x6),
+                ],
+                // Stays put and flips label rather than disappearing — a
+                // control that vanishes on tap gives you nothing to undo with.
+                if (onToggleEdit != null)
+                  _EditToggleChip(
+                    isEditing: isEditable,
+                    onTap: onToggleEdit!,
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: LiftrSpacing.x14),
-          if (isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: LiftrSpacing.x24),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: LiftrColors.accent),
-                ),
-              ),
-            )
-          else if (intervals.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: LiftrSpacing.x14),
-              child: Text(
-                'Nothing logged for this day yet.',
-                style: TextStyle(fontSize: LiftrType.x13, color: lt.textDim),
-              ),
-            )
-          else ...[
-            for (final i in intervals) _intervalRow(lt, i),
-            const SizedBox(height: LiftrSpacing.x10),
-            // Only worth a totals line once there's more than one leg to total.
-            if (intervals.length > 1)
-              Padding(
-                padding: const EdgeInsets.only(bottom: LiftrSpacing.x10),
+
+          // Gated like the gym card's "Add exercise", with one exception: when
+          // there's no session yet this stays offered.
+          //
+          // The gym has "Start session" to create one; manual running has no
+          // equivalent — logManualRun makes the day's session itself — so
+          // hiding this on an empty day would leave no way to log a run at all.
+          if (session == null || isEditable) ...[
+            const Divider(),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onAddRun,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
                 child: Row(
                   children: [
-                    Text('${totals.intervalCount} intervals',
-                        style: TextStyle(
-                            fontSize: LiftrType.x11, color: lt.textMuted)),
-                    const Spacer(),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: lt.accentBg,
+                        border: Border.all(
+                            color: lt.accentBorder,
+                            width: LiftrBorders.hairline),
+                        borderRadius: BorderRadius.circular(LiftrRadii.inset),
+                      ),
+                      child: Icon(Icons.add, size: 14, color: lt.accentMid),
+                    ),
+                    const SizedBox(width: LiftrSpacing.x8),
                     Text(
-                      '${formatDuration(totals.durationSeconds)} · '
-                      '${formatPace(totals.distanceMeters, totals.durationSeconds)}',
+                      'Add a run',
                       style: TextStyle(
-                          fontSize: LiftrType.x11, color: lt.textMuted),
+                        fontSize: LiftrType.x13,
+                        fontWeight: FontWeight.w500,
+                        color: lt.accentMid,
+                      ),
                     ),
                   ],
                 ),
               ),
-          ],
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: onAddRun,
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(44),
-                side:
-                    BorderSide(color: lt.border, width: LiftrBorders.hairline),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LiftrRadii.button)),
-              ),
-              child: Text(
-                intervals.isEmpty ? 'Add a run' : 'Add another',
-                style:
-                    TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary),
-              ),
             ),
+          ],
+
+          const Divider(),
+
+          // Expanded, so the card fills the height it is given and the empty
+          // state sits in the middle of it rather than clinging to the top with
+          // a screen of dead space underneath.
+          Expanded(
+            child: isLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: LiftrColors.accent,
+                      ),
+                    ),
+                  )
+                : intervals.isEmpty
+                    ? const _EmptyState(
+                        message: 'No runs logged for this day.\n'
+                            'Tap "Add a run" to put one in.')
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: LiftrSpacing.x6),
+                        // The totals line is one row past the end, and only
+                        // when there is more than one leg to total.
+                        itemCount:
+                            intervals.length + (intervals.length > 1 ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (i >= intervals.length) {
+                            return _totalsRow(lt, totals);
+                          }
+                          return _IntervalRow(
+                            interval: intervals[i],
+                            emoji: discipline.emoji,
+                            // Falls back to the discipline rather than showing
+                            // an empty title if a session somehow has no name.
+                            name: session?.name?.trim().isNotEmpty == true
+                                ? session!.name!
+                                : discipline.label,
+                            onTap: () => onOpenInterval(intervals[i]),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Widget _intervalRow(LiftrTheme lt, DistanceInterval i) {
+  Widget _totalsRow(LiftrTheme lt, RunTotals totals) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: LiftrSpacing.x8),
-      child: Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      child: Row(
+        children: [
+          Text(
+            '${totals.intervalCount} runs',
+            style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+          ),
+          const Spacer(),
+          Text(
+            '${formatDuration(totals.durationSeconds)} · '
+            '${formatPace(totals.distanceMeters, totals.durationSeconds)}',
+            style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Interval Row ──────────────────────────────────────────────
+/// One leg of a run, shaped like [_ExerciseRow] so the two cards read as the
+/// same screen with different contents in it.
+class _IntervalRow extends StatelessWidget {
+  final DistanceInterval interval;
+
+  /// The discipline's own emoji, filling the tile an exercise fills with its
+  /// muscle-group icon. Passed in rather than hardcoded to a runner: a cycling
+  /// discipline seeded as `logging_type = 'distance'` gets its own here.
+  final String emoji;
+
+  /// The session's name — what an exercise row shows as its title.
+  ///
+  /// Every run of the day carries the same one, because the name lives on the
+  /// session they share. Repeating it per row is the cost of the numbers moving
+  /// down to the subtitle, where they read as detail rather than identity.
+  final String name;
+
+  final VoidCallback onTap;
+
+  const _IntervalRow({
+    required this.interval,
+    required this.emoji,
+    required this.name,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+
+    // The name leads and the numbers follow, the same way an exercise row reads
+    // "Bench Press / Barbell · Chest" rather than leading with its equipment.
+    final subtitle = [
+      formatDistance(interval.actualDistanceMeters),
+      formatDuration(interval.durationSeconds),
+      formatPace(interval.actualDistanceMeters, interval.durationSeconds),
+    ].where((p) => p.isNotEmpty && p != '—').join(' · ');
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
-        decoration: BoxDecoration(
-          color: lt.card,
-          border:
-              Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
-          borderRadius: BorderRadius.circular(LiftrRadii.field),
-        ),
+            horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
         child: Row(
           children: [
-            Expanded(
-              child: Text(
-                '${formatDistance(i.actualDistanceMeters)} · '
-                '${formatDuration(i.durationSeconds)}',
-                style:
-                    TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: lt.card,
+                borderRadius: BorderRadius.circular(LiftrRadii.control),
+              ),
+              child: Center(
+                child: Text(emoji,
+                    style: const TextStyle(fontSize: LiftrType.x16)),
               ),
             ),
-            Text(
-              formatPace(i.actualDistanceMeters, i.durationSeconds),
-              style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim),
+            const SizedBox(width: LiftrSpacing.x10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: LiftrType.x13,
+                      fontWeight: FontWeight.w500,
+                      color: lt.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: LiftrSpacing.x2),
+                    Text(subtitle,
+                        style: TextStyle(
+                            fontSize: LiftrType.x11, color: lt.textMuted)),
+                  ],
+                ],
+              ),
             ),
+            // Always a chevron, never a menu. The row's job is to open the run;
+            // deleting it belongs on the screen that opens, the same way an
+            // exercise is deleted from its detail screen rather than from here.
+            Icon(Icons.chevron_right, size: 18, color: lt.textDim),
           ],
         ),
       ),

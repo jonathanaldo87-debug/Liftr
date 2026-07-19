@@ -73,6 +73,22 @@ class RunService {
     return ((rows.first['sort_order'] as num?)?.toInt() ?? 0) + 1;
   }
 
+  /// Corrects a logged interval.
+  ///
+  /// Only the distance and the time: the name and notes belong to the session,
+  /// which several intervals share, so editing one leg must not quietly rewrite
+  /// the label on all of them.
+  static Future<void> updateInterval(
+    String intervalId, {
+    required double actualDistanceMeters,
+    required int durationSeconds,
+  }) async {
+    await _db.from('distance_intervals').update({
+      'actual_distance_meters': actualDistanceMeters,
+      'duration_seconds': durationSeconds,
+    }).eq('interval_id', intervalId);
+  }
+
   static Future<void> deleteInterval(String intervalId) async {
     await _db.from('distance_intervals').delete().eq('interval_id', intervalId);
   }
