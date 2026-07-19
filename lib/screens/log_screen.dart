@@ -3,6 +3,7 @@ import '../models/models.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
+import '../utils/dates.dart';
 
 /// Every workout you've logged, newest first. Reached from the Log tab, which
 /// previously did nothing but highlight itself.
@@ -280,23 +281,7 @@ class _SessionCard extends StatelessWidget {
     );
   }
 
-  static String _month(DateTime d) {
-    const months = [
-      'JAN',
-      'FEB',
-      'MAR',
-      'APR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AUG',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DEC',
-    ];
-    return months[d.month - 1];
-  }
+  static String _month(DateTime d) => kMonthsUpper[d.month - 1];
 
   static String _relative(DateTime d) {
     final today = DateTime.now();

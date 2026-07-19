@@ -7,6 +7,7 @@ import '../services/run_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
+import '../utils/dates.dart';
 import '../utils/format.dart';
 import '../utils/run_math.dart';
 import 'add_exercise_screen.dart';
@@ -556,11 +557,7 @@ class _TodayTabState extends State<_TodayTab> {
     return ok == true;
   }
 
-  bool _isToday(DateTime? d) {
-    if (d == null) return false;
-    final now = DateTime.now();
-    return d.year == now.year && d.month == now.month && d.day == now.day;
-  }
+  bool _isToday(DateTime? d) => isToday(d);
 
   Discipline _disciplineFor(String key) => _disciplines.firstWhere(
         (d) => d.key == key,
@@ -852,32 +849,7 @@ class _TodayTabState extends State<_TodayTab> {
     );
   }
 
-  String _formattedFullDate(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    return '${days[d.weekday - 1]}, ${months[d.month - 1]} ${d.day}';
-  }
+  String _formattedFullDate(DateTime d) => weekdayDate(d);
 }
 
 // ── Active session ────────────────────────────────────────────
@@ -1395,19 +1367,6 @@ class _RunCard extends StatelessWidget {
     required this.onOpenInterval,
   });
 
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  String _dayLabel(DateTime d) {
-    final now = DateTime.now();
-    if (d.year == now.year && d.month == now.month && d.day == now.day) {
-      return 'Today';
-    }
-    return '${_months[d.month - 1]} ${d.day}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
@@ -1433,7 +1392,7 @@ class _RunCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${_dayLabel(date)} · ${_months[date.month - 1]} ${date.day}',
+                        '${dayLabel(date)} · ${shortDate(date)}',
                         style: TextStyle(
                           fontSize: LiftrType.x11,
                           fontWeight: FontWeight.w500,
@@ -1751,21 +1710,6 @@ class _CalendarStripState extends State<_CalendarStrip> {
   Widget build(BuildContext context) {
     final lt = context.lt;
     final now = DateTime.now();
-    const dayNames = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
@@ -1774,7 +1718,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
           Row(
             children: [
               Text(
-                '${monthNames[_weekStart.month - 1]} ${_weekStart.year}',
+                monthYear(_weekStart),
                 style: TextStyle(
                   fontSize: LiftrType.x13,
                   fontWeight: FontWeight.w500,
@@ -1814,7 +1758,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                   child: Column(
                     children: [
                       Text(
-                        dayNames[i],
+                        kWeekdaysUpper[i],
                         style: TextStyle(
                           fontSize: LiftrType.x10,
                           fontWeight: FontWeight.w500,
@@ -1909,46 +1853,9 @@ class _WorkoutCard extends StatelessWidget {
     required this.onExerciseDelete,
   });
 
-  String _dayLabel(DateTime d) {
-    final now = DateTime.now();
-    // Compares the year too — the old version called any Mar 3 "Today".
-    if (d.year == now.year && d.month == now.month && d.day == now.day) {
-      return 'Today';
-    }
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[d.month - 1]} ${d.day}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -1970,7 +1877,7 @@ class _WorkoutCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${_dayLabel(date)} · ${months[date.month - 1]} ${date.day}',
+                        '${dayLabel(date)} · ${shortDate(date)}',
                         style: TextStyle(
                           fontSize: LiftrType.x11,
                           fontWeight: FontWeight.w500,

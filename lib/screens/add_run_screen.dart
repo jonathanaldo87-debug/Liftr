@@ -4,6 +4,7 @@ import '../models/models.dart';
 import '../services/run_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/dates.dart';
 import '../utils/run_math.dart';
 
 /// Logging a run that already happened.
@@ -505,24 +506,7 @@ class _AddRunScreenState extends State<AddRunScreen> {
     );
   }
 
-  String get _dateLabel {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final d = widget.date;
-    return '${months[d.month - 1]} ${d.day}, ${d.year}';
-  }
+  String get _dateLabel => longDate(widget.date);
 
   Widget _label(LiftrTheme lt, String text) => Text(
         text,

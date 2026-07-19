@@ -1,4 +1,5 @@
 import 'package:liftr/models/models.dart';
+import 'package:liftr/utils/dates.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Thrown when starting a session while a different one is still active.
@@ -602,6 +603,5 @@ class WorkoutService {
 
   static DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
-  static String _formatDate(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  static String _formatDate(DateTime d) => isoDate(d);
 }

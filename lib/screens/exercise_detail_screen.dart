@@ -4,6 +4,7 @@ import '../services/machine_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
+import '../utils/dates.dart';
 import '../utils/format.dart';
 import 'machine_sheets.dart';
 
@@ -565,7 +566,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     size: const Size(double.infinity, 100),
                     painter: _ChartPainter(
                       data: _history.map((p) => p.topWeight).toList(),
-                      labels: _history.map((p) => _shortDate(p.date)).toList(),
+                      labels: _history.map((p) => shortDate(p.date)).toList(),
                       accentColor: LiftrColors.accent,
                       gridColor: lt.borderSubtle,
                       labelColor: lt.textDim,
@@ -617,27 +618,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   }
 
   Widget _setsHeader(LiftrTheme lt) {
-    const months = [
-      'JAN',
-      'FEB',
-      'MAR',
-      'APR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AUG',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DEC',
-    ];
     final d = widget.selectedDate;
     final volume = _sets.fold<double>(0, (sum, s) => sum + s.volume);
 
     return Row(
       children: [
         Text(
-          'SETS · ${months[d.month - 1]} ${d.day}',
+          'SETS · ${shortDateUpper(d)}',
           style: TextStyle(
             fontSize: LiftrType.x11,
             fontWeight: FontWeight.w500,
@@ -908,7 +895,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     final last = _lastTime;
     if (last != null) {
       final when =
-          last.loggedAt == null ? '' : ' (${_shortDate(last.loggedAt!)})';
+          last.loggedAt == null ? '' : ' (${shortDate(last.loggedAt!)})';
       return 'Last time$when: ${_trim(last.weightKg ?? 0)} kg × ${last.reps ?? 0}';
     }
 
@@ -919,23 +906,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   static String _trim(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
-  static String _shortDate(DateTime d) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[d.month - 1]} ${d.day}';
-  }
 }
 
 // ── Confirm dialog ────────────────────────────────────────────
