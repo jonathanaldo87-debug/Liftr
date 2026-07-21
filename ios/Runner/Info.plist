@@ -45,5 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Shown when a run first asks for GPS. When-in-use only: the run is timed
+	     with the app open in front of you, so it never needs your location in the
+	     background. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Liftr uses your location to measure how far you run while a session is active.</string>
 </dict>
 </plist>

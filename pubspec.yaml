@@ -12,6 +12,10 @@ dependencies:
     sdk: flutter
   supabase_flutter: ^2.0.0
   shared_preferences: ^2.2.0   # onboarding answers + "already seen it" flag
+  geolocator: ^14.0.3              # GPS stream + permissions for tracked runs
+  vibration: ^3.2.0                # haptic buzz when a target distance is hit
+  wakelock_plus: ^1.6.1            # keep the screen on while a run is timing
+  flutter_local_notifications: ^22.1.0  # persistent "run in progress" notification
   # Add later as needed:
   # provider: ^6.1.0          # State management
   # go_router: ^12.0.0        # Navigation

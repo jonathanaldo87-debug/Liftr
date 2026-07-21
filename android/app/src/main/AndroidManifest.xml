@@ -1,5 +1,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Tracked running. FINE is what gets us the ~3 m fixes the distance maths
+         needs; COARSE is declared alongside it because Android 12+ lets the user
+         grant only approximate location, and the app must still load rather than
+         crash when they do. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- The run keeps timing with the screen off and the app backgrounded, so it
+         runs as a location foreground service. FOREGROUND_SERVICE_LOCATION is the
+         typed permission Android 14+ requires for one that reads GPS. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+
+    <!-- The persistent "run in progress" notification. Requested at runtime on
+         Android 13+; declaring it is what makes that prompt possible at all. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Keeping the screen awake during a run, and the buzz when a target is hit. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
     <application
         android:label="liftr"
         android:name="${applicationName}"

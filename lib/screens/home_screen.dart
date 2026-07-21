@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/prefs.dart';
+import '../services/run_backup.dart';
 import '../services/run_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +14,7 @@ import '../utils/run_math.dart';
 import 'add_exercise_screen.dart';
 import 'add_run_screen.dart';
 import 'exercise_detail_screen.dart';
+import 'run_tracking_screen.dart';
 import 'log_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
@@ -191,11 +193,18 @@ class _TodayTabState extends State<_TodayTab> {
   /// thing you unlocked.
   void _relock() => _editableSessionId = null;
 
+  /// Whether the "you have an unfinished run" prompt has already had its one
+  /// shot this mount. Guards against it reappearing on every rebuild.
+  bool _recoveryChecked = false;
+
   @override
   void initState() {
     super.initState();
     _loadDisciplines();
     _loadData();
+    // After the first frame, once a context is safely available for a dialog.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeOfferRecovery());
   }
 
   /// Separate from [_loadData]: the discipline list doesn't change when you page
@@ -404,13 +413,29 @@ class _TodayTabState extends State<_TodayTab> {
   /// one so far; the rest only move the filter, so no empty session row gets
   /// written for a discipline that can't log anything yet.
   Future<void> _openDiscipline(Discipline d) async {
-    // Anything that isn't gym just moves the filter.
-    //
-    // For a discipline with no logging yet, that avoids writing an empty
-    // session row you can't put anything into. For running it's deliberate too:
-    // logging a run you already did isn't starting anything, so the card's own
-    // "Add a run" is the way in and no session is claimed until the tracked
-    // flow exists to claim it.
+    // A distance discipline goes straight to the tracked-run flow — no hub, no
+    // intermediate menu. The session itself is created inside there on the first
+    // Start, so backing out of setup without running claims nothing. Any
+    // conflicting active session was already ended by [_startSession] before we
+    // got here, the same way it is for gym.
+    if (d.logsDistance) {
+      setState(() => _selectedDiscipline = d.key);
+      final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RunTrackingScreen(date: _selectedDate, discipline: d),
+        ),
+      );
+      if (!mounted) return;
+      // Reload regardless of the result: even an abandoned run may have ended a
+      // previously-active session on the way out.
+      await _loadData();
+      if (saved == true) _relock();
+      return;
+    }
+
+    // A discipline seeded with no logging UI yet just moves the filter, rather
+    // than writing an empty session row you couldn't put anything into.
     if (!d.isGym) {
       setState(() => _selectedDiscipline = d.key);
       return;
@@ -497,6 +522,84 @@ class _TodayTabState extends State<_TodayTab> {
           backgroundColor: LiftrColors.danger,
         ));
       }
+    }
+  }
+
+  /// Offers to pick up a run that a crash interrupted, once per launch.
+  ///
+  /// Completed intervals are already saved — only the leg that was in progress
+  /// when the app died lives in the local backup, so this is about that one leg.
+  /// Resume reopens the tracked flow where it stopped; discard throws the leg
+  /// away, and takes the session with it if nothing else was ever saved into it,
+  /// rather than leaving a run with no runs on the calendar.
+  Future<void> _maybeOfferRecovery() async {
+    if (_recoveryChecked || !mounted) return;
+    _recoveryChecked = true;
+
+    final backup = await RunBackupStore.read();
+    if (backup == null || !mounted) return;
+
+    final lt = context.lt;
+    final action = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: lt.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LiftrRadii.card)),
+        title: Text('Unfinished run',
+            style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
+        content: Text(
+          'A run was interrupted — ${formatDistance(backup.distanceMeters)} in '
+          '${formatDuration(backup.elapsedSeconds)}. Pick it back up, or discard '
+          'this leg?',
+          style: TextStyle(fontSize: LiftrType.x13, color: lt.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            child: Text('Discard', style: TextStyle(color: lt.danger)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'resume'),
+            child: const Text('Resume',
+                style: TextStyle(color: LiftrColors.accentDark)),
+          ),
+        ],
+      ),
+    );
+
+    if (action == 'discard') {
+      await RunBackupStore.clear();
+      try {
+        final legs = await RunService.getIntervals(backup.sessionId);
+        if (legs.isEmpty) {
+          // A crash during the very first leg — nothing worth keeping, so the
+          // hollow session goes rather than lingering as a run with no runs.
+          await RunService.discardSession(backup.sessionId);
+        } else {
+          // Earlier legs are real and stay, but discarding means you're no
+          // longer in the session — end it so it doesn't hold the single
+          // active-session slot and block starting the next one.
+          await WorkoutService.endSession(backup.sessionId);
+        }
+      } catch (_) {}
+      if (mounted) await _loadData();
+      return;
+    }
+
+    if (action == 'resume' && mounted) {
+      final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RunTrackingScreen(
+            date: backup.date,
+            discipline: _disciplineFor(backup.disciplineKey),
+            resume: backup,
+          ),
+        ),
+      );
+      if (mounted && saved != null) await _loadData();
     }
   }
 

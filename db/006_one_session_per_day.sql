@@ -36,8 +36,21 @@ USING session_merge m
 WHERE ws.session_id = m.session_id
   AND m.session_id <> m.keep_id;
 
-CREATE UNIQUE INDEX IF NOT EXISTS workout_sessions_user_date_key
-  ON workout_sessions (user_id, session_date);
+-- Only while gym is the only discipline. Once 009 adds the `discipline` column,
+-- one-per-DAY is the wrong rule -- it blocks a gym workout and a run on the same
+-- day -- and 009 replaces it with one-per-(day, discipline). Guarded so that
+-- re-running 006 after 009 can't resurrect the old rule (which is exactly what
+-- 014 had to clean up). See 014.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'workout_sessions' AND column_name = 'discipline'
+  ) THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS workout_sessions_user_date_key
+      ON workout_sessions (user_id, session_date);
+  END IF;
+END $$;
 
 COMMIT;
 

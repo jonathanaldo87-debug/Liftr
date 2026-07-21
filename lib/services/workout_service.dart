@@ -148,13 +148,27 @@ class WorkoutService {
     final id = existing?.sessionId;
     if (id != null) return id;
 
-    return createWorkoutSession(
-      WorkoutSessionsPayload(
-        sessionDate: date,
-        name: name,
-        discipline: discipline,
-      ),
-    );
+    try {
+      return await createWorkoutSession(
+        WorkoutSessionsPayload(
+          sessionDate: date,
+          name: name,
+          discipline: discipline,
+        ),
+      );
+    } on PostgrestException catch (e) {
+      // 23505 = unique_violation on (user_id, session_date, discipline). Another
+      // create for the same day and discipline landed between the check above
+      // and this insert — a double-tapped Start, or two code paths racing to
+      // open the day's session. The row we wanted now exists, so this isn't an
+      // error to surface: fetch it and carry on as if we'd found it first.
+      if (e.code == '23505') {
+        final raced = await getWorkoutSession(date, discipline: discipline);
+        final racedId = raced?.sessionId;
+        if (racedId != null) return racedId;
+      }
+      rethrow;
+    }
   }
 
   // ── The active session ──────────────────────────────────────
@@ -206,9 +220,26 @@ class WorkoutService {
       throw ActiveSessionExists(active);
     }
 
-    await _db
-        .from('workout_sessions')
-        .update({'is_active': true}).eq('session_id', sessionId);
+    try {
+      await _db
+          .from('workout_sessions')
+          .update({'is_active': true}).eq('session_id', sessionId);
+    } on PostgrestException catch (e) {
+      // 23505 = unique_violation on the one-active-per-user partial index. A
+      // different session became active between the check above and this write.
+      // Surface it as the typed clash the UI knows how to offer a way out of,
+      // not a raw duplicate-key the caller can only show as an error string.
+      if (e.code == '23505') {
+        final nowActive = await getActiveSession();
+        if (nowActive != null && nowActive.sessionId != sessionId) {
+          throw ActiveSessionExists(nowActive);
+        }
+        // Already active, and it's us — the write we were about to make. Nothing
+        // to do.
+        return sessionId;
+      }
+      rethrow;
+    }
     return sessionId;
   }
 
