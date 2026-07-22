@@ -26,6 +26,29 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
+  flutter_launcher_icons: ^0.14.4   # generates the launcher icons from assets/icon
+
+# The launcher icon, generated from the same mark LiftrLogoMark paints in-app.
+# Source art lives in assets/icon/ and is NOT a runtime asset — these are only
+# read at generation time, so they're deliberately absent from `flutter: assets:`.
+#
+# Regenerate after changing the source art with:
+#     dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+
+  # iOS rejects an icon with an alpha channel, and draws its own rounded mask —
+  # so the source is a full-bleed square and this strips any stray transparency
+  # rather than letting it ship as a black fringe.
+  remove_alpha_ios: true
+
+  # Android adaptive icons composite two layers, letting the launcher mask and
+  # parallax them. The foreground keeps the mark inside the ~66% safe zone so a
+  # round or squircle mask never clips it.
+  adaptive_icon_background: "assets/icon/app_icon_background.png"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 flutter:
   uses-material-design: true

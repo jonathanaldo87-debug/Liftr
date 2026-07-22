@@ -1,0 +1,105 @@
+name: Release APK
+
+# Publish a build:
+#     git tag v1.0.1 && git push origin v1.0.1
+#
+# That builds a signed APK and attaches it to a GitHub Release, which is the
+# download link you hand people. Running it manually from the Actions tab builds
+# the same APK but leaves it as a workflow artifact instead of publishing it.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      # Required to create the Release and upload the APK onto it.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Android Gradle Plugin needs 17. The app's own source/target
+      # compatibility stays at 11 -- that's set in android/app/build.gradle.kts
+      # and is a separate thing from the JDK Gradle itself runs on.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+
+      # The keystore lives only in repository secrets. build.gradle.kts reads
+      # android/key.properties when present, and both it and the .jks are
+      # gitignored, so nothing written here can be committed by accident.
+      - name: Write signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 is not set. Add the four signing secrets before releasing."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Resolve version name
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            # v1.0.1 -> 1.0.1
+            echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            # Manual run: keep whatever pubspec.yaml already says.
+            echo "name=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: flutter pub get
+
+      # build-number becomes versionCode, and it's the CI run number so it always
+      # climbs. Android refuses to install an APK whose versionCode isn't higher
+      # than the installed one -- the usual reason an "updated" build won't apply.
+      - name: Build APK
+        run: |
+          ARGS="--release --build-number=${{ github.run_number }}"
+          if [ -n "${{ steps.version.outputs.name }}" ]; then
+            ARGS="$ARGS --build-name=${{ steps.version.outputs.name }}"
+          fi
+          flutter build apk $ARGS
+
+      - name: Name the APK after the version
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             "build/app/outputs/flutter-apk/liftr-${GITHUB_REF_NAME}.apk"
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/app/outputs/flutter-apk/liftr-${GITHUB_REF_NAME}.apk" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+      - name: Upload artifact
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: liftr-apk
+          path: build/app/outputs/flutter-apk/*.apk

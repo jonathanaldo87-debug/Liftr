@@ -211,19 +211,13 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x20),
 
-              // Google SSO
-              _SocialButton(
-                label: 'Continue with Google',
-                icon: const _GoogleIcon(),
-                onTap: () {},
-              ),
-              const SizedBox(height: LiftrSpacing.x10),
-              _SocialButton(
-                label: 'Continue with Apple',
-                icon: Icon(Icons.apple, size: 18, color: lt.textSecondary),
-                onTap: () {},
-              ),
-              const SizedBox(height: LiftrSpacing.x10),
+              // No Google or Apple buttons here on purpose. They existed as
+              // placeholders with empty onTap handlers, which is worse than not
+              // offering them: the button looked live, did nothing, and gave no
+              // reason why. They come back when there's an auth call behind
+              // them — Google needs the provider enabled in Supabase and this
+              // app's release SHA-1 registered, and offering it would then make
+              // Sign in with Apple mandatory for App Store review.
               _SocialButton(
                 label:
                     _isGuestLoading ? 'Setting you up…' : 'Continue as guest',
@@ -328,49 +322,3 @@ class _SocialButton extends StatelessWidget {
   }
 }
 
-class _GoogleIcon extends StatelessWidget {
-  const _GoogleIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 18,
-      height: 18,
-      child: CustomPaint(painter: _GooglePainter()),
-    );
-  }
-}
-
-class _GooglePainter extends CustomPainter {
-  const _GooglePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r = size.width / 2;
-
-    void arc(double startAngle, double sweepAngle, Color color) {
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5
-        ..strokeCap = StrokeCap.butt;
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r - 1.8),
-        startAngle,
-        sweepAngle,
-        false,
-        paint,
-      );
-    }
-
-    arc(-0.35, 1.57, const Color(0xFF4285F4));
-    arc(1.22, 1.57, const Color(0xFF34A853));
-    arc(2.79, 1.57, const Color(0xFFFBBC05));
-    arc(-1.92, 1.57, const Color(0xFFEA4335));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter _) => false;
-}
