@@ -66,6 +66,19 @@ class LocationService {
     }
   }
 
+  /// Whether the GPS can be used right now without asking for anything —
+  /// services on and permission already granted.
+  ///
+  /// Unlike [ensurePermission] this never prompts: it's for warming the receiver
+  /// while the target's being chosen, where surfacing a permission dialog before
+  /// the user has committed to a run would be out of context.
+  static Future<bool> hasPermission() async {
+    if (!await Geolocator.isLocationServiceEnabled()) return false;
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
+  }
+
   /// Opens the OS settings page where a permanently-denied permission can be
   /// re-granted — the only way back from [LocationAccess.deniedForever].
   static Future<void> openSettings() => Geolocator.openAppSettings();

@@ -82,6 +82,11 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
 
   StreamSubscription<GpsSample>? _gpsSub;
 
+  /// The freshest fix the stream has produced, kept so a lock gathered while
+  /// warming (during setup) can be reused the instant Start is tapped rather
+  /// than waiting on the distance-filtered stream's next event.
+  GpsSample? _lastSample;
+
   /// Whether fixes are being counted. False during acquiring and the countdown,
   /// so the walk to the start line and the 3-2-1 don't end up in the distance.
   bool _tracking = false;
@@ -129,6 +134,11 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _acc.restore(resume.distanceMeters);
       _loadCompleted();
       _beginAcquiring();
+    } else {
+      // Fresh run: the target's about to be chosen. Warm the receiver now so the
+      // wait on Start is a warm fix (seconds) instead of a cold one (often half a
+      // minute).
+      unawaited(_warmGps());
     }
   }
 
@@ -239,12 +249,35 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
 
   // ── Acquiring GPS ────────────────────────────────────────────
 
-  void _beginAcquiring() {
-    setState(() {
-      _phase = _Phase.acquiring;
-      _lastAccuracy = null;
-    });
+  /// Quietly spins the GPS receiver up while the target's being chosen, so the
+  /// lock on Start comes from a warm fix rather than a cold cold-start. Only if
+  /// permission's already granted — warming must never surface a permission
+  /// prompt before the user has committed to a run. No-op if the stream's
+  /// already running (e.g. a second interval where teardown hasn't happened).
+  Future<void> _warmGps() async {
+    if (_gpsSub != null) return;
+    if (!await LocationService.hasPermission()) return;
+    // The await gives the user time to tap Start; only warm if we're still
+    // sitting in setup and nothing else has claimed the stream.
+    if (!mounted || _phase != _Phase.setup || _gpsSub != null) return;
     _subscribe();
+  }
+
+  void _beginAcquiring() {
+    setState(() => _phase = _Phase.acquiring);
+
+    // A fix gathered while warming may already clear the bar — lock straight
+    // from it rather than waiting on the stream's next event, which is
+    // distance-filtered and might not arrive until the runner moves.
+    final warm = _lastSample;
+    if (warm != null && isUsableFix(warm)) {
+      _onLocked();
+      return;
+    }
+
+    // Otherwise wait for a good fix. The stream is already flowing if warming
+    // started it; subscribe now if it isn't.
+    if (_gpsSub == null) _subscribe();
   }
 
   void _subscribe() {
@@ -264,16 +297,18 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   void _onSample(GpsSample sample) {
     if (!mounted) return;
 
-    if (_phase == _Phase.acquiring) {
+    // Warming while the target's being chosen: remember the freshest fix so
+    // Start can lock from it, but don't advance — the run hasn't begun.
+    if (_phase == _Phase.setup) {
+      _lastSample = sample;
       setState(() => _lastAccuracy = sample.accuracy);
-      if (isUsableFix(sample)) {
-        // A recovered run resumes straight away; a fresh one counts down first.
-        if (widget.resume != null && !_tracking) {
-          _startRunning(resumed: true);
-        } else {
-          _beginCountdown();
-        }
-      }
+      return;
+    }
+
+    if (_phase == _Phase.acquiring) {
+      _lastSample = sample;
+      setState(() => _lastAccuracy = sample.accuracy);
+      if (isUsableFix(sample)) _onLocked();
       return;
     }
 
@@ -284,6 +319,16 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
         _maybeReachedTarget();
       }
       setState(() => _lastAccuracy = sample.accuracy);
+    }
+  }
+
+  /// A good-enough fix has landed. A recovered run resumes straight away; a
+  /// fresh one counts down first.
+  void _onLocked() {
+    if (widget.resume != null && !_tracking) {
+      _startRunning(resumed: true);
+    } else {
+      _beginCountdown();
     }
   }
 
@@ -484,11 +529,15 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _distance = 0;
       _elapsedSeconds = 0;
       _lastAccuracy = null;
+      _lastSample = null;
       if (_lastTarget != null && !_freeRun) {
         _targetCtrl.text = _kmText(_lastTarget!);
       }
       _phase = _Phase.setup;
     });
+    // Warm the receiver again for the next interval — the stream was torn down
+    // when the last leg finished.
+    unawaited(_warmGps());
   }
 
   Future<void> _endSession() async {
@@ -1008,47 +1057,59 @@ class _AcquiringViewState extends State<_AcquiringView>
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(LiftrSpacing.x24),
-          child: Column(
+          child: Stack(
             children: [
-              const Spacer(),
-              ScaleTransition(
-                scale: Tween(begin: 0.85, end: 1.1).animate(
-                    CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: lt.accentBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: LiftrColors.accent, width: LiftrBorders.thin),
-                  ),
-                  child: const Icon(Icons.gps_fixed,
-                      size: 40, color: LiftrColors.accentDark),
+              // Centre the lock indicator against the whole screen — the Cancel
+              // button is pinned separately below so it can't pull the cluster up.
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ScaleTransition(
+                      scale: Tween(begin: 0.85, end: 1.1).animate(
+                          CurvedAnimation(
+                              parent: _pulse, curve: Curves.easeInOut)),
+                      child: Container(
+                        width: 96,
+                        height: 96,
+                        decoration: BoxDecoration(
+                          color: lt.accentBg,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: LiftrColors.accent,
+                              width: LiftrBorders.thin),
+                        ),
+                        child: const Icon(Icons.gps_fixed,
+                            size: 40, color: LiftrColors.accentDark),
+                      ),
+                    ),
+                    const SizedBox(height: LiftrSpacing.x28),
+                    Text('Getting a GPS lock',
+                        style: Theme.of(context).textTheme.displaySmall),
+                    const SizedBox(height: LiftrSpacing.x8),
+                    Text(
+                      acc == null
+                          ? 'Searching for satellites…'
+                          : struggling
+                              ? 'Accuracy ±${acc.round()} m — need ±${kMaxAccuracyMeters.round()} m. '
+                                  'Move to open sky.'
+                              : 'Locked. Starting…',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: LiftrType.x13,
+                          color: lt.textSecondary,
+                          height: 1.5),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: LiftrSpacing.x28),
-              Text('Getting a GPS lock',
-                  style: Theme.of(context).textTheme.displaySmall),
-              const SizedBox(height: LiftrSpacing.x8),
-              Text(
-                acc == null
-                    ? 'Searching for satellites…'
-                    : struggling
-                        ? 'Accuracy ±${acc.round()} m — need ±${kMaxAccuracyMeters.round()} m. '
-                            'Move to open sky.'
-                        : 'Locked. Starting…',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: LiftrType.x13,
-                    color: lt.textSecondary,
-                    height: 1.5),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: widget.onCancel,
-                child: Text('Cancel',
-                    style: TextStyle(color: lt.textSecondary)),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: TextButton(
+                  onPressed: widget.onCancel,
+                  child: Text('Cancel',
+                      style: TextStyle(color: lt.textSecondary)),
+                ),
               ),
             ],
           ),
