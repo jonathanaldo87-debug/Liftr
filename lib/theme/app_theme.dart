@@ -44,8 +44,8 @@ class LiftrColors {
   static const lightBorderSubtle = Color(0xFFE5E5DE);
   static const lightText = Color(0xFF1A1A1E);
   static const lightTextSecondary = Color(0xFF5A5A62);
-  static const lightTextMuted = Color(0xFF8A8A94);
-  static const lightTextDim = Color(0xFFB0B0B8);
+  static const lightTextMuted = Color(0xFF6A6A73);
+  static const lightTextDim = Color(0xFF7C7C86);
 
   // Light mode accent tints
   static const lightAccentBg = Color(0xFFEEFAD8);

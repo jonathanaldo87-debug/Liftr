@@ -2239,8 +2239,43 @@ class _ExerciseRow extends StatelessWidget {
                 ],
               ),
             ),
+            // Both modes keep the same 18px trailing icon so the row height
+            // never changes; edit just swaps the chevron for an ellipsis that
+            // opens the menu. `child:` (not `icon:`) is what keeps the tap
+            // target from snapping to the 48px minimum a bare icon menu forces.
             if (isEditable)
-              ThreeDotMenu(onEdit: onTap, onDelete: onDelete)
+              PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                tooltip: 'Options',
+                color: lt.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(LiftrRadii.field),
+                  side: BorderSide(
+                      color: lt.border, width: LiftrBorders.hairline),
+                ),
+                onSelected: (v) {
+                  if (v == 'edit') onTap();
+                  if (v == 'delete') onDelete();
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'edit',
+                    height: 40,
+                    child: Text('Edit',
+                        style: TextStyle(
+                            fontSize: LiftrType.x13, color: lt.textPrimary)),
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    height: 40,
+                    child: Text('Delete',
+                        style: TextStyle(
+                            fontSize: LiftrType.x13,
+                            color: LiftrColors.danger)),
+                  ),
+                ],
+                child: Icon(Icons.more_horiz, size: 18, color: lt.textDim),
+              )
             else
               Icon(Icons.chevron_right, size: 18, color: lt.textDim),
           ],

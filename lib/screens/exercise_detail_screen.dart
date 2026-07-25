@@ -873,6 +873,114 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
+  /// The step the weight field's − / + buttons move by: this exercise's
+  /// resolved increment, or null for bodyweight (nothing to step) — which
+  /// leaves the weight field a plain typed box.
+  ///
+  /// Comes from the same pure resolver the hint uses, over the setups already
+  /// loaded, so it works before any history exists (defaulting to 2.5 kg).
+  double? get _stepIncrement {
+    final isBodyweight = (_equipment ?? '').toLowerCase().trim() == 'bodyweight';
+    if (isBodyweight) return null;
+    return resolveIncrement(
+      setups: _setups,
+      assignedSetupId: _selectedSetupId,
+      isBodyweight: false,
+    ).incrementKg;
+  }
+
+  /// Nudges [c]'s value by [delta], snapping to the [snap] grid first so a
+  /// tap always lands on a loadable weight even if the typed number was off it.
+  /// Floored at zero.
+  void _step(TextEditingController c, double delta, double snap) {
+    final current = double.tryParse(c.text.trim()) ?? 0;
+    var next = roundToIncrement(current, snap) + delta;
+    if (next < 0) next = 0;
+    final text = _trim(next);
+    c.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  Widget _stepButton(LiftrTheme lt, IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _isSaving ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: LiftrSpacing.x12, vertical: LiftrSpacing.x10),
+        child: Icon(icon, size: 18, color: lt.textSecondary),
+      ),
+    );
+  }
+
+  /// A labelled number field — the same box for weight and reps, so the two
+  /// read as one control rather than two mismatched inputs. Pass [step] to flank
+  /// it with − / + buttons that move by that amount.
+  Widget _numberField(
+    LiftrTheme lt, {
+    required String label,
+    required TextEditingController controller,
+    required bool decimal,
+    double? step,
+    ValueChanged<String>? onSubmitted,
+  }) {
+    final field = TextField(
+      controller: controller,
+      keyboardType: TextInputType.numberWithOptions(decimal: decimal),
+      textAlign: TextAlign.center,
+      onSubmitted: onSubmitted,
+      style: TextStyle(
+        fontSize: LiftrType.x20,
+        fontWeight: FontWeight.w600,
+        color: lt.textPrimary,
+      ),
+      decoration: InputDecoration(
+        hintText: '0',
+        // Dim, so an empty field never looks like a logged 0.
+        hintStyle: TextStyle(fontSize: LiftrType.x20, color: lt.textDim),
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
+        fillColor: Colors.transparent,
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: LiftrType.x10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.06,
+            color: lt.textMuted,
+          ),
+        ),
+        const SizedBox(height: LiftrSpacing.x4),
+        Container(
+          decoration: BoxDecoration(
+            color: lt.card,
+            border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+            borderRadius: BorderRadius.circular(LiftrRadii.control),
+          ),
+          child: step == null
+              ? field
+              : Row(
+                  children: [
+                    _stepButton(lt, Icons.remove,
+                        () => _step(controller, -step, step)),
+                    Expanded(child: field),
+                    _stepButton(
+                        lt, Icons.add, () => _step(controller, step, step)),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
   Widget _weightInput(LiftrTheme lt) {
     final editing = _editing != null;
 
@@ -916,114 +1024,63 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: LiftrSpacing.x8),
+          const SizedBox(height: LiftrSpacing.x10),
           Row(
+            // Bottom-aligned so the Save button lines up with the field boxes,
+            // not with the labels sitting above them.
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              // Weight gets the wider share — it carries decimals like 142.5.
               Expanded(
-                flex: 2,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: lt.card,
-                    border: Border.all(
-                        color: lt.border, width: LiftrBorders.hairline),
-                    borderRadius: BorderRadius.circular(LiftrRadii.control),
-                  ),
-                  child: TextField(
-                    controller: _weightCtrl,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: LiftrType.x20,
-                      fontWeight: FontWeight.w600,
-                      color: LiftrColors.accent,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: '0',
-                      hintStyle:
-                          TextStyle(fontSize: LiftrType.x20, color: lt.textDim),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: LiftrSpacing.x10),
-                      fillColor: Colors.transparent,
-                    ),
-                  ),
+                flex: 3,
+                child: _numberField(
+                  lt,
+                  label: 'WEIGHT (KG)',
+                  controller: _weightCtrl,
+                  decimal: true,
+                  step: _stepIncrement,
                 ),
-              ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: LiftrSpacing.x6),
-                child: Text(
-                  'kg',
-                  style: TextStyle(
-                    fontSize: LiftrType.x13,
-                    color: lt.textMuted,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Column(
-                children: [
-                  Text('Reps',
-                      style: TextStyle(
-                          fontSize: LiftrType.x11, color: lt.textMuted)),
-                  const SizedBox(height: LiftrSpacing.x4),
-                  Container(
-                    width: 56,
-                    decoration: BoxDecoration(
-                      color: lt.card,
-                      border: Border.all(
-                          color: lt.border, width: LiftrBorders.hairline),
-                      borderRadius: BorderRadius.circular(LiftrRadii.control),
-                    ),
-                    child: TextField(
-                      controller: _repsCtrl,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      onSubmitted: (_) => _saveSet(),
-                      style: TextStyle(
-                        fontSize: LiftrType.x16,
-                        fontWeight: FontWeight.w600,
-                        color: lt.textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: '0',
-                        hintStyle: TextStyle(
-                            fontSize: LiftrType.x16, color: lt.textDim),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: LiftrSpacing.x10),
-                        fillColor: Colors.transparent,
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(width: LiftrSpacing.x8),
-              ElevatedButton(
-                onPressed: _isSaving ? null : _saveSet,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(LiftrRadii.control)),
+              Expanded(
+                flex: 2,
+                child: _numberField(
+                  lt,
+                  label: 'REPS',
+                  controller: _repsCtrl,
+                  decimal: false,
+                  onSubmitted: (_) => _saveSet(),
                 ),
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: LiftrColors.accentText,
-                        ),
-                      )
-                    : Text(editing ? 'Update' : 'Save',
-                        style: const TextStyle(fontSize: LiftrType.x13)),
+              ),
+              const SizedBox(width: LiftrSpacing.x8),
+              SizedBox(
+                height: 46, // matches a field box, so the row bottoms align
+                child: ElevatedButton(
+                  onPressed: _isSaving ? null : _saveSet,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(68, 46),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: LiftrSpacing.x16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(LiftrRadii.control)),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: LiftrColors.accentText,
+                          ),
+                        )
+                      : Text(editing ? 'Update' : 'Save',
+                          style: const TextStyle(fontSize: LiftrType.x13)),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: LiftrSpacing.x6),
+          const SizedBox(height: LiftrSpacing.x8),
           Text(
             _hint,
             style: TextStyle(fontSize: LiftrType.x10, color: lt.textDim),

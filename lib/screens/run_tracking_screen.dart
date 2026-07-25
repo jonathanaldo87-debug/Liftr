@@ -829,6 +829,7 @@ class _SetupView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(width: LiftrSpacing.x8),
                     Text('km',
                         style:
                             TextStyle(fontSize: LiftrType.x18, color: lt.textMuted)),
