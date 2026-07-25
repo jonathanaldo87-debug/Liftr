@@ -70,33 +70,12 @@ double? inferMinWeight(Iterable<double?> weights) {
   return real.reduce((a, b) => a < b ? a : b);
 }
 
-/// Whether [weights] look like they came from more than one machine.
-///
-/// A single stack produces weights that are all multiples of one step. A blend
-/// of a 2.5 kg stack and a 5 kg stack does not — and [inferIncrement] would
-/// resolve that blend to 2.5, which is unachievable on the coarser machine.
-///
-/// This is the signal behind offering to split an exercise's history across two
-/// machines. It deliberately only fires when the finer readings are a minority:
-/// a stack that genuinely does 2.5s produces odd multiples routinely, not
-/// occasionally.
-bool looksLikeTwoMachines(Iterable<double?> weights) {
-  final distinct = weights
-      .whereType<double>()
-      .where((w) => w > 0)
-      .map(_toHundredths)
-      .toSet();
-
-  if (distinct.length < 4) return false;
-
-  final coarse = _toHundredths(5);
-  final onCoarse = distinct.where((w) => w % coarse == 0).length;
-  final offCoarse = distinct.length - onCoarse;
-
-  // Most readings sit on the coarse grid, a few don't: consistent with mostly
-  // using the 5 kg machine and occasionally the finer one.
-  return offCoarse > 0 && offCoarse * 3 <= onCoarse;
-}
+// looksLikeTwoMachines() lived here: it spotted a history blended across a
+// 2.5 kg stack and a 5 kg one, so the app could offer to split an exercise
+// between two machines. It was never called from anywhere. Migration 015
+// removed the machine dimension it was built to serve — one station per
+// exercise — so there is no longer a split to offer, and a detector for a
+// distinction the app no longer draws is worse than no detector.
 
 /// Weights carry at most two decimals (1.25 is the finest step anyone uses), so
 /// hundredths of a kg as an integer is exact where doubles are not.

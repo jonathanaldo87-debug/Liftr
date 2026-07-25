@@ -1,10 +1,24 @@
-/// Display formatting for catalog values.
+/// Display formatting for catalog values and weights.
 ///
 /// The catalog stores `equipment`, `category` and `muscle_group` lowercase —
 /// that's the canonical form the import wrote, and what the name_key normalizer
 /// and the icon lookups both key off. Capitalizing is a *display* concern, so it
 /// happens here rather than in the database.
 library;
+
+/// A weight with no more decimals than it needs: 70 → "70", 72.5 → "72.5",
+/// 1.25 → "1.25".
+///
+/// Two decimals rather than one, because 1.25 is a real step on real plate sets
+/// and rounding it to "1.3" is worse than cosmetic here: the setup sheet puts
+/// this string straight back into the step field, so a rounded display would
+/// save 1.3 kg as the step and every suggestion built on it would be
+/// unloadable.
+String trimWeight(double v) {
+  if (v == v.roundToDouble()) return v.toStringAsFixed(0);
+  final oneDecimal = v.toStringAsFixed(1);
+  return double.parse(oneDecimal) == v ? oneDecimal : v.toStringAsFixed(2);
+}
 
 /// "bodyweight" → "Bodyweight", "lower_back" → "Lower Back".
 String titleCase(String? raw) {

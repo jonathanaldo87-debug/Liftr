@@ -1,5 +1,4 @@
 import 'package:liftr/models/catalog_exercises.dart';
-import 'package:liftr/models/user_machines.dart';
 
 class WorkoutExercises {
   final String? exerciseId;
@@ -10,15 +9,11 @@ class WorkoutExercises {
   final String? notes;
   final DateTime? createdAt;
 
-  /// Which physical station this was done on, or null for "unspecified".
+  /// Which of this exercise's setups it was done on, or null for "not said".
   ///
-  /// Null is the honest and common case: it means nothing here distinguished
-  /// one machine from another, which is true of everything logged before
-  /// migration 012 and of every exercise where you only ever use one station.
-  final String? machineId;
-
-  /// The station itself, when the query joined it in.
-  final UserMachine? machine;
+  /// Null is the honest and common case. It is never filled in for you — see
+  /// migration 017 for what happened the last time something was.
+  final String? setupId;
 
   const WorkoutExercises({
     this.exerciseId,
@@ -28,8 +23,7 @@ class WorkoutExercises {
     this.orderIndex,
     this.notes,
     this.createdAt,
-    this.machineId,
-    this.machine,
+    this.setupId,
   });
 
   String get name => catalogDetail?.name ?? 'Unknown exercise';
@@ -47,9 +41,6 @@ class WorkoutExercises {
         createdAt: j['created_at'] == null
             ? null
             : DateTime.parse(j['created_at'] as String),
-        machineId: j['machine_id'] as String?,
-        machine: j['machine'] == null
-            ? null
-            : UserMachine.fromJson(j['machine'] as Map<String, dynamic>),
+        setupId: j['setup_id'] as String?,
       );
 }

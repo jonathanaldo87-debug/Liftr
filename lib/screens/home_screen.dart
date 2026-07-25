@@ -2131,7 +2131,7 @@ class _EditToggleChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(LiftrRadii.panel),
         ),
         child: Text(
-          isEditing ? 'CANCEL' : 'EDIT',
+          isEditing ? 'DONE' : 'EDIT',
           style: TextStyle(
             fontSize: LiftrType.x10,
             fontWeight: FontWeight.w500,
