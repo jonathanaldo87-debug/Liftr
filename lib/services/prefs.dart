@@ -10,6 +10,7 @@ class Prefs {
 
   static const _seenOnboarding = 'seen_onboarding';
   static const _disciplines = 'enabled_disciplines';
+  static const _darkMode = 'dark_mode';
 
   /// Must be awaited before `runApp`, so [hasOnboarded] can be read without a
   /// loading flicker on the very first frame.
@@ -30,6 +31,13 @@ class Prefs {
     if (saved == null || saved.isEmpty) return const [Discipline.gymKey];
     return saved;
   }
+
+  /// The theme the user last chose. Defaults to dark: the app has always
+  /// opened dark, so a returning user shouldn't be flipped to light on the
+  /// release that adds this persistence.
+  static bool get isDarkMode => _p.getBool(_darkMode) ?? true;
+
+  static Future<void> setDarkMode(bool value) => _p.setBool(_darkMode, value);
 
   static bool isEnabled(String disciplineKey) =>
       enabledDisciplines.contains(disciplineKey);

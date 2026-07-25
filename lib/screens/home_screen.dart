@@ -650,8 +650,8 @@ class _TodayTabState extends State<_TodayTab> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('End & continue',
-                  style: TextStyle(color: LiftrColors.accent)),
+              child: Text('End & continue',
+                  style: TextStyle(color: lt.accentStrong)),
             ),
           ],
         );
@@ -1000,8 +1000,8 @@ class _ActiveSessionBanner extends StatelessWidget {
                     Container(
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
-                        color: LiftrColors.accent,
+                      decoration: BoxDecoration(
+                        color: lt.accentStrong,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -1908,8 +1908,11 @@ class _CalendarStripState extends State<_CalendarStrip> {
                         child: Container(
                           width: 4,
                           height: 4,
-                          decoration: const BoxDecoration(
-                            color: LiftrColors.accent,
+                          decoration: BoxDecoration(
+                            // Bright lime reads on dark but vanishes on light;
+                            // accentStrong is the vivid accent made legible on
+                            // both.
+                            color: lt.accentStrong,
                             shape: BoxShape.circle,
                           ),
                         ),

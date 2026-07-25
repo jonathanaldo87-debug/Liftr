@@ -32,6 +32,9 @@ class LiftrColors {
   static const darkAccentBorder = Color(0xFF3A5010);
   static const darkAccentMid = Color(0xFF80A840);
   static const darkAccentText = Color(0xFFA0D050);
+  // Vivid accent as a foreground (dots, key figures, links). The bright lime
+  // already reads on dark, so it stays; only the light variant changes.
+  static const darkAccentStrong = accent;
 
   // Light mode palette
   static const lightBg = Color(0xFFF5F5F0);
@@ -49,6 +52,9 @@ class LiftrColors {
   static const lightAccentBorder = Color(0xFF9AC840);
   static const lightAccentMid = Color(0xFF4A8010);
   static const lightAccentText = Color(0xFF3A6008);
+  // The bright lime is invisible as a foreground on the near-white background,
+  // so the strong accent drops to a readable green here.
+  static const lightAccentStrong = Color(0xFF4A8010);
 }
 
 // ── Theme Extension (custom tokens) ───────────────────────────
@@ -65,6 +71,10 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
   final Color accentBorder;
   final Color accentMid;
   final Color accentTextColor;
+
+  /// Vivid accent used as a foreground — dots, key figures, inline links.
+  /// Bright lime on dark, a readable green on light.
+  final Color accentStrong;
   final Color danger;
 
   const LiftrTheme({
@@ -80,6 +90,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     required this.accentBorder,
     required this.accentMid,
     required this.accentTextColor,
+    required this.accentStrong,
     this.danger = LiftrColors.danger,
   });
 
@@ -96,6 +107,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     accentBorder: LiftrColors.darkAccentBorder,
     accentMid: LiftrColors.darkAccentMid,
     accentTextColor: LiftrColors.darkAccentText,
+    accentStrong: LiftrColors.darkAccentStrong,
   );
 
   static const light = LiftrTheme(
@@ -111,6 +123,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     accentBorder: LiftrColors.lightAccentBorder,
     accentMid: LiftrColors.lightAccentMid,
     accentTextColor: LiftrColors.lightAccentText,
+    accentStrong: LiftrColors.lightAccentStrong,
   );
 
   @override
@@ -127,6 +140,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
     Color? accentBorder,
     Color? accentMid,
     Color? accentTextColor,
+    Color? accentStrong,
     Color? danger,
   }) =>
       LiftrTheme(
@@ -142,6 +156,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
         accentBorder: accentBorder ?? this.accentBorder,
         accentMid: accentMid ?? this.accentMid,
         accentTextColor: accentTextColor ?? this.accentTextColor,
+        accentStrong: accentStrong ?? this.accentStrong,
         danger: danger ?? this.danger,
       );
 
@@ -161,6 +176,7 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
       accentBorder: Color.lerp(accentBorder, other.accentBorder, t)!,
       accentMid: Color.lerp(accentMid, other.accentMid, t)!,
       accentTextColor: Color.lerp(accentTextColor, other.accentTextColor, t)!,
+      accentStrong: Color.lerp(accentStrong, other.accentStrong, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
     );
   }

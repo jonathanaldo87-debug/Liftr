@@ -62,8 +62,8 @@ Future<void> confirmAndSignOut(
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'save'),
-            child: const Text('Save account',
-                style: TextStyle(color: LiftrColors.accent)),
+            child: Text('Save account',
+                style: TextStyle(color: lt.accentStrong)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'signout'),

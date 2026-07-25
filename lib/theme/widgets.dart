@@ -309,8 +309,8 @@ class ActivityCard extends StatelessWidget {
                 child: Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: LiftrColors.accent,
+                  decoration: BoxDecoration(
+                    color: context.lt.accentStrong,
                     shape: BoxShape.circle,
                   ),
                 ),

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/exercise_setup_service.dart';
+import '../services/progression_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import '../utils/dates.dart';
 import '../utils/format.dart';
+import '../utils/progression.dart';
 import 'exercise_setup_sheet.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
@@ -61,6 +63,11 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   /// said, which is the honest default and never filled in for you.
   String? _selectedSetupId;
 
+  /// The rule-based hint for what to aim for, built from earlier sessions.
+  /// Null until loaded, when there's no history to build one from, or in
+  /// read-only mode where planning the next set makes no sense.
+  ProgressionHint? _progression;
+
   String get _exerciseId => widget.exercise.exerciseId ?? '';
 
   String? get _catalogId => widget.exercise.catalogId;
@@ -114,9 +121,22 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       }
 
       await _loadSetup();
+      await _loadHint();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Loads the progression hint. Read-only skips it — a session you're only
+  /// inspecting isn't one you're about to add a set to — and it fails soft, so
+  /// a missing hint never disturbs the rest of the screen.
+  Future<void> _loadHint() async {
+    final detail = widget.exercise.catalogDetail;
+    if (widget.readOnly || detail == null) return;
+
+    final hint = await ProgressionService.hintFor(detail);
+    if (!mounted) return;
+    setState(() => _progression = hint);
   }
 
   /// Loads how this exercise's station is set up.
@@ -356,8 +376,15 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         const SizedBox(height: LiftrSpacing.x10),
                       ],
                       _chartCard(lt),
+                      // The suggestion sits under the chart: the graph is what
+                      // happened, this is what to do next. Only when there's a
+                      // suggestion to make.
                       const SizedBox(height: LiftrSpacing.x14),
                       _notesCard(lt),
+                      if (_progression?.suggestion != null) ...[
+                        const SizedBox(height: LiftrSpacing.x14),
+                        _suggestionCard(lt, _progression!),
+                      ],
                       const SizedBox(height: LiftrSpacing.x16),
                       _setsHeader(lt),
                       const SizedBox(height: LiftrSpacing.x10),
@@ -520,10 +547,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 best == null
                     ? '—'
                     : '${_trim(best)} kg${improving ? ' ↑' : ''}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: LiftrType.x16,
                   fontWeight: FontWeight.w600,
-                  color: LiftrColors.accent,
+                  color: lt.accentStrong,
                 ),
               ),
             ],
@@ -557,6 +584,150 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// The hint card: what to aim for next, why, and what last time looked like.
+  Widget _suggestionCard(LiftrTheme lt, ProgressionHint hint) {
+    final s = hint.suggestion!;
+    final note = _incrementNote(hint.increment);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: lt.accentBg,
+        border: Border.all(color: LiftrColors.accent, width: LiftrBorders.thin),
+        borderRadius: BorderRadius.circular(LiftrRadii.cardLarge),
+      ),
+      padding: const EdgeInsets.all(LiftrSpacing.x14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Suggestion',
+                style: TextStyle(
+                  fontSize: LiftrType.x12,
+                  fontWeight: FontWeight.w500,
+                  color: lt.accentMid,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _target(s),
+                style: TextStyle(
+                  fontSize: LiftrType.x16,
+                  fontWeight: FontWeight.w600,
+                  color: lt.accentStrong,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: LiftrSpacing.x8),
+          Text(
+            _reasonText(s.reason),
+            style: TextStyle(fontSize: LiftrType.x12, color: lt.textPrimary),
+          ),
+          const SizedBox(height: LiftrSpacing.x8),
+          Text(
+            'Last time: ${_lastSummary(hint.lastSession)}',
+            style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim),
+          ),
+          if (note != null) ...[
+            const SizedBox(height: LiftrSpacing.x8),
+            _footnote(lt, Icons.tune, note),
+          ],
+          if (hint.plateau) ...[
+            const SizedBox(height: LiftrSpacing.x6),
+            _footnote(
+              lt,
+              Icons.trending_flat,
+              'Estimated strength has been flat — consider a deload week or a '
+              'new rep range.',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// A small icon + muted line for the setup and plateau asides.
+  Widget _footnote(LiftrTheme lt, IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 13, color: lt.textMuted),
+        const SizedBox(width: LiftrSpacing.x6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: LiftrType.x10, color: lt.textMuted),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The right-hand target: a weight and rep window, or reps alone for
+  /// bodyweight where there's no load to name.
+  String _target(ProgressionSuggestion s) {
+    final w = s.suggestedWeightKg;
+    final r = s.targetReps;
+    final reps = r.min == r.max ? '${r.min}' : '${r.min}–${r.max}';
+    if (w == null) return '$reps reps';
+    return '${_trim(w)} kg × $reps';
+  }
+
+  String _reasonText(ProgressionReason reason) {
+    switch (reason) {
+      case ProgressionReason.hitTopOfRange:
+        return 'Hit the top of the range last time — time to add weight.';
+      case ProgressionReason.withinRange:
+        return 'In range last time — same weight, aim for one more rep.';
+      case ProgressionReason.belowRange:
+        return 'Fell short of the range last time — ease the weight down.';
+      case ProgressionReason.bodyweightAddReps:
+        return 'Bodyweight — aim for one or two more reps.';
+      case ProgressionReason.confidentProgression:
+        return 'Two strong sessions in a row — time to add weight.';
+      case ProgressionReason.gatheringData:
+        return 'Mixed last two sessions — hold the weight and settle it next '
+            'time.';
+      case ProgressionReason.confidentRegression:
+        return 'Two sessions short of the range — drop the weight.';
+      case ProgressionReason.returningDeload:
+        return 'Coming back from a break — start a little lighter and build up.';
+      case ProgressionReason.startingOver:
+        return 'A long time off — treat this as starting the lift over.';
+      case ProgressionReason.bigJumpHoldReps:
+        return 'One step is a big jump at this weight — earn more reps here '
+            'first.';
+      case ProgressionReason.fatigueCollapse:
+        return 'Reps fell off sharply last time — the first set was likely too '
+            'heavy, so hold.';
+    }
+  }
+
+  /// "40×12, 40×10, 40×7" — or reps alone for bodyweight sets.
+  String _lastSummary(ExerciseSessionHistory h) {
+    return h.sets
+        .map((s) => s.weightKg == null
+            ? '${s.reps ?? 0}'
+            : '${_trim(s.weightKg!)}×${s.reps ?? 0}')
+        .join(', ');
+  }
+
+  /// The "you can make this sharper" nudge, when the step was defaulted or
+  /// ambiguous. Nothing for a confirmed setup or a bodyweight lift.
+  String? _incrementNote(ResolvedIncrement increment) {
+    if (increment.isAmbiguous) {
+      return 'Sized with a default 2.5 kg step — pick which stack you used for '
+          'a sharper number.';
+    }
+    if (increment.isDefaulted) {
+      return 'Sized with a default 2.5 kg step — set this exercise up for a '
+          'sharper number.';
+    }
+    return null;
   }
 
   Widget _notesCard(LiftrTheme lt) {

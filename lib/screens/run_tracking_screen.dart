@@ -811,10 +811,10 @@ class _SetupView extends StatelessWidget {
                         autofocus: false,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'DMSerifDisplay',
                           fontSize: 56,
-                          color: LiftrColors.accent,
+                          color: lt.accentStrong,
                         ),
                         decoration: InputDecoration(
                           hintText: '5',

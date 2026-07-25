@@ -273,10 +273,10 @@ class _StatCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: LiftrType.x22,
                 fontWeight: FontWeight.w600,
-                color: LiftrColors.accent,
+                color: lt.accentStrong,
               ),
             ),
           ),

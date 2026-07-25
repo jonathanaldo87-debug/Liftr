@@ -47,7 +47,10 @@ class LiftrApp extends StatefulWidget {
 }
 
 class LiftrAppState extends State<LiftrApp> {
-  ThemeMode _themeMode = ThemeMode.dark;
+  // Seeded from the saved choice so a relaunch opens in the theme the user
+  // left it in. Prefs is initialised in main() before this state is built.
+  ThemeMode _themeMode =
+      Prefs.isDarkMode ? ThemeMode.dark : ThemeMode.light;
 
   ThemeMode get themeMode => _themeMode;
 
@@ -56,6 +59,8 @@ class LiftrAppState extends State<LiftrApp> {
       _themeMode =
           _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     });
+    // Fire-and-forget: the write is reliable and nothing waits on it.
+    Prefs.setDarkMode(_themeMode == ThemeMode.dark);
   }
 
   @override

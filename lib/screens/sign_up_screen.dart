@@ -210,11 +210,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       WidgetSpan(
                         child: GestureDetector(
                           onTap: () => Navigator.pop(context),
-                          child: const Text(
+                          child: Text(
                             'Log in',
                             style: TextStyle(
                               fontSize: LiftrType.x12,
-                              color: LiftrColors.accent,
+                              color: lt.accentStrong,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
