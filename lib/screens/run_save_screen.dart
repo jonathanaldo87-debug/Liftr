@@ -86,9 +86,6 @@ class _RunSaveScreenState extends State<RunSaveScreen> {
           discipline: widget.discipline.key,
         ),
       );
-      // Ending is a flag flip: the session and its intervals stay exactly as
-      // they are, you're just no longer in it.
-      await WorkoutService.endSession(widget.sessionId);
       if (mounted) Navigator.pop(context, 'saved');
     } catch (e) {
       if (mounted) {

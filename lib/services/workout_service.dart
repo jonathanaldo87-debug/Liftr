@@ -2,19 +2,6 @@ import 'package:liftr/models/models.dart';
 import 'package:liftr/utils/dates.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Thrown when starting a session while a different one is still active.
-///
-/// A typed exception rather than a generic Exception so the UI can offer to end
-/// [active] and carry on, instead of matching on an error string.
-class ActiveSessionExists implements Exception {
-  final WorkoutSessions active;
-  const ActiveSessionExists(this.active);
-
-  @override
-  String toString() =>
-      'ActiveSessionExists(${active.discipline} on ${active.sessionDate})';
-}
-
 class WorkoutService {
   static final _db = Supabase.instance.client;
 
@@ -25,7 +12,7 @@ class WorkoutService {
   }
 
   static const _sessionCols = 'session_id, session_date, name, notes, '
-      'discipline, is_active, created_at, updated_at';
+      'discipline, created_at, updated_at';
 
   // ── Disciplines ─────────────────────────────────────────────
 
@@ -171,90 +158,15 @@ class WorkoutService {
     }
   }
 
-  // ── The active session ──────────────────────────────────────
-
-  /// The session you're on right now, or null.
-  ///
-  /// At most one exists — migration 010's partial unique index guarantees it, so
-  /// this can safely take the first row. This is the answer to "which session am
-  /// I currently in"; nothing about it is timed.
-  static Future<WorkoutSessions?> getActiveSession() async {
-    final data = await _db
-        .from('workout_sessions')
-        .select(_sessionCols)
-        .eq('user_id', _userId)
-        .eq('is_active', true)
-        .limit(1);
-
-    if (data.isEmpty) return null;
-    return WorkoutSessions.fromJson(data.first);
-  }
-
-  /// Marks a session as no longer current. Its data stays exactly as it is —
-  /// ending is a flag flip, not a delete, and an ended session is still
-  /// editable.
-  static Future<void> endSession(String sessionId) async {
-    await _db
-        .from('workout_sessions')
-        .update({'is_active': false}).eq('session_id', sessionId);
-  }
-
-  /// Starts (or resumes) the [discipline] session for [date] and makes it the
-  /// active one.
-  ///
-  /// Throws [ActiveSessionExists] if a *different* session is already active —
-  /// you can't be doing gym and running at once. The caller is expected to offer
-  /// to end that one first. Re-starting the session that's already active is a
-  /// no-op rather than an error.
-  static Future<String> startSession(
-    DateTime date,
-    String name, {
-    String discipline = Discipline.gymKey,
-  }) async {
-    final active = await getActiveSession();
-    final sessionId =
-        await getOrCreateSession(date, name, discipline: discipline);
-
-    if (active != null) {
-      if (active.sessionId == sessionId) return sessionId; // already on it
-      throw ActiveSessionExists(active);
-    }
-
-    try {
-      await _db
-          .from('workout_sessions')
-          .update({'is_active': true}).eq('session_id', sessionId);
-    } on PostgrestException catch (e) {
-      // 23505 = unique_violation on the one-active-per-user partial index. A
-      // different session became active between the check above and this write.
-      // Surface it as the typed clash the UI knows how to offer a way out of,
-      // not a raw duplicate-key the caller can only show as an error string.
-      if (e.code == '23505') {
-        final nowActive = await getActiveSession();
-        if (nowActive != null && nowActive.sessionId != sessionId) {
-          throw ActiveSessionExists(nowActive);
-        }
-        // Already active, and it's us — the write we were about to make. Nothing
-        // to do.
-        return sessionId;
-      }
-      rethrow;
-    }
-    return sessionId;
-  }
-
-  /// Ends [previous] and starts the requested session in one go — what the
-  /// "you left a session open" prompt calls once the user confirms.
-  static Future<String> endAndStartSession(
-    WorkoutSessions previous,
-    DateTime date,
-    String name, {
-    String discipline = Discipline.gymKey,
-  }) async {
-    final id = previous.sessionId;
-    if (id != null) await endSession(id);
-    return startSession(date, name, discipline: discipline);
-  }
+  // There is no start/end here any more, and no "active session".
+  //
+  // `is_active` recorded nothing (no start or end time was ever stored) and
+  // routed nothing — an exercise saves into the session for its *date*, never
+  // the flagged one. All it powered was a banner, at the cost of a
+  // one-at-a-time rule, a switch prompt, and a typed clash exception with its
+  // own 23505 race handling. A session is now purely the (date + discipline)
+  // container it always claimed to be, and [getOrCreateSession] is the only way
+  // one comes into existence.
 
   /// Renames / re-notes a session. Deliberately does not touch `discipline`:
   /// a session's discipline decides which child rows are valid under it, so

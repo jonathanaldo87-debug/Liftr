@@ -45,6 +45,19 @@ bool isSameDay(DateTime? a, DateTime? b) {
 bool isToday(DateTime? d, {DateTime? now}) =>
     isSameDay(d, now ?? DateTime.now());
 
+/// Whether [d] falls after today.
+///
+/// Date-only, deliberately: a session belongs to a day rather than a moment, so
+/// "this evening" is not the future — only tomorrow onward is.
+bool isFutureDay(DateTime d, {DateTime? now}) =>
+    _midnight(d).isAfter(_midnight(now ?? DateTime.now()));
+
+/// Whether [d] falls before today, by the same date-only comparison.
+bool isPastDay(DateTime d, {DateTime? now}) =>
+    _midnight(d).isBefore(_midnight(now ?? DateTime.now()));
+
+DateTime _midnight(DateTime d) => DateTime(d.year, d.month, d.day);
+
 /// "Jul 19".
 String shortDate(DateTime d) => '${kMonthsShort[d.month - 1]} ${d.day}';
 

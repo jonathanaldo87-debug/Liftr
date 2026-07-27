@@ -237,9 +237,11 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     _beginAcquiring();
   }
 
-  /// Creates and activates the session, or reuses today's if one's already
-  /// there. Mirrors the gym flow's "start means something even before you log".
-  Future<String> _ensureSession() => WorkoutService.startSession(
+  /// The day's session for this discipline, created on first use.
+  ///
+  /// Nothing is "activated" — the run in progress is tracked by this screen and
+  /// its GPS backup, not by a flag on the row.
+  Future<String> _ensureSession() => WorkoutService.getOrCreateSession(
         widget.date,
         _defaultName,
         discipline: widget.discipline.key,
@@ -575,16 +577,12 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     await RunNotification.clear();
 
     final id = _sessionId;
-    if (id != null) {
+    // Nothing was ever saved into it — delete the empty session rather than
+    // leaving a hollow row that shows as a run with no runs. Legs that did save
+    // need no cleanup: leaving the session is just leaving the screen.
+    if (id != null && _completed.isEmpty) {
       try {
-        if (_completed.isEmpty) {
-          // Nothing was ever saved into it — delete the empty session rather
-          // than leaving a hollow row that shows as a run with no runs.
-          await RunService.discardSession(id);
-        } else {
-          // Keep the legs that did save; just stop being "in" the session.
-          await WorkoutService.endSession(id);
-        }
+        await RunService.discardSession(id);
       } catch (_) {}
     }
 

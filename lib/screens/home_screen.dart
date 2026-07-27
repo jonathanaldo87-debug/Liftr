@@ -19,7 +19,6 @@ import 'log_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
-import 'session_switch.dart';
 
 /// Shell for the four tabs. The bottom bar used to move its own highlight and
 /// nothing else — every tab but Home showed the Home screen.
@@ -156,38 +155,53 @@ class _TodayTabState extends State<_TodayTab> {
   /// used to hardcode `hasWorkout: (_) => false`, so no dot ever appeared.
   Set<String> _sessionDates = {};
 
-  /// The session you're on right now, if any — global, not per-date, so a
-  /// session left open on Monday still shows on Tuesday.
-  WorkoutSessions? _activeSession;
-
-  /// A finished session temporarily unlocked for editing, by session id.
+  /// A past session temporarily unlocked for editing, by session id.
   ///
-  /// Deliberately transient UI state, never persisted: the default for anything
-  /// you're not currently doing is read-only, so a stray tap can't rewrite last
-  /// week's workout. Changing the date or the filter drops it — you've navigated
-  /// away, so the unlock has served its purpose.
+  /// Deliberately transient UI state, never persisted: the default for a day
+  /// that's already gone is read-only, so a stray tap can't rewrite last week's
+  /// workout. Changing the date or the filter drops it — you've navigated away,
+  /// so the unlock has served its purpose.
   String? _editableSessionId;
 
   bool _isLoading = false;
 
   /// Whether [s] accepts changes right now.
   ///
-  /// The session you're actively in is always editable — that's the whole point
-  /// of being in it. Everything else has to be unlocked deliberately.
+  /// Today is live, the past is history until you unlock it, and a day that
+  /// hasn't happened takes nothing at all. Keyed on the day rather than on any
+  /// state of the session, which is what the run card always did — the gym card
+  /// used to key off `is_active` instead, and that flag is gone.
+  ///
+  /// Note this answers for a *day*, so it's true on today even before a session
+  /// exists. Callers that need a row to change still have to check they have
+  /// one.
   bool _canEdit(WorkoutSessions? s) {
-    if (s?.sessionId == null) return false;
-    if (s!.isActive) return true;
-    return s.sessionId == _editableSessionId;
+    if (isFutureDay(_selectedDate)) return false;
+    if (_isToday(_selectedDate)) return true;
+    final id = s?.sessionId;
+    return id != null && id == _editableSessionId;
   }
 
-  /// Edit ⇄ Cancel on a finished session.
+  /// Edit ⇄ Cancel on a past session.
   ///
-  /// The active session never gets here — it's always editable, so there'd be
-  /// nothing to toggle.
+  /// Today never gets here — it's always editable, so there'd be nothing to
+  /// toggle.
   void _toggleEdit(WorkoutSessions s) => setState(() {
         _editableSessionId =
             _editableSessionId == s.sessionId ? null : s.sessionId;
       });
+
+  /// The EDIT ⇄ DONE handler for a card, or null when there's nothing to
+  /// toggle: today is already open, a future day takes nothing, and a day with
+  /// no session has nothing to unlock.
+  ///
+  /// One rule for both cards now. They used to disagree — the gym card hid the
+  /// chip for the active session, the run card hid it for today — because they
+  /// were locking on different things.
+  VoidCallback? _toggleFor(WorkoutSessions? s) {
+    if (s == null || !isPastDay(_selectedDate)) return null;
+    return () => _toggleEdit(s);
+  }
 
   /// Re-locks whatever was unlocked. Called on any navigation away from the
   /// thing you unlocked.
@@ -285,17 +299,12 @@ class _TodayTabState extends State<_TodayTab> {
         _selectedDate.add(const Duration(days: 60)),
       );
 
-      // Not scoped to the selected date on purpose: a session left open on
-      // Monday is still the one you're on when you open the app on Tuesday.
-      final active = await WorkoutService.getActiveSession();
-
       if (mounted) {
         setState(() {
           _sessions = sessions;
           _exercisesBySession = byId;
           _runsBySession = runsById;
           _sessionDates = dates;
-          _activeSession = active;
         });
       }
     } catch (e) {
@@ -324,47 +333,71 @@ class _TodayTabState extends State<_TodayTab> {
   static String _key(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  /// The one way a session gets created: declare what you're doing.
+  /// The discipline the primary button will add to, or null when that's still
+  /// an open question and it has to ask.
   ///
-  /// "Start" is about intent, not timing — nothing records a start or end time.
-  /// A session stays a plain (date + discipline) container; this just decides
-  /// which one you're filling.
+  /// The selected chip decides it. That reverses an earlier rule here — "the
+  /// chips filter what you're looking at; picking a filter must never decide
+  /// what a tap creates" — which was right when the button was "Start session",
+  /// a day-level act the filter had no business steering. It isn't any more:
+  /// the button says "Add exercise" while the gym card is on screen, so the
+  /// label states outright what it will do and there's nothing left to be
+  /// surprised by. On "All" it genuinely is an open question, hence the picker.
   ///
-  /// The chips deliberately don't do this job. They filter what you're looking
-  /// at; picking a filter must never decide what a tap creates.
-  Future<void> _startSession() async {
+  /// One discipline configured means there's nothing to choose between, whatever
+  /// the chip says.
+  Discipline? get _target {
+    if (_disciplines.length == 1) return _disciplines.first;
+    final key = _selectedDiscipline;
+    if (key == null) return null;
+    return _disciplineFor(key);
+  }
+
+  /// The only way anything gets logged: one button, one verb, always in the
+  /// same place.
+  ///
+  /// There's no session to start or end any more — [_addExercise] and the run
+  /// flows create the day's session on save, so "add" is the whole vocabulary.
+  Future<void> _logSomething() async {
     if (_disciplines.isEmpty) return;
 
-    // Nothing to choose between — don't make them tap through a one-item menu.
-    final chosen =
-        _disciplines.length == 1 ? _disciplines.first : await _pickDiscipline();
+    // Nothing to log on a day that hasn't happened. The button is hidden for
+    // one, so this only catches a tap that raced the date changing.
+    if (isFutureDay(_selectedDate)) return;
 
+    final chosen = _target ?? await _pickDiscipline();
     if (chosen == null || !mounted) return;
 
-    // One session at a time. Anything else already open has to end first —
-    // whether it's today's gym session or one left running since Monday.
-    final active = _activeSession;
-    if (active != null && !_isSameSessionAs(active, chosen)) {
-      final ok = await _confirmEndActive(active, chosen);
-      if (!ok || !mounted) return;
-
-      final id = active.sessionId;
-      if (id != null) await WorkoutService.endSession(id);
-    }
-
-    if (!mounted) return;
     await _openDiscipline(chosen);
   }
 
-  /// True when the active session *is* the one being started — resuming, not
-  /// conflicting, so no prompt.
-  bool _isSameSessionAs(WorkoutSessions active, Discipline chosen) {
-    final d = active.sessionDate;
-    final sameDay = d != null &&
-        d.year == _selectedDate.year &&
-        d.month == _selectedDate.month &&
-        d.day == _selectedDate.day;
-    return sameDay && active.discipline == chosen.key;
+  /// What the primary button says.
+  ///
+  /// Names the act, not the bookkeeping: on the gym chip it's "Add exercise"
+  /// because that is precisely what the tap does.
+  String get _addLabel {
+    final d = _target;
+    if (d == null) return 'Log something';
+    if (d.logsDistance) return 'Add a run';
+    if (d.isGym) return 'Add exercise';
+    return 'Add ${d.label.toLowerCase()}';
+  }
+
+  /// Whether anything can be added to what's on screen right now.
+  bool get _canLogHere {
+    if (isFutureDay(_selectedDate)) return false;
+    // A discipline whose logging screen doesn't exist yet has nothing to add
+    // to; its card says as much, and a button promising otherwise would lie.
+    final d = _target;
+    return d == null || d.logsDistance || d.isGym;
+  }
+
+  /// What an empty day suggests you do — which depends on whether there's a
+  /// button below to do it with.
+  String get _emptyHint {
+    if (isFutureDay(_selectedDate)) return kNotYetHint;
+    if (!_canLogHere) return 'Nothing logged on this day.';
+    return 'Nothing logged.\nTap "$_addLabel" below to put something in.';
   }
 
   Future<Discipline?> _pickDiscipline() {
@@ -384,7 +417,7 @@ class _TodayTabState extends State<_TodayTab> {
             const SizedBox(height: LiftrSpacing.x18),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
-              child: Text('What are you doing?',
+              child: Text('What do you want to log?',
                   style: Theme.of(ctx).textTheme.displaySmall),
             ),
             const SizedBox(height: LiftrSpacing.x12),
@@ -409,119 +442,120 @@ class _TodayTabState extends State<_TodayTab> {
     );
   }
 
-  /// Routes to a discipline's logging screen. Gym is the only one with a real
-  /// one so far; the rest only move the filter, so no empty session row gets
-  /// written for a discipline that can't log anything yet.
+  /// Routes to a discipline's own way of logging.
+  ///
+  /// Nothing is created here. Every route below writes the day's session when
+  /// it saves, which is what makes backing out of any of them free — this used
+  /// to create and activate the gym session up front so that "start" meant
+  /// something on its own, and left a hollow row behind whenever you changed
+  /// your mind.
   Future<void> _openDiscipline(Discipline d) async {
-    // A distance discipline goes straight to the tracked-run flow — no hub, no
-    // intermediate menu. The session itself is created inside there on the first
-    // Start, so backing out of setup without running claims nothing. Any
-    // conflicting active session was already ended by [_startSession] before we
-    // got here, the same way it is for gym.
+    // Move the lens onto what we're adding to, so the result lands in view.
+    setState(() => _selectedDiscipline = d.key);
+
     if (d.logsDistance) {
-      setState(() => _selectedDiscipline = d.key);
-      final saved = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RunTrackingScreen(date: _selectedDate, discipline: d),
-        ),
-      );
-      if (!mounted) return;
-      // Reload regardless of the result: even an abandoned run may have ended a
-      // previously-active session on the way out.
-      await _loadData();
-      if (saved == true) _relock();
+      await _addDistance(d);
       return;
     }
 
-    // A discipline seeded with no logging UI yet just moves the filter, rather
-    // than writing an empty session row you couldn't put anything into.
-    if (!d.isGym) {
-      setState(() => _selectedDiscipline = d.key);
-      return;
-    }
+    // Seeded, but with no logging screen yet. Moving the filter is the whole of
+    // what can be done, and the card there explains itself.
+    if (!d.isGym) return;
 
-    setState(() => _selectedDiscipline = Discipline.gymKey);
-
-    try {
-      // Create and activate up front rather than leaving it to the add-exercise
-      // save: "start" has to mean something even if you don't log a set yet, and
-      // an empty active session is a truthful state — you did start it.
-      //
-      // The name is a placeholder; the add screen pre-fills it and renames on
-      // save, so it's editable rather than imposed.
-      await WorkoutService.startSession(
-        _selectedDate,
-        '${d.label} session',
-        discipline: d.key,
-      );
-    } on ActiveSessionExists catch (e) {
-      // The check inside startSession is racy by nature — the database is the
-      // real guard, and this is how we find out it fired.
-      //
-      // Offering the switch rather than just reporting the clash: you asked to
-      // start something, and "no" with no way forward leaves you to go hunting
-      // for the other session yourself.
-      if (!mounted) return;
-      final switched = await confirmSessionSwitch(
-        context,
-        active: e.active,
-        activeLabel: _labelFor(e.active.discipline).toLowerCase(),
-        startingLabel: d.label.toLowerCase(),
-      );
-
-      if (!switched) {
-        await _loadData();
-        return;
-      }
-
-      try {
-        await WorkoutService.endAndStartSession(
-          e.active,
-          _selectedDate,
-          '${d.label} session',
-          discipline: d.key,
-        );
-      } catch (err) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Could not switch sessions: $err'),
-            backgroundColor: LiftrColors.danger,
-          ));
-        }
-        await _loadData();
-        return;
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not start the session: $e'),
-          backgroundColor: LiftrColors.danger,
-        ));
-      }
-      return;
-    }
-
-    if (!mounted) return;
     await _addExercise();
   }
 
-  /// Ends the session you're on. Only a flag flip — everything logged stays.
-  Future<void> _endSession() async {
-    final active = _activeSession;
-    final id = active?.sessionId;
-    if (id == null) return;
+  /// A distance discipline has two ways in, and only today has both: follow one
+  /// live, or write down one you've already done. A day that's gone can only be
+  /// the second, so it goes straight there rather than offering to track a run
+  /// that's already over.
+  Future<void> _addDistance(Discipline d) async {
+    if (!_isToday(_selectedDate)) {
+      await _addRun();
+      return;
+    }
 
-    try {
-      await WorkoutService.endSession(id);
-      await _loadData();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not end the session: $e'),
-          backgroundColor: LiftrColors.danger,
-        ));
-      }
+    final tracked = await _pickRunMode();
+    if (tracked == null || !mounted) return;
+
+    if (!tracked) {
+      await _addRun();
+      return;
+    }
+
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RunTrackingScreen(date: _selectedDate, discipline: d),
+      ),
+    );
+    if (!mounted) return;
+    // Reload regardless of the result: an abandoned run may still have written
+    // legs before it was abandoned.
+    await _loadData();
+    if (saved == true) _relock();
+  }
+
+  /// Track it live, or type it in. Null if dismissed.
+  Future<bool?> _pickRunMode() {
+    final lt = context.lt;
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: lt.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: LiftrSpacing.x18),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
+              child:
+                  Text('Add a run', style: Theme.of(ctx).textTheme.displaySmall),
+            ),
+            const SizedBox(height: LiftrSpacing.x12),
+            ListTile(
+              leading: const Icon(Icons.my_location,
+                  color: LiftrColors.accentDark, size: LiftrType.x22),
+              title: Text('Track it live',
+                  style: TextStyle(
+                      fontSize: LiftrType.x15, color: lt.textPrimary)),
+              subtitle: Text('Follow it with GPS from here',
+                  style:
+                      TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
+              onTap: () => Navigator.pop(ctx, true),
+            ),
+            ListTile(
+              leading: Icon(Icons.edit_outlined,
+                  color: lt.textSecondary, size: LiftrType.x22),
+              title: Text('Enter it manually',
+                  style: TextStyle(
+                      fontSize: LiftrType.x15, color: lt.textPrimary)),
+              subtitle: Text('Type in one you\'ve already done',
+                  style:
+                      TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
+              onTap: () => Navigator.pop(ctx, false),
+            ),
+            const SizedBox(height: LiftrSpacing.x12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Keeps a past day you just added to editable.
+  ///
+  /// Its session may only have come into existence on that save, and a past day
+  /// is read-only by default — without this, what you just entered would come
+  /// straight back locked behind an EDIT chip.
+  void _unlockIfPast(WorkoutSessions? s) {
+    final id = s?.sessionId;
+    if (id != null && isPastDay(_selectedDate)) {
+      setState(() => _editableSessionId = id);
     }
   }
 
@@ -573,16 +607,10 @@ class _TodayTabState extends State<_TodayTab> {
       await RunBackupStore.clear();
       try {
         final legs = await RunService.getIntervals(backup.sessionId);
-        if (legs.isEmpty) {
-          // A crash during the very first leg — nothing worth keeping, so the
-          // hollow session goes rather than lingering as a run with no runs.
-          await RunService.discardSession(backup.sessionId);
-        } else {
-          // Earlier legs are real and stay, but discarding means you're no
-          // longer in the session — end it so it doesn't hold the single
-          // active-session slot and block starting the next one.
-          await WorkoutService.endSession(backup.sessionId);
-        }
+        // A crash during the very first leg — nothing worth keeping, so the
+        // hollow session goes rather than lingering as a run with no runs.
+        // Earlier legs are real and simply stay where they are.
+        if (legs.isEmpty) await RunService.discardSession(backup.sessionId);
       } catch (_) {}
       if (mounted) await _loadData();
       return;
@@ -603,63 +631,6 @@ class _TodayTabState extends State<_TodayTab> {
     }
   }
 
-  /// Asks before ending whatever is currently open, so nothing is ever ended
-  /// silently — logging today's lifts into Monday's forgotten session would be
-  /// far worse than one extra tap.
-  ///
-  /// Wording adapts: switching disciplines today reads differently from a
-  /// session you left open days ago, even though the rule behind both is the
-  /// same one-at-a-time invariant.
-  Future<bool> _confirmEndActive(
-      WorkoutSessions active, Discipline next) async {
-    final activeLabel = _labelFor(active.discipline);
-    final isStale = !_isToday(active.sessionDate);
-    final when = active.sessionDate == null
-        ? 'an earlier day'
-        : _formattedFullDate(active.sessionDate!);
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final lt = ctx.lt;
-        return AlertDialog(
-          backgroundColor: lt.surface,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(LiftrRadii.card)),
-          title: Text(
-            isStale
-                ? 'You left a $activeLabel session open'
-                : 'End your $activeLabel session?',
-            style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary),
-          ),
-          content: Text(
-            isStale
-                ? 'That $activeLabel session from $when is still open, and only '
-                    'one session can be active at a time.\n\nEnd it and start '
-                    '${next.label.toLowerCase()}? Everything you logged is kept.'
-                : 'Only one session can be active at a time, so your '
-                    '$activeLabel session ends before ${next.label.toLowerCase()} '
-                    'starts.\n\nEverything you logged is kept.',
-            style: TextStyle(
-                fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: lt.textSecondary)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('End & continue',
-                  style: TextStyle(color: lt.accentStrong)),
-            ),
-          ],
-        );
-      },
-    );
-    return ok == true;
-  }
-
   bool _isToday(DateTime? d) => isToday(d);
 
   Discipline _disciplineFor(String key) => _disciplines.firstWhere(
@@ -667,8 +638,6 @@ class _TodayTabState extends State<_TodayTab> {
         orElse: () => Discipline(key: key, label: key, emoji: '•'),
       );
 
-  String _labelFor(String key) => _disciplineFor(key).label;
-  String _emojiFor(String key) => _disciplineFor(key).emoji;
 
   /// Opens the gym add-exercise flow, which get-or-creates the day's gym
   /// session as a side effect of saving.
@@ -680,6 +649,7 @@ class _TodayTabState extends State<_TodayTab> {
       ),
     );
     await _loadData();
+    if (mounted) _unlockIfPast(_gymSession);
   }
 
   Future<void> _openExercise(WorkoutExercises ex) async {
@@ -727,10 +697,38 @@ class _TodayTabState extends State<_TodayTab> {
     }
   }
 
+  /// Whether a past day needs the backfill button at all.
+  ///
+  /// Only where nothing already on screen lets you in. A gym session that
+  /// exists has its own EDIT chip, and the run card offers "Add a run" whatever
+  /// the day — pairing either with a button that ends up in the same place
+  /// gives you two controls and no reason to prefer one.
+  ///
+  /// What's left is the case the chip can't cover: a past day with no session
+  /// to unlock. `onToggleEdit` is null when there's no session, so without this
+  /// button that day has no way in at all.
+  /// The day's one action, or null when there's nothing to offer.
+  ///
+  /// One slot, one verb. It used to hold "Start session", "End gym session",
+  /// "Log past session" or nothing depending on the date and on whether a
+  /// session was open — four meanings in the position your thumb rests on,
+  /// with the rarest of them (End) taking the most prominent control in the
+  /// app for the whole time you were training.
+  Widget? _primaryAction() {
+    if (!_canLogHere) return null;
+
+    return ElevatedButton(
+      onPressed: _disciplines.isEmpty ? null : _logSomething,
+      child: Text(_addLabel),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
     final tt = Theme.of(context).textTheme;
+
+    final primaryAction = _primaryAction();
 
     return SafeArea(
       child: Column(
@@ -775,7 +773,7 @@ class _TodayTabState extends State<_TodayTab> {
 
           const SizedBox(height: LiftrSpacing.x12),
 
-          // Which session am I on? Sits directly above the card it filters.
+          // What am I looking at? Sits directly above the card it filters.
           _DisciplineChips(
             disciplines: _disciplines,
             selected: _selectedDiscipline,
@@ -787,23 +785,6 @@ class _TodayTabState extends State<_TodayTab> {
 
           const SizedBox(height: LiftrSpacing.x10),
 
-          // Which session am I on? Shown regardless of the filter, because the
-          // active session is global — hiding it behind a chip would let you
-          // forget one was open at all.
-          if (_activeSession != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, LiftrSpacing.x10),
-              child: _ActiveSessionBanner(
-                session: _activeSession!,
-                label: _labelFor(_activeSession!.discipline),
-                emoji: _emojiFor(_activeSession!.discipline),
-                isStale: !_isToday(_activeSession!.sessionDate),
-                dateLabel: _activeSession!.sessionDate == null
-                    ? ''
-                    : _formattedFullDate(_activeSession!.sessionDate!),
-              ),
-            ),
-
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
@@ -811,51 +792,31 @@ class _TodayTabState extends State<_TodayTab> {
             ),
           ),
 
-          // The only route to a new session. Always available, whatever the
-          // filter says — the filter is a lens, not a mode.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-            child: _activeSession != null
-                ? _EndSessionButton(
-                    label: _labelFor(_activeSession!.discipline),
-                    onEnd: _endSession,
-                  )
-                : ElevatedButton(
-                    onPressed: _disciplines.isEmpty ? null : _startSession,
-                    child: Text(
-                      _disciplines.length == 1
-                          ? 'Start ${_disciplines.first.label.toLowerCase()} session'
-                          : 'Start session',
-                    ),
-                  ),
-          ),
+          // The one way anything gets logged, in the one place it always is.
+          if (primaryAction != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: primaryAction,
+            ),
         ],
       ),
     );
   }
 
-  /// Opens the manual run form for the selected day.
-  ///
-  /// Deliberately not routed through startSession: logging a run you already
-  /// did isn't starting anything, so it neither claims the single active-session
-  /// slot nor collides with a gym session you're in the middle of.
+  /// Opens the manual run form for the selected day. `logManualRun` writes the
+  /// day's session itself, so nothing has to exist first.
   Future<void> _addRun() async {
     _relock();
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => AddRunScreen(date: _selectedDate)),
     );
-    if (saved == true) await _loadData();
-  }
+    if (saved != true) return;
 
-  /// Whether the day's runs can be changed.
-  ///
-  /// Today plays the role `is_active` plays for the gym: a manually logged run
-  /// never sets that flag — logManualRun records history rather than starting
-  /// anything — so keying off it would lock every run session the instant it
-  /// was created. Today is live, the past is history until you unlock it.
-  bool _canEditRun(WorkoutSessions? s) =>
-      _isToday(_selectedDate) || _canEdit(s);
+    await _loadData();
+    final key = _selectedDiscipline;
+    if (mounted && key != null) _unlockIfPast(_sessionFor(key));
+  }
 
   /// Opens a logged run. Editing and deleting both happen in there, the way an
   /// exercise is changed from its detail screen rather than from the card.
@@ -889,12 +850,9 @@ class _TodayTabState extends State<_TodayTab> {
         session: gym,
         exercises: _exercisesFor(gym),
         isLoading: _isLoading,
+        emptyMessage: _emptyHint,
         isEditable: _canEdit(gym),
-        // Null for the active session: it's always editable, so there's nothing
-        // to toggle — and offering "Cancel" would imply you could lock it.
-        onToggleEdit:
-            (gym == null || gym.isActive) ? null : () => _toggleEdit(gym),
-        onAddExercise: _addExercise,
+        onToggleEdit: _toggleFor(gym),
         onExerciseTap: _openExercise,
         onExerciseDelete: _deleteExercise,
       );
@@ -918,16 +876,11 @@ class _TodayTabState extends State<_TodayTab> {
           session: session,
           intervals: _intervalsFor(session),
           isLoading: _isLoading,
-          isEditable: _canEditRun(session),
-          // Nothing to toggle on today (always editable) or on a day with no
-          // session yet.
-          onToggleEdit: (session == null || _isToday(_selectedDate))
-              ? null
-              : () => _toggleEdit(session),
-          onAddRun: _addRun,
+          isEditable: _canEdit(session),
+          onToggleEdit: _toggleFor(session),
           onOpenInterval: (i) => _openRun(
             i,
-            readOnly: !_canEditRun(session),
+            readOnly: !_canEdit(session),
             // Every run on the day but this one — the ones whose name would
             // change along with it.
             otherRunsToday: _intervalsFor(session).length - 1,
@@ -941,144 +894,35 @@ class _TodayTabState extends State<_TodayTab> {
 
     // "All" — everything logged today, whatever the discipline.
     return _AllSessionsCard(
+      date: _selectedDate,
       sessions: _sessions,
       disciplines: _disciplines,
       exercisesBySession: _exercisesBySession,
+      runsBySession: _runsBySession,
       isLoading: _isLoading,
+      emptyMessage: _emptyHint,
+      // One rule for every discipline now, so this needs no routing by logging
+      // type the way it did while gym and running locked on different things.
+      isEditable: _canEdit,
       onOpenDiscipline: (key) => setState(() {
         _selectedDiscipline = key;
         _relock();
       }),
+      onExerciseTap: _openExercise,
+      onExerciseDelete: _deleteExercise,
+      onOpenInterval: (s, i) => _openRun(
+        i,
+        readOnly: !_canEdit(s),
+        otherRunsToday: _intervalsFor(s).length - 1,
+      ),
     );
   }
 
   String _formattedFullDate(DateTime d) => weekdayDate(d);
 }
 
-// ── Active session ────────────────────────────────────────────
-/// "You're on this one." The answer to which session is current — no timer, no
-/// elapsed clock, just what's open.
-class _ActiveSessionBanner extends StatelessWidget {
-  final WorkoutSessions session;
-  final String label;
-  final String emoji;
-
-  /// Left open on an earlier day. Worth calling out — it's almost always a
-  /// forgotten session rather than a deliberate one.
-  final bool isStale;
-  final String dateLabel;
-
-  const _ActiveSessionBanner({
-    required this.session,
-    required this.label,
-    required this.emoji,
-    required this.isStale,
-    required this.dateLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final lt = context.lt;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x10),
-      decoration: BoxDecoration(
-        color: lt.accentBg,
-        border: Border.all(color: LiftrColors.accent, width: LiftrBorders.thin),
-        borderRadius: BorderRadius.circular(LiftrRadii.card),
-      ),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: LiftrType.x18)),
-          const SizedBox(width: LiftrSpacing.x10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: lt.accentStrong,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: LiftrSpacing.x6),
-                    Text(
-                      isStale ? 'STILL OPEN' : 'IN THIS SESSION',
-                      style: TextStyle(
-                        fontSize: LiftrType.x10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.6,
-                        color: lt.accentMid,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: LiftrSpacing.x3),
-                Text(
-                  session.name ?? label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: LiftrType.x14,
-                    fontWeight: FontWeight.w500,
-                    color: lt.textPrimary,
-                  ),
-                ),
-                if (isStale && dateLabel.isNotEmpty) ...[
-                  const SizedBox(height: LiftrSpacing.x2),
-                  Text(
-                    'from $dateLabel',
-                    style:
-                        TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EndSessionButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onEnd;
-  const _EndSessionButton({required this.label, required this.onEnd});
-
-  @override
-  Widget build(BuildContext context) {
-    final lt = context.lt;
-    // Outlined rather than filled: ending is the exit, not the thing we're
-    // nudging you toward.
-    return SizedBox(
-      height: 52,
-      child: OutlinedButton(
-        onPressed: onEnd,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: lt.border, width: LiftrBorders.thin),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(LiftrRadii.button)),
-        ),
-        child: Text(
-          'End ${label.toLowerCase()} session',
-          style: TextStyle(
-            fontSize: LiftrType.x15,
-            fontWeight: FontWeight.w600,
-            color: lt.textPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ── Discipline chips ──────────────────────────────────────────
-/// "What session am I on?" — an All chip plus one per discipline you train.
+/// "What am I looking at?" — an All chip plus one per discipline you train.
 ///
 /// Capped at [_maxVisible] so the row can't run off the screen once there are
 /// six disciplines; the rest collapse into an "Other" chip that opens a sheet.
@@ -1245,67 +1089,214 @@ class _Chip extends StatelessWidget {
 }
 
 // ── All-disciplines view ──────────────────────────────────────
-/// Everything logged on this day, whatever the discipline — an overview.
+/// Everything logged on this day, grouped by the session it belongs to.
 ///
-/// Deliberately a list of summary rows rather than a stack of full cards: the
-/// gym card sizes itself with an Expanded and would need an arbitrary fixed
-/// height to sit in a scroll view. Tap a row to jump to that discipline's chip,
-/// which is where the detail lives.
+/// The chips are a filter and nothing else, so "All" has to be the union of
+/// what they filter: the same rows the gym and run cards show, one group per
+/// session. It used to be a list of summary rows you tapped through to see any
+/// of it, which made "All" a menu rather than a lens.
+///
+/// It still can't just stack [_WorkoutCard] and [_RunCard] — both size
+/// themselves with an Expanded and would need an arbitrary fixed height inside
+/// a scroll view. The rows are reused instead, which is what keeps a group here
+/// identical to the card it came from, down to the edit lock on each one.
 class _AllSessionsCard extends StatelessWidget {
+  final DateTime date;
   final List<WorkoutSessions> sessions;
   final List<Discipline> disciplines;
   final Map<String, List<WorkoutExercises>> exercisesBySession;
+  final Map<String, List<DistanceInterval>> runsBySession;
   final bool isLoading;
+
+  /// What to say when the day is empty. Supplied rather than fixed: the hint
+  /// names the button below it, and on a future day there isn't one.
+  final String emptyMessage;
+
+  /// Whether a session's rows accept changes.
+  ///
+  /// Asked per session rather than passed as one flag: a day holds several, and
+  /// the answer genuinely differs between them — the gym one may be the session
+  /// you're in while the run beside it is already history.
+  final bool Function(WorkoutSessions) isEditable;
+
+  /// Jumps to a discipline's own chip, which is where adding to it lives.
   final ValueChanged<String> onOpenDiscipline;
 
+  final ValueChanged<WorkoutExercises> onExerciseTap;
+  final ValueChanged<WorkoutExercises> onExerciseDelete;
+
+  /// Takes the session as well as the leg: the caller needs it to work out the
+  /// lock and how many other runs share the day.
+  final void Function(WorkoutSessions, DistanceInterval) onOpenInterval;
+
   const _AllSessionsCard({
+    required this.date,
     required this.sessions,
     required this.disciplines,
     required this.exercisesBySession,
+    required this.runsBySession,
     required this.isLoading,
+    required this.emptyMessage,
+    required this.isEditable,
     required this.onOpenDiscipline,
+    required this.onExerciseTap,
+    required this.onExerciseDelete,
+    required this.onOpenInterval,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-              strokeWidth: 2, color: LiftrColors.accent),
-        ),
-      );
-    }
+    final lt = context.lt;
 
-    if (sessions.isEmpty) {
-      return const _EmptyState(
-        message: 'Nothing logged today.\nTap "Start session" below to begin.',
-      );
-    }
-
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        for (final s in sessions)
+    // Same chrome as the discipline cards, for the same reason they match each
+    // other: changing the chip should change what's in the card, not how the
+    // screen works.
+    return Container(
+      decoration: BoxDecoration(
+        color: lt.surface,
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.sheet),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: LiftrSpacing.x10),
-            child: _SessionSummaryRow(
-              session: s,
-              discipline: _lookup(s.discipline),
-              subtitle: _subtitleFor(s),
-              onTap: () => onOpenDiscipline(s.discipline),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${dayLabel(date)} · ${shortDate(date)}',
+                        style: TextStyle(
+                          fontSize: LiftrType.x11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.08,
+                          color: lt.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: LiftrSpacing.x3),
+                      Text(
+                        sessions.isEmpty ? 'No sessions' : 'Everything logged',
+                        style: TextStyle(
+                          fontSize: LiftrType.x16,
+                          fontWeight: FontWeight.w500,
+                          color: sessions.isEmpty ? lt.textDim : lt.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (sessions.isNotEmpty)
+                  AccentChip(
+                      '${sessions.length} session${sessions.length == 1 ? '' : 's'}'),
+              ],
             ),
           ),
-      ],
+
+          const Divider(),
+
+          // Expanded for the same reason the other cards use it: the card fills
+          // the height it's given, so the empty state sits in the middle rather
+          // than clinging to the top.
+          Expanded(
+            child: isLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: LiftrColors.accent,
+                      ),
+                    ),
+                  )
+                : sessions.isEmpty
+                    ? _EmptyState(message: emptyMessage)
+                    : ListView(
+                        padding: const EdgeInsets.only(
+                            bottom: LiftrSpacing.x6),
+                        children: [
+                          for (var i = 0; i < sessions.length; i++)
+                            ..._group(sessions[i], isFirst: i == 0),
+                        ],
+                      ),
+          ),
+        ],
+      ),
     );
   }
 
-  String _subtitleFor(WorkoutSessions s) {
-    if (s.discipline != Discipline.gymKey) return _lookup(s.discipline).label;
-    final n = (exercisesBySession[s.sessionId] ?? const []).length;
-    return '$n exercise${n == 1 ? '' : 's'}';
+  /// One session: its header, then its own rows.
+  List<Widget> _group(WorkoutSessions s, {required bool isFirst}) {
+    final d = _lookup(s.discipline);
+    final rows = _rowsFor(s, d);
+
+    return [
+      // A rule between groups rather than above the first, which already has
+      // the header's divider above it.
+      if (!isFirst) const Divider(),
+      _GroupHeader(
+        emoji: d.emoji,
+        title: _titleFor(s, d),
+        badge: _badgeFor(s, d),
+        onTap: () => onOpenDiscipline(s.discipline),
+      ),
+      if (rows.isEmpty) _GroupEmptyRow(discipline: d) else ...rows,
+    ];
+  }
+
+  /// The rows for a session, chosen by what its discipline logs — the same
+  /// branch [_TodayTabState._loadData] uses to fetch them.
+  List<Widget> _rowsFor(WorkoutSessions s, Discipline d) {
+    final id = s.sessionId;
+    if (id == null) return const [];
+
+    if (d.logsDistance) {
+      return [
+        for (final i in runsBySession[id] ?? const <DistanceInterval>[])
+          _IntervalRow(
+            interval: i,
+            emoji: d.emoji,
+            name: _titleFor(s, d),
+            onTap: () => onOpenInterval(s, i),
+          ),
+      ];
+    }
+
+    final editable = isEditable(s);
+    return [
+      for (final e in exercisesBySession[id] ?? const <WorkoutExercises>[])
+        _ExerciseRow(
+          exercise: e,
+          isEditable: editable,
+          onTap: () => onExerciseTap(e),
+          onDelete: () => onExerciseDelete(e),
+        ),
+    ];
+  }
+
+  String _titleFor(WorkoutSessions s, Discipline d) =>
+      s.name?.trim().isNotEmpty == true ? s.name!.trim() : d.label;
+
+  /// The one number worth seeing before opening a group — the same figure each
+  /// discipline's own card puts in its header.
+  String? _badgeFor(WorkoutSessions s, Discipline d) {
+    final id = s.sessionId;
+    if (id == null) return null;
+
+    if (d.logsDistance) {
+      final intervals = runsBySession[id] ?? const <DistanceInterval>[];
+      if (intervals.isEmpty) return null;
+      return formatDistance(RunTotals.from(intervals).distanceMeters);
+    }
+
+    final n = (exercisesBySession[id] ?? const []).length;
+    return n == 0 ? null : '$n EX';
   }
 
   Discipline _lookup(String key) => disciplines.firstWhere(
@@ -1314,16 +1305,19 @@ class _AllSessionsCard extends StatelessWidget {
       );
 }
 
-class _SessionSummaryRow extends StatelessWidget {
-  final WorkoutSessions session;
-  final Discipline discipline;
-  final String subtitle;
+/// The label above a group's rows, and the way through to the discipline's own
+/// chip — which is where adding to it lives, since "All" is a lens rather than
+/// a place you log from.
+class _GroupHeader extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String? badge;
   final VoidCallback onTap;
 
-  const _SessionSummaryRow({
-    required this.session,
-    required this.discipline,
-    required this.subtitle,
+  const _GroupHeader({
+    required this.emoji,
+    required this.title,
+    required this.badge,
     required this.onTap,
   });
 
@@ -1332,44 +1326,54 @@ class _SessionSummaryRow extends StatelessWidget {
     final lt = context.lt;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(LiftrRadii.card),
-      child: Container(
-        padding: const EdgeInsets.all(LiftrSpacing.x14),
-        decoration: BoxDecoration(
-          color: lt.surface,
-          border:
-              Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
-          borderRadius: BorderRadius.circular(LiftrRadii.card),
-        ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
         child: Row(
           children: [
-            Text(discipline.emoji,
-                style: const TextStyle(fontSize: LiftrType.x18)),
-            const SizedBox(width: LiftrSpacing.x10),
+            Text(emoji, style: const TextStyle(fontSize: LiftrType.x13)),
+            const SizedBox(width: LiftrSpacing.x8),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    session.name ?? discipline.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: LiftrType.x14,
-                      fontWeight: FontWeight.w500,
-                      color: lt.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: LiftrSpacing.x2),
-                  Text(subtitle,
-                      style: TextStyle(
-                          fontSize: LiftrType.x11, color: lt.textMuted)),
-                ],
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: LiftrType.x12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.08,
+                  color: lt.textSecondary,
+                ),
               ),
             ),
-            Icon(Icons.chevron_right, size: 18, color: lt.textDim),
+            if (badge != null) ...[
+              AccentChip(badge!),
+              const SizedBox(width: LiftrSpacing.x6),
+            ],
+            Icon(Icons.chevron_right, size: 16, color: lt.textDim),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A session that exists but holds nothing yet — everything in it was deleted,
+/// or its discipline's logging screen isn't built. Saying so beats a header
+/// with nothing under it.
+class _GroupEmptyRow extends StatelessWidget {
+  final Discipline discipline;
+  const _GroupEmptyRow({required this.discipline});
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      child: Text(
+        discipline.loggingType == Discipline.loggingNone
+            ? '${discipline.label} logging is on the way'
+            : 'Nothing logged in this session yet',
+        style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim),
       ),
     );
   }
@@ -1444,16 +1448,12 @@ class _RunCard extends StatelessWidget {
   final List<DistanceInterval> intervals;
   final bool isLoading;
 
-  /// Read-only unless this is the session you're in, or you've tapped Edit —
-  /// same rule as the gym card, so a finished day can't be altered by a stray
-  /// tap while you're looking back at it.
+  /// Read-only unless the day is today or you've tapped EDIT, so a day gone by
+  /// can't be altered by a stray tap while you're looking back at it.
   final bool isEditable;
 
-  /// Toggles Edit ⇄ Cancel. Null when there's nothing to toggle — no session,
-  /// or the active one.
+  /// Toggles EDIT ⇄ DONE. Null when there's nothing to toggle.
   final VoidCallback? onToggleEdit;
-
-  final VoidCallback onAddRun;
 
   /// Opens a logged run. Deleting it happens in there, not from this card.
   final ValueChanged<DistanceInterval> onOpenInterval;
@@ -1466,7 +1466,6 @@ class _RunCard extends StatelessWidget {
     required this.isLoading,
     required this.isEditable,
     required this.onToggleEdit,
-    required this.onAddRun,
     required this.onOpenInterval,
   });
 
@@ -1532,49 +1531,10 @@ class _RunCard extends StatelessWidget {
             ),
           ),
 
-          // Gated like the gym card's "Add exercise", with one exception: when
-          // there's no session yet this stays offered.
-          //
-          // The gym has "Start session" to create one; manual running has no
-          // equivalent — logManualRun makes the day's session itself — so
-          // hiding this on an empty day would leave no way to log a run at all.
-          if (session == null || isEditable) ...[
-            const Divider(),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onAddRun,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: lt.accentBg,
-                        border: Border.all(
-                            color: lt.accentBorder,
-                            width: LiftrBorders.hairline),
-                        borderRadius: BorderRadius.circular(LiftrRadii.inset),
-                      ),
-                      child: Icon(Icons.add, size: 14, color: lt.accentMid),
-                    ),
-                    const SizedBox(width: LiftrSpacing.x8),
-                    Text(
-                      'Add a run',
-                      style: TextStyle(
-                        fontSize: LiftrType.x13,
-                        fontWeight: FontWeight.w500,
-                        color: lt.accentMid,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-
+          // No inline "Add a run" any more. Adding is the button at the bottom
+          // of the screen, in one place, whatever you're looking at — an add
+          // row here as well meant two controls for one act, each appearing
+          // under its own conditions.
           const Divider(),
 
           // Expanded, so the card fills the height it is given and the empty
@@ -1593,9 +1553,11 @@ class _RunCard extends StatelessWidget {
                     ),
                   )
                 : intervals.isEmpty
-                    ? const _EmptyState(
-                        message: 'No runs logged for this day.\n'
-                            'Tap "Add a run" to put one in.')
+                    ? _EmptyState(
+                        message: isFutureDay(date)
+                            ? kNotYetHint
+                            : 'No runs logged for this day.\n'
+                                'Tap "Add a run" below to put one in.')
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(
                             vertical: LiftrSpacing.x6),
@@ -1936,14 +1898,17 @@ class _WorkoutCard extends StatelessWidget {
   final List<WorkoutExercises> exercises;
   final bool isLoading;
 
-  /// Read-only unless this is the session you're in, or you've tapped Edit.
+  /// What to say when there's no session on this day. Supplied rather than
+  /// fixed: the hint names the button below it, and on a future day there
+  /// isn't one.
+  final String emptyMessage;
+
+  /// Read-only unless the day is today or you've tapped EDIT.
   final bool isEditable;
 
-  /// Toggles Edit ⇄ Cancel. Null when there's nothing to toggle — no session, or
-  /// the active one (always editable).
+  /// Toggles EDIT ⇄ DONE. Null when there's nothing to toggle.
   final VoidCallback? onToggleEdit;
 
-  final VoidCallback onAddExercise;
   final ValueChanged<WorkoutExercises> onExerciseTap;
   final ValueChanged<WorkoutExercises> onExerciseDelete;
 
@@ -1952,9 +1917,9 @@ class _WorkoutCard extends StatelessWidget {
     required this.session,
     required this.exercises,
     required this.isLoading,
+    required this.emptyMessage,
     required this.isEditable,
     required this.onToggleEdit,
-    required this.onAddExercise,
     required this.onExerciseTap,
     required this.onExerciseDelete,
   });
@@ -2018,47 +1983,10 @@ class _WorkoutCard extends StatelessWidget {
             ),
           ),
 
-          // Only offered once the session exists, and only while editable.
-          // Adding to a session you're in is a within-session action; letting it
-          // conjure the session would make the filter a mode again, and
-          // "Start session" is the one place that decides that.
-          if (session != null && isEditable) ...[
-            const Divider(),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onAddExercise,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: lt.accentBg,
-                        border: Border.all(
-                            color: lt.accentBorder,
-                            width: LiftrBorders.hairline),
-                        borderRadius: BorderRadius.circular(LiftrRadii.inset),
-                      ),
-                      child: Icon(Icons.add, size: 14, color: lt.accentMid),
-                    ),
-                    const SizedBox(width: LiftrSpacing.x8),
-                    Text(
-                      'Add exercise',
-                      style: TextStyle(
-                        fontSize: LiftrType.x13,
-                        fontWeight: FontWeight.w500,
-                        color: lt.accentMid,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-
+          // No inline "Add exercise" any more — it lived here and only appeared
+          // once a session existed and was unlocked, while the bottom of the
+          // screen held a second control for the same act under different
+          // conditions. Adding is the button below, always.
           const Divider(),
 
           Expanded(
@@ -2074,11 +2002,11 @@ class _WorkoutCard extends StatelessWidget {
                     ),
                   )
                 : session == null
-                    ? const _EmptyState()
+                    ? _EmptyState(message: emptyMessage)
                     : exercises.isEmpty
                         ? _EmptyState(
                             message: isEditable
-                                ? 'No exercises yet.\nTap "Add exercise" to get started.'
+                                ? 'No exercises yet.\nTap "Add exercise" below to get started.'
                                 : 'Nothing was logged in this session.')
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(
@@ -2148,11 +2076,13 @@ class _EditToggleChip extends StatelessWidget {
 }
 
 // ── Empty State ───────────────────────────────────────────────
+/// What an empty day says when there's no action to point at, because the day
+/// hasn't happened. Shared so the gym and run cards word it identically.
+const kNotYetHint = "Nothing here yet.\nThis day hasn't happened.";
+
 class _EmptyState extends StatelessWidget {
   final String message;
-  const _EmptyState(
-      {this.message =
-          'Nothing here yet.\nTap "Start session" below to begin.'});
+  const _EmptyState({required this.message});
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,6 @@
 import 'package:liftr/models/models.dart';
 import 'package:liftr/services/exercise_setup_service.dart';
+import 'package:liftr/utils/dates.dart';
 import 'package:liftr/utils/progression.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -75,13 +76,18 @@ class ProgressionService {
     return user.id;
   }
 
-  /// The user's most recent *ended* sessions in which this exercise appears,
-  /// newest first, at most [limit].
+  /// The user's most recent sessions *before today* in which this exercise
+  /// appears, newest first, at most [limit].
   ///
-  /// Ended only: the active session is the one being logged into right now, so
-  /// it's not history to compare against. Gym only: running has no sets. There's
-  /// one gym session per day (a unique index guarantees it), so `session_date`
-  /// is an unambiguous ordering.
+  /// Earlier days only: what you're logging right now isn't history to compare
+  /// against, and today's session is the one you're logging into. This used to
+  /// filter on `is_active = false` for the same reason, which stopped meaning
+  /// anything once the app dropped the active-session flag — every row would
+  /// have passed it, today's included, and the hint would have started
+  /// comparing you against the sets you'd just entered.
+  ///
+  /// Gym only: running has no sets. There's one gym session per day (a unique
+  /// index guarantees it), so `session_date` is an unambiguous ordering.
   ///
   /// Returns an empty list on any failure or when the exercise is new to the
   /// user — the caller reads that as "no hint".
@@ -96,11 +102,11 @@ class ProgressionService {
               'exercise_sets(set_id, exercise_id, set_number, weight_kg, reps, '
               'logged_at), '
               'workout_sessions!inner(session_id, session_date, user_id, '
-              'discipline, is_active)')
+              'discipline)')
           .eq('catalog_id', catalogId)
           .eq('workout_sessions.user_id', _userId)
           .eq('workout_sessions.discipline', 'gym')
-          .eq('workout_sessions.is_active', false);
+          .lt('workout_sessions.session_date', isoDate(DateTime.now()));
 
       // Group by session, since an exercise can in principle appear more than
       // once in a day; merge those sets and keep any setup that was recorded.
