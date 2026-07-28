@@ -1,9 +1,11 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
 import '../services/auth_service.dart';
 import '../services/prefs.dart';
 import '../services/run_backup.dart';
+import '../services/routine_service.dart';
 import '../services/run_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
@@ -19,6 +21,7 @@ import 'log_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
+import 'routines_screen.dart';
 
 /// Shell for the four tabs. The bottom bar used to move its own highlight and
 /// nothing else — every tab but Home showed the Home screen.
@@ -155,6 +158,28 @@ class _TodayTabState extends State<_TodayTab> {
   /// used to hardcode `hasWorkout: (_) => false`, so no dot ever appeared.
   Set<String> _sessionDates = {};
 
+  /// Which routine runs on each weekday, 1..7.
+  ///
+  /// Fetched once rather than per date: it's seven rows and it doesn't change as
+  /// you page the calendar, so looking it up by weekday costs nothing while a
+  /// per-date query would put a round trip behind every tap on the strip.
+  WeeklySchedule _schedule = {};
+
+  /// The routine scheduled for the day being looked at, if any. Absent means a
+  /// rest day — that's all "rest" has ever meant here.
+  Routine? get _scheduledRoutine => _schedule[_selectedDate.weekday];
+
+  /// Whether any routine exists yet.
+  ///
+  /// Gates the one-time nudge in the empty state. Routines otherwise only
+  /// advertise themselves to people already using them — the fill prompt needs
+  /// a routine to exist before it can appear, so without this the feature is
+  /// invisible to exactly the person who'd benefit most.
+  ///
+  /// Starts true so the nudge can't flash on screen during the first load and
+  /// then vanish.
+  bool _hasRoutines = true;
+
   /// A past session temporarily unlocked for editing, by session id.
   ///
   /// Deliberately transient UI state, never persisted: the default for a day
@@ -215,6 +240,7 @@ class _TodayTabState extends State<_TodayTab> {
   void initState() {
     super.initState();
     _loadDisciplines();
+    _loadSchedule();
     _loadData();
     // After the first frame, once a context is safely available for a dialog.
     WidgetsBinding.instance
@@ -234,6 +260,28 @@ class _TodayTabState extends State<_TodayTab> {
       // chips at all would strand the user — fall back to everything.
       if (_disciplines.isEmpty) _disciplines = all;
     });
+  }
+
+  /// Separate from [_loadData] for the same reason as the disciplines: the week
+  /// is the same week whichever day you're looking at.
+  ///
+  /// Editing routines happens in Profile, and switching tabs rebuilds this one
+  /// from scratch, so there's no staleness to guard against here.
+  Future<void> _loadSchedule() async {
+    try {
+      final schedule = await RoutineService.getSchedule();
+      final hasAny = schedule.isNotEmpty || await RoutineService.hasAny();
+      if (mounted) {
+        setState(() {
+          _schedule = schedule;
+          _hasRoutines = hasAny;
+        });
+      }
+    } catch (_) {
+      // A schedule that won't load costs you the fill prompt and nothing else —
+      // every other way of logging still works, so this stays quiet rather than
+      // throwing a snackbar over a screen that's otherwise fine.
+    }
   }
 
   /// The gym session for the day, if there is one.
@@ -394,10 +442,33 @@ class _TodayTabState extends State<_TodayTab> {
 
   /// What an empty day suggests you do — which depends on whether there's a
   /// button below to do it with.
+  ///
+  /// Ends mid-sentence when [_routineNudge] is live: [_EmptyState] finishes it
+  /// with the tappable half, so the two read as one sentence rather than a hint
+  /// with an advert bolted underneath.
   String get _emptyHint {
     if (isFutureDay(_selectedDate)) return kNotYetHint;
     if (!_canLogHere) return 'Nothing logged on this day.';
+    if (_routineNudge != null) return 'Nothing logged.\nTap "$_addLabel" below';
     return 'Nothing logged.\nTap "$_addLabel" below to put something in.';
+  }
+
+  /// The one-time nudge toward routines, or null when it shouldn't show.
+  ///
+  /// Gone the moment you have a routine — it exists to close the gap where the
+  /// feature is invisible to anyone not already using it, and past that point
+  /// it would just be nagging. Also gone where there's no way to log anyway,
+  /// since the sentence it completes wouldn't be there either.
+  VoidCallback? get _routineNudge =>
+      (_hasRoutines || !_canLogHere) ? null : _openRoutines;
+
+  /// Opens the routines screen and picks up anything set up while in there.
+  Future<void> _openRoutines() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const RoutinesScreen()),
+    );
+    if (mounted) await _loadSchedule();
   }
 
   Future<Discipline?> _pickDiscipline() {
@@ -840,9 +911,126 @@ class _TodayTabState extends State<_TodayTab> {
     if (changed == true) await _loadData();
   }
 
+  /// Acts on the day's scheduled routine, which means something different per
+  /// discipline.
+  ///
+  /// A sets routine is *copied in*: its exercises become rows you then log sets
+  /// against. A distance routine is *handed over*: its targets go to the tracker
+  /// and nothing is written until you've actually run, because a
+  /// `distance_intervals` row means a run that happened. The routine removes the
+  /// setup either way; only the gym half has anything to write up front.
+  ///
+  /// Either way it runs from an explicit tap alone — browsing to a Thursday must
+  /// never create a workout you didn't do.
+  Future<void> _fillFromRoutine(Routine routine) async {
+    final d = _disciplineFor(routine.discipline);
+
+    if (d.logsDistance) {
+      setState(() => _selectedDiscipline = routine.discipline);
+      final saved = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RunTrackingScreen(
+            date: _selectedDate,
+            discipline: d,
+            plannedTargets: RoutineService.plannedTargets(routine),
+          ),
+        ),
+      );
+      if (!mounted) return;
+      await _loadData();
+      if (saved == true) _relock();
+      return;
+    }
+
+    try {
+      await RoutineService.fillSession(_selectedDate, routine);
+      if (!mounted) return;
+
+      await _loadData();
+      if (!mounted) return;
+
+      // Land on what was just filled rather than leaving you on "All" to go
+      // looking for it.
+      setState(() => _selectedDiscipline = routine.discipline);
+      _unlockIfPast(_sessionFor(routine.discipline));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not fill the day: $e'),
+          backgroundColor: LiftrColors.danger,
+        ));
+      }
+    }
+  }
+
+  /// Runs the planned leg at [from], carrying the rest of the plan with it.
+  ///
+  /// The tracker gets the targets from this point on, not just the one — so
+  /// once you're in there its own "add another interval" flow keeps pre-filling
+  /// correctly and you needn't come back to this card between reps. Coming back
+  /// is offered, not required: whichever legs got run are on the card when you
+  /// return, and the next one is startable again.
+  Future<void> _startPlannedLeg(
+      Discipline d, Routine? routine, int from) async {
+    final all = routine == null
+        ? const <double>[]
+        : RoutineService.plannedTargets(routine);
+    final remaining = from < all.length ? all.sublist(from) : const <double>[];
+
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RunTrackingScreen(
+          date: _selectedDate,
+          discipline: d,
+          plannedTargets: remaining,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _loadData();
+    if (saved == true) _relock();
+  }
+
   /// The card(s) under the chips: every discipline's session on "All", or just
   /// the one you filtered to.
   Widget _dayContent() {
+    // An empty day with something scheduled leads with the offer instead of an
+    // empty state that only tells you there's nothing there.
+    //
+    // Gated on the *whole day* being empty, not just this discipline's slot: on
+    // "All" the card would otherwise replace a run you'd already logged with a
+    // prompt about the gym.
+    //
+    // And it steps aside on a distance discipline's own chip, where [_RunCard]
+    // has more to say than the prompt does — it lists the planned legs and
+    // starts them one at a time, which is the whole point of looking at that
+    // chip. The prompt still covers "All", where it's the day's summary.
+    final routine = _scheduledRoutine;
+    final routineIsDistance =
+        routine != null && _disciplineFor(routine.discipline).logsDistance;
+
+    if (routine != null &&
+        !_isLoading &&
+        _sessions.isEmpty &&
+        (_selectedDiscipline == null ||
+            (_selectedDiscipline == routine.discipline &&
+                !routineIsDistance))) {
+      return _RoutinePromptCard(
+        date: _selectedDate,
+        routine: routine,
+        emoji: _disciplineFor(routine.discipline).emoji,
+        isDistance: _disciplineFor(routine.discipline).logsDistance,
+        // A day that hasn't happened shows what's coming but can't be filled —
+        // there's nothing to log yet, and writing one would be a workout you
+        // haven't done.
+        onFill: isFutureDay(_selectedDate)
+            ? null
+            : () => _fillFromRoutine(routine),
+      );
+    }
+
     if (_selectedDiscipline == Discipline.gymKey) {
       final gym = _gymSession;
       return _WorkoutCard(
@@ -851,6 +1039,7 @@ class _TodayTabState extends State<_TodayTab> {
         exercises: _exercisesFor(gym),
         isLoading: _isLoading,
         emptyMessage: _emptyHint,
+        onSetUpRoutine: _routineNudge,
         isEditable: _canEdit(gym),
         onToggleEdit: _toggleFor(gym),
         onExerciseTap: _openExercise,
@@ -875,9 +1064,17 @@ class _TodayTabState extends State<_TodayTab> {
           discipline: d,
           session: session,
           intervals: _intervalsFor(session),
+          // Only this discipline's own routine. A gym day scheduled on the same
+          // date has nothing to say about running legs.
+          routine: routine?.discipline == d.key ? routine : null,
           isLoading: _isLoading,
           isEditable: _canEdit(session),
           onToggleEdit: _toggleFor(session),
+          // You can only run today. The past is history and the future hasn't
+          // happened — both are why this is null rather than a disabled button.
+          onStartLeg: _isToday(_selectedDate)
+              ? (from) => _startPlannedLeg(d, routine, from)
+              : null,
           onOpenInterval: (i) => _openRun(
             i,
             readOnly: !_canEdit(session),
@@ -901,6 +1098,7 @@ class _TodayTabState extends State<_TodayTab> {
       runsBySession: _runsBySession,
       isLoading: _isLoading,
       emptyMessage: _emptyHint,
+      onSetUpRoutine: _routineNudge,
       // One rule for every discipline now, so this needs no routing by logging
       // type the way it did while gym and running locked on different things.
       isEditable: _canEdit,
@@ -1112,6 +1310,10 @@ class _AllSessionsCard extends StatelessWidget {
   /// names the button below it, and on a future day there isn't one.
   final String emptyMessage;
 
+  /// Completes [emptyMessage] with a tappable offer of routines. Null once the
+  /// user has any.
+  final VoidCallback? onSetUpRoutine;
+
   /// Whether a session's rows accept changes.
   ///
   /// Asked per session rather than passed as one flag: a day holds several, and
@@ -1137,6 +1339,7 @@ class _AllSessionsCard extends StatelessWidget {
     required this.runsBySession,
     required this.isLoading,
     required this.emptyMessage,
+    required this.onSetUpRoutine,
     required this.isEditable,
     required this.onOpenDiscipline,
     required this.onExerciseTap,
@@ -1216,7 +1419,10 @@ class _AllSessionsCard extends StatelessWidget {
                     ),
                   )
                 : sessions.isEmpty
-                    ? _EmptyState(message: emptyMessage)
+                    ? _EmptyState(
+                        message: emptyMessage,
+                        onSetUpRoutine: onSetUpRoutine,
+                      )
                     : ListView(
                         padding: const EdgeInsets.only(
                             bottom: LiftrSpacing.x6),
@@ -1263,6 +1469,9 @@ class _AllSessionsCard extends StatelessWidget {
             interval: i,
             emoji: d.emoji,
             name: _titleFor(s, d),
+            // Unnumbered here: "All" summarises what happened across every
+            // discipline and has no plan in hand to number legs against.
+            legNumber: null,
             onTap: () => onOpenInterval(s, i),
           ),
       ];
@@ -1379,6 +1588,177 @@ class _GroupEmptyRow extends StatelessWidget {
   }
 }
 
+// ── Scheduled routine ─────────────────────────────────────────
+/// What's on today, and the one tap that puts it in.
+///
+/// Takes the place of the empty state rather than sitting beside it: on a day
+/// you've scheduled something for, "nothing logged yet" is the least useful
+/// thing the card could say. The primary button below is untouched — this is
+/// content, not a second control competing with it.
+class _RoutinePromptCard extends StatefulWidget {
+  final DateTime date;
+  final Routine routine;
+  final String emoji;
+
+  /// Whether this routine's discipline logs distance.
+  ///
+  /// Passed in rather than inferred from the routine's own contents: a distance
+  /// routine with no targets is a valid plan — "just go for a run" — and reading
+  /// its emptiness as "this is a gym day" would offer the wrong button.
+  final bool isDistance;
+
+  /// Null on a day that hasn't happened, where the card states the plan and
+  /// offers nothing to press.
+  final VoidCallback? onFill;
+
+  const _RoutinePromptCard({
+    required this.date,
+    required this.routine,
+    required this.emoji,
+    required this.isDistance,
+    required this.onFill,
+  });
+
+  @override
+  State<_RoutinePromptCard> createState() => _RoutinePromptCardState();
+}
+
+class _RoutinePromptCardState extends State<_RoutinePromptCard> {
+  /// Local, because the fill is one insert and the reload behind it takes long
+  /// enough to double-tap through. The parent rebuilds this away on success, so
+  /// it never has to be cleared.
+  bool _filling = false;
+
+  Future<void> _fill() async {
+    setState(() => _filling = true);
+    widget.onFill!();
+  }
+
+  /// A distance routine hands off to the tracker rather than writing anything,
+  /// so the button has to say so — "Fill this in" would promise a day already
+  /// logged, when what's about to happen is a run.
+  bool get _isRun => widget.routine.intervals.isNotEmpty || widget.isDistance;
+
+  /// The planned legs, or the exercise names — whichever this routine holds.
+  String get _contents {
+    final r = widget.routine;
+    if (r.intervals.isNotEmpty) {
+      return [for (final i in r.intervals) formatDistance(i.targetDistanceMeters)]
+          .join(' · ');
+    }
+    return [for (final e in r.exercises) e.name].join(' · ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+    final r = widget.routine;
+    final n = r.itemCount;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: lt.surface,
+        border:
+            Border.all(color: lt.borderSubtle, width: LiftrBorders.hairline),
+        borderRadius: BorderRadius.circular(LiftrRadii.sheet),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Text(
+              '${dayLabel(widget.date)} · ${shortDate(widget.date)}',
+              style: TextStyle(
+                fontSize: LiftrType.x11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.08,
+                color: lt.textMuted,
+              ),
+            ),
+          ),
+          const Divider(),
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: LiftrSpacing.x24, vertical: LiftrSpacing.x16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(widget.emoji,
+                        style: const TextStyle(fontSize: LiftrType.x32)),
+                    const SizedBox(height: LiftrSpacing.x12),
+                    Text(
+                      r.name,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: LiftrType.x18,
+                        fontWeight: FontWeight.w600,
+                        color: lt.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: LiftrSpacing.x4),
+                    Text(
+                      // An empty distance routine isn't unfinished — it means
+                      // "just go", which the tracker handles as a free run. An
+                      // empty gym one genuinely has nothing to put in.
+                      n > 0
+                          ? r.summary
+                          : _isRun
+                              ? 'No set distance — just go'
+                              : 'This routine has nothing in it yet',
+                      style: TextStyle(
+                          fontSize: LiftrType.x12, color: lt.textMuted),
+                    ),
+
+                    if (n > 1) ...[
+                      const SizedBox(height: LiftrSpacing.x14),
+                      // The contents themselves, so you can see it's the right
+                      // day before committing to it.
+                      Text(
+                        _contents,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: LiftrType.x11,
+                          color: lt.textDim,
+                          height: 1.6,
+                        ),
+                      ),
+                    ],
+
+                    // A run needs no contents to be startable — an empty
+                    // distance routine is still a run you can go on.
+                    if (widget.onFill != null && (n > 0 || _isRun)) ...[
+                      const SizedBox(height: LiftrSpacing.x20),
+                      SizedBox(
+                        height: 44,
+                        child: ElevatedButton(
+                          onPressed: _filling ? null : _fill,
+                          child: _filling
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: LiftrColors.accentText,
+                                  ),
+                                )
+                              : Text(_isRun ? 'Start the run' : 'Fill this in'),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Discipline without a UI yet ───────────────────────────────
 class _ComingSoonCard extends StatelessWidget {
   final Discipline discipline;
@@ -1427,12 +1807,22 @@ class _ComingSoonCard extends StatelessWidget {
 }
 
 // ── Run card ──────────────────────────────────────────────────
-/// The day's running: its intervals, the totals across them, and a way to add
-/// one more.
+/// The day's running: what's planned, what's done, and the way to start the
+/// next leg.
 ///
-/// Deliberately built to the same shape as [_WorkoutCard] — same header, same
-/// inline add row, same divider, same Expanded list region — so switching the
-/// discipline chip changes what's in the card rather than how the screen works.
+/// Built to the same shape as [_WorkoutCard] — same header, same divider, same
+/// Expanded list region — so switching the discipline chip changes what's in
+/// the card rather than how the screen works. It goes further than that now:
+/// the gym card lists the exercises you're working through, and this lists the
+/// legs, so the two disciplines finally read the same way. Running used to hide
+/// behind a single "Start the run" that swallowed the whole session.
+///
+/// **The plan is never stored as intervals.** [plannedTargets] comes from the
+/// day's routine and [intervals] from the session, and this merges them for
+/// display only: leg *n* of the plan pairs with the *n*th run you actually did.
+/// A `distance_intervals` row means a run that happened, so writing planned ones
+/// would put 0 m in 0:00 into your history and drag the day's totals down.
+/// Migration 022's header has the long version.
 ///
 /// A session holds several intervals rather than one: "go again" after a
 /// kilometre appends, which is also what keeps a second run on the same day
@@ -1446,6 +1836,11 @@ class _RunCard extends StatelessWidget {
 
   final WorkoutSessions? session;
   final List<DistanceInterval> intervals;
+
+  /// The day's routine, if one is scheduled. Supplies the planned legs and the
+  /// name to show before a session exists.
+  final Routine? routine;
+
   final bool isLoading;
 
   /// Read-only unless the day is today or you've tapped EDIT, so a day gone by
@@ -1458,16 +1853,31 @@ class _RunCard extends StatelessWidget {
   /// Opens a logged run. Deleting it happens in there, not from this card.
   final ValueChanged<DistanceInterval> onOpenInterval;
 
+  /// Starts the planned leg at this index in the plan. Null on a day you can't
+  /// run — one that hasn't happened, or one already gone by.
+  final ValueChanged<int>? onStartLeg;
+
   const _RunCard({
     required this.date,
     required this.discipline,
     required this.session,
     required this.intervals,
+    required this.routine,
     required this.isLoading,
     required this.isEditable,
     required this.onToggleEdit,
     required this.onOpenInterval,
+    required this.onStartLeg,
   });
+
+  /// The planned legs in metres, in order. Empty when no routine is scheduled,
+  /// or when the routine deliberately plans nothing — "just go for a run".
+  List<double> get _planned =>
+      [for (final i in routine?.intervals ?? const <RoutineInterval>[])
+        i.targetDistanceMeters];
+
+  /// How many rows the plan adds beyond what's been run.
+  int get _pendingCount => routine?.pendingLegsAfter(intervals.length) ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -1504,19 +1914,28 @@ class _RunCard extends StatelessWidget {
                       ),
                       const SizedBox(height: LiftrSpacing.x3),
                       Text(
-                        session?.name ?? 'No session',
+                        // Before the first leg there's no session to name, but
+                        // there may well be a plan — and "No session" on a day
+                        // with four legs waiting reads as though nothing's on.
+                        session?.name ?? routine?.name ?? 'No session',
                         style: TextStyle(
                           fontSize: LiftrType.x16,
                           fontWeight: FontWeight.w500,
-                          color: session != null ? lt.textPrimary : lt.textDim,
+                          color: (session ?? routine) != null
+                              ? lt.textPrimary
+                              : lt.textDim,
                         ),
                       ),
                     ],
                   ),
                 ),
-                // The total distance is to this card what "3 EX" is to the gym
-                // one: the single number worth seeing before opening anything.
-                if (intervals.isNotEmpty) ...[
+                // Progress against the plan, or the total once there's no plan
+                // to measure against — either way, the single number worth
+                // seeing before opening anything.
+                if (_planned.isNotEmpty) ...[
+                  AccentChip('${intervals.length}/${_planned.length}'),
+                  const SizedBox(width: LiftrSpacing.x6),
+                ] else if (intervals.isNotEmpty) ...[
                   AccentChip(formatDistance(totals.distanceMeters)),
                   const SizedBox(width: LiftrSpacing.x6),
                 ],
@@ -1552,7 +1971,7 @@ class _RunCard extends StatelessWidget {
                       ),
                     ),
                   )
-                : intervals.isEmpty
+                : (intervals.isEmpty && _pendingCount == 0)
                     ? _EmptyState(
                         message: isFutureDay(date)
                             ? kNotYetHint
@@ -1561,24 +1980,47 @@ class _RunCard extends StatelessWidget {
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(
                             vertical: LiftrSpacing.x6),
-                        // The totals line is one row past the end, and only
-                        // when there is more than one leg to total.
-                        itemCount:
-                            intervals.length + (intervals.length > 1 ? 1 : 0),
+                        // Done legs, then the plan's remaining ones, then the
+                        // totals — which only earn a line once there's more
+                        // than one run to total.
+                        itemCount: intervals.length +
+                            _pendingCount +
+                            (intervals.length > 1 ? 1 : 0),
                         itemBuilder: (_, i) {
-                          if (i >= intervals.length) {
-                            return _totalsRow(lt, totals);
+                          if (i < intervals.length) {
+                            return _IntervalRow(
+                              interval: intervals[i],
+                              emoji: discipline.emoji,
+                              // Numbered only when there's a plan to be a
+                              // number within.
+                              legNumber: _planned.isEmpty ? null : i + 1,
+                              // Falls back to the discipline rather than showing
+                              // an empty title if a session somehow has no name.
+                              name: session?.name?.trim().isNotEmpty == true
+                                  ? session!.name!
+                                  : discipline.label,
+                              onTap: () => onOpenInterval(intervals[i]),
+                            );
                           }
-                          return _IntervalRow(
-                            interval: intervals[i],
-                            emoji: discipline.emoji,
-                            // Falls back to the discipline rather than showing
-                            // an empty title if a session somehow has no name.
-                            name: session?.name?.trim().isNotEmpty == true
-                                ? session!.name!
-                                : discipline.label,
-                            onTap: () => onOpenInterval(intervals[i]),
-                          );
+
+                          final planIndex = i - intervals.length;
+                          if (planIndex < _pendingCount) {
+                            final target = _planned[intervals.length + planIndex];
+                            return _PlannedLegRow(
+                              legNumber: intervals.length + planIndex + 1,
+                              targetMeters: target,
+                              // Only the next one up is startable. Positions are
+                              // how a done leg pairs with a planned one, so
+                              // letting you jump to leg 4 would file it as leg 3
+                              // the moment it saved. "Start the next one" is
+                              // also how you'd actually do it.
+                              onStart: (planIndex == 0 && onStartLeg != null)
+                                  ? () => onStartLeg!(intervals.length)
+                                  : null,
+                            );
+                          }
+
+                          return _totalsRow(lt, totals);
                         },
                       ),
           ),
@@ -1608,6 +2050,108 @@ class _RunCard extends StatelessWidget {
   }
 }
 
+// ── Planned leg ───────────────────────────────────────────────
+/// A leg the routine plans but you haven't run yet.
+///
+/// Shaped like [_IntervalRow] so a plan turning into history changes the row's
+/// contents rather than swapping it for something that looks unrelated. Nothing
+/// behind it exists in the database — see [_RunCard].
+class _PlannedLegRow extends StatelessWidget {
+  final int legNumber;
+  final double targetMeters;
+
+  /// Null for every leg but the next one up, and on days you can't run.
+  final VoidCallback? onStart;
+
+  const _PlannedLegRow({
+    required this.legNumber,
+    required this.targetMeters,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+    final isNext = onStart != null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
+      child: Row(
+        children: [
+          // A hollow tile against the done legs' filled one: the difference
+          // between the two states should be visible down the left edge without
+          // reading a word of it.
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isNext ? lt.accentBorder : lt.border,
+                width: LiftrBorders.hairline,
+              ),
+              borderRadius: BorderRadius.circular(LiftrRadii.control),
+            ),
+            child: Center(
+              child: Text(
+                '$legNumber',
+                style: TextStyle(
+                  fontSize: LiftrType.x13,
+                  fontWeight: FontWeight.w500,
+                  color: isNext ? lt.accentMid : lt.textDim,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: LiftrSpacing.x10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  formatDistance(targetMeters),
+                  style: TextStyle(
+                    fontSize: LiftrType.x13,
+                    fontWeight: FontWeight.w500,
+                    color: isNext ? lt.textPrimary : lt.textDim,
+                  ),
+                ),
+                const SizedBox(height: LiftrSpacing.x2),
+                Text(
+                  isNext ? 'Up next' : 'Planned',
+                  style:
+                      TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                ),
+              ],
+            ),
+          ),
+          if (isNext)
+            GestureDetector(
+              onTap: onStart,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x8),
+                decoration: BoxDecoration(
+                  color: LiftrColors.accent,
+                  borderRadius: BorderRadius.circular(LiftrRadii.panel),
+                ),
+                child: const Text(
+                  'Start',
+                  style: TextStyle(
+                    fontSize: LiftrType.x12,
+                    fontWeight: FontWeight.w600,
+                    color: LiftrColors.accentText,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Interval Row ──────────────────────────────────────────────
 /// One leg of a run, shaped like [_ExerciseRow] so the two cards read as the
 /// same screen with different contents in it.
@@ -1626,12 +2170,17 @@ class _IntervalRow extends StatelessWidget {
   /// down to the subtitle, where they read as detail rather than identity.
   final String name;
 
+  /// Its position in the day's plan, when there is one. Null on an ad-hoc run,
+  /// where there's no sequence for a number to mean anything within.
+  final int? legNumber;
+
   final VoidCallback onTap;
 
   const _IntervalRow({
     required this.interval,
     required this.emoji,
     required this.name,
+    required this.legNumber,
     required this.onTap,
   });
 
@@ -1672,7 +2221,9 @@ class _IntervalRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    // Numbered inside a plan, so a done leg and the pending one
+                    // under it line up as the same sequence.
+                    legNumber == null ? name : 'Leg $legNumber · $name',
                     style: TextStyle(
                       fontSize: LiftrType.x13,
                       fontWeight: FontWeight.w500,
@@ -1903,6 +2454,10 @@ class _WorkoutCard extends StatelessWidget {
   /// isn't one.
   final String emptyMessage;
 
+  /// Completes [emptyMessage] with a tappable offer of routines. Null once the
+  /// user has any.
+  final VoidCallback? onSetUpRoutine;
+
   /// Read-only unless the day is today or you've tapped EDIT.
   final bool isEditable;
 
@@ -1918,6 +2473,7 @@ class _WorkoutCard extends StatelessWidget {
     required this.exercises,
     required this.isLoading,
     required this.emptyMessage,
+    required this.onSetUpRoutine,
     required this.isEditable,
     required this.onToggleEdit,
     required this.onExerciseTap,
@@ -2002,7 +2558,10 @@ class _WorkoutCard extends StatelessWidget {
                     ),
                   )
                 : session == null
-                    ? _EmptyState(message: emptyMessage)
+                    ? _EmptyState(
+                        message: emptyMessage,
+                        onSetUpRoutine: onSetUpRoutine,
+                      )
                     : exercises.isEmpty
                         ? _EmptyState(
                             message: isEditable
@@ -2080,22 +2639,71 @@ class _EditToggleChip extends StatelessWidget {
 /// hasn't happened. Shared so the gym and run cards word it identically.
 const kNotYetHint = "Nothing here yet.\nThis day hasn't happened.";
 
-class _EmptyState extends StatelessWidget {
+/// Stateful only to own a [TapGestureRecognizer].
+///
+/// A recognizer has to be disposed, and building one inline in a stateless
+/// widget mints a fresh one on every rebuild with nothing to release the last —
+/// which this widget would do on every date tap.
+class _EmptyState extends StatefulWidget {
   final String message;
-  const _EmptyState({required this.message});
+
+  /// When set, [message] is finished off with a tappable offer of routines.
+  ///
+  /// One sentence rather than a separate line: filling the day automatically is
+  /// an *alternative* to the tap you were about to make, and two stacked
+  /// sentences would read as two unrelated suggestions.
+  final VoidCallback? onSetUpRoutine;
+
+  const _EmptyState({required this.message, this.onSetUpRoutine});
+
+  @override
+  State<_EmptyState> createState() => _EmptyStateState();
+}
+
+class _EmptyStateState extends State<_EmptyState> {
+  /// Reads the callback through `widget` rather than capturing it, so the
+  /// recognizer survives a rebuild that swaps the callback out.
+  late final TapGestureRecognizer _tap = TapGestureRecognizer()
+    ..onTap = () => widget.onSetUpRoutine?.call();
+
+  @override
+  void dispose() {
+    _tap.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
+    final base =
+        TextStyle(fontSize: LiftrType.x13, color: lt.textDim, height: 1.6);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x32),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-              fontSize: LiftrType.x13, color: lt.textDim, height: 1.6),
-        ),
+        child: widget.onSetUpRoutine == null
+            ? Text(widget.message, textAlign: TextAlign.center, style: base)
+            : Text.rich(
+                TextSpan(
+                  style: base,
+                  children: [
+                    TextSpan(text: '${widget.message} — or '),
+                    TextSpan(
+                      text: 'set up a routine',
+                      style: TextStyle(
+                        color: lt.accentMid,
+                        fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.underline,
+                        decorationColor: lt.accentBorder,
+                      ),
+                      recognizer: _tap,
+                    ),
+                    const TextSpan(
+                        text: ', and days like this fill themselves.'),
+                  ],
+                ),
+                textAlign: TextAlign.center,
+              ),
       ),
     );
   }

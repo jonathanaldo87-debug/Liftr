@@ -39,11 +39,23 @@ class RunTrackingScreen extends StatefulWidget {
   /// screen skips setup and picks that leg up where it stopped.
   final RunBackup? resume;
 
+  /// Targets in metres from the day's routine, in order — one per planned leg.
+  ///
+  /// Pre-fills the setup field, and again after each leg finishes, so a "4 x 400
+  /// m" routine doesn't mean typing 400 four times. Nothing else changes: these
+  /// are a starting value in a text field you can still edit or ignore, and no
+  /// interval is written until it's actually run.
+  ///
+  /// Empty for a free run, which is what a distance routine with no targets
+  /// means and what this screen has always done by default.
+  final List<double> plannedTargets;
+
   const RunTrackingScreen({
     super.key,
     required this.date,
     required this.discipline,
     this.resume,
+    this.plannedTargets = const [],
   });
 
   @override
@@ -118,6 +130,19 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   /// Common targets, in metres — one tap instead of typing.
   static const _quickTargets = <double>[1000, 3000, 5000, 10000];
 
+  /// How far through [RunTrackingScreen.plannedTargets] we are.
+  ///
+  /// Advances on each finished leg. Past the end the screen falls back to
+  /// remembering your last target, exactly as it did before routines existed —
+  /// a plan that's run out shouldn't stop you adding another interval.
+  int _plannedIndex = 0;
+
+  /// The target the plan suggests for the leg being set up, if any.
+  double? get _plannedTarget =>
+      _plannedIndex < widget.plannedTargets.length
+          ? widget.plannedTargets[_plannedIndex]
+          : null;
+
   @override
   void initState() {
     super.initState();
@@ -135,6 +160,12 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _loadCompleted();
       _beginAcquiring();
     } else {
+      // A planned first leg goes straight into the field. Still just a starting
+      // value — the field, the quick targets and the free-run toggle all work
+      // exactly as they do without a routine.
+      final planned = _plannedTarget;
+      if (planned != null) _targetCtrl.text = _kmText(planned);
+
       // Fresh run: the target's about to be chosen. Warm the receiver now so the
       // wait on Start is a warm fix (seconds) instead of a cold one (often half a
       // minute).
@@ -532,9 +563,17 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _elapsedSeconds = 0;
       _lastAccuracy = null;
       _lastSample = null;
-      if (_lastTarget != null && !_freeRun) {
-        _targetCtrl.text = _kmText(_lastTarget!);
-      }
+
+      // A leg is behind us, so the plan moves on. Done here rather than when the
+      // leg saves: this is the only path back to setup, and advancing anywhere
+      // else would skip a target when you finish the run instead of going again.
+      if (_plannedIndex < widget.plannedTargets.length) _plannedIndex++;
+
+      // The plan wins while it lasts, then it's back to repeating your last
+      // target — which is what this did before routines existed.
+      final next = _plannedTarget ?? _lastTarget;
+      if (next != null && !_freeRun) _targetCtrl.text = _kmText(next);
+
       _phase = _Phase.setup;
     });
     // Warm the receiver again for the next interval — the stream was torn down

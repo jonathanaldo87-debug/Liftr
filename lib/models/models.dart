@@ -9,3 +9,4 @@ export 'exercise_sets_payload.dart';
 export 'distance_intervals.dart';
 export 'stats.dart';
 export 'exercise_setup.dart';
+export 'routine.dart';

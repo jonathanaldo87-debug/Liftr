@@ -9,6 +9,7 @@ import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import 'onboarding_screen.dart';
+import 'routines_screen.dart';
 
 /// Account and app settings.
 ///
@@ -239,6 +240,37 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
               subtitle: Text(
                 'Tap to run through setup again',
+                style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+              ),
+            ),
+          ),
+          const SizedBox(height: LiftrSpacing.x8),
+          Container(
+            decoration: BoxDecoration(
+              color: lt.surface,
+              border: Border.all(
+                  color: lt.borderSubtle, width: LiftrBorders.hairline),
+              borderRadius: BorderRadius.circular(LiftrRadii.card),
+            ),
+            child: ListTile(
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const RoutinesScreen()),
+                );
+                if (mounted) setState(() {});
+              },
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
+              leading: Icon(Icons.event_repeat,
+                  size: 20, color: lt.textSecondary),
+              title: Text(
+                'Routines',
+                style:
+                    TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
+              ),
+              subtitle: Text(
+                'Set up your week once, then fill a day in one tap',
                 style: TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
               ),
             ),
