@@ -10,24 +10,9 @@ import '../utils/format.dart';
 import '../utils/run_math.dart';
 import 'target_sheet.dart';
 
-/// Build or edit a routine: what it's called, what it's for, and what's in it.
-///
-/// Built by hand rather than captured from a session you've logged. That's the
-/// point of setting it up once — you can define Monday before you've ever done
-/// Monday, which a "save this workout as a routine" flow can't offer.
-///
-/// The middle section branches on the discipline's logging type, the same way a
-/// day's card does: a sets discipline plans exercises, a distance one plans
-/// target distances. Nothing here plans a *result* — no weights, no reps, no
-/// durations. The routine is what you intend to do; the progression hint and the
-/// GPS tracker supply what actually happened.
 class RoutineEditScreen extends StatefulWidget {
-  /// Null to create a new one.
   final Routine? routine;
 
-  /// The disciplines a routine can be built for — those that log something.
-  /// Passed in rather than fetched: the caller already has the list, and it
-  /// decides what's offered.
   final List<Discipline> disciplines;
 
   const RoutineEditScreen({
@@ -43,18 +28,13 @@ class RoutineEditScreen extends StatefulWidget {
 class _RoutineEditScreenState extends State<RoutineEditScreen> {
   final _nameCtrl = TextEditingController();
 
-  /// The chosen exercises, in order. Catalog rows rather than ids so the list
-  /// renders names and icons without a second fetch.
   final List<CatalogExercises> _picked = [];
 
-  /// Planned targets in metres, in order — the distance equivalent of [_picked].
   final List<double> _targets = [];
 
   List<CatalogExercises> _catalog = [];
   ExerciseSearch? _search;
 
-  /// What this routine is for. Decides which of the two lists above is on
-  /// screen, exactly as a discipline decides which card a day shows.
   late Discipline _discipline;
 
   bool _nameError = false;
@@ -71,9 +51,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
     final key = widget.routine?.discipline;
     _discipline = widget.disciplines.firstWhere(
       (d) => d.key == key,
-      // A new routine defaults to the first discipline offered rather than
-      // hardcoding gym — the caller's list is already the answer to "what can
-      // hold a routine", and its order is the catalog's.
       orElse: () => widget.disciplines.first,
     );
 
@@ -84,10 +61,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
     final catalog = await WorkoutService.getExerciseCatalog();
     if (!mounted) return;
 
-    // Re-resolve the routine's lines against the catalog. The join already gave
-    // us each line's detail, but going through the catalog keeps one source for
-    // the objects in [_picked] — mixing joined rows and catalog rows would make
-    // identity comparisons in the list unreliable.
     final byId = {for (final e in catalog) e.catalogId: e};
     final existing = <CatalogExercises>[];
     for (final line in widget.routine?.exercises ?? const <RoutineExercise>[]) {
@@ -133,10 +106,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
 
       if (!_isNew) await RoutineService.renameRoutine(id, name);
 
-      // Only the list this discipline actually uses is written. The other stays
-      // whatever it was, which for a routine that never had one is empty —
-      // switching discipline on an existing routine is not offered, so there is
-      // no orphaned list to clear.
       if (_discipline.logsDistance) {
         await RoutineService.setIntervals(id, _targets);
       } else {
@@ -158,11 +127,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
     }
   }
 
-  /// Opens the picker and appends whatever comes back.
-  ///
-  /// Appends rather than replaces so the sheet can stay open across several
-  /// taps — setting up a six-exercise routine shouldn't mean six round trips
-  /// through a sheet that closes each time.
   Future<void> _addExercises() async {
     final search = _search;
     if (search == null) return;
@@ -327,9 +291,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
           ],
           const SizedBox(height: LiftrSpacing.x20),
 
-          // Offered only when there's a choice to make, and only on a new
-          // routine: switching an existing one would strand whichever list it
-          // already holds, and "make another" is clearer than a migration.
           if (_isNew && widget.disciplines.length > 1) ...[
             const SectionLabel('For'),
             const SizedBox(height: LiftrSpacing.x8),
@@ -359,7 +320,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
     );
   }
 
-  // ── The sets half ───────────────────────────────────────────
   List<Widget> _exercisesSection(LiftrTheme lt) => [
         Row(
           children: [
@@ -377,8 +337,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
               'Nothing in this routine yet.\n'
               'Add the exercises you do on this day, in the order you do them.')
         else
-          // Drag to reorder: the order here is the order the exercises land in
-          // when a day is filled, so it's worth being able to set.
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -399,7 +357,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
         _AddRow(label: 'Add exercises', onTap: _addExercises),
       ];
 
-  // ── The distance half ───────────────────────────────────────
   List<Widget> _targetsSection(LiftrTheme lt) => [
         Row(
           children: [
@@ -413,9 +370,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
         ),
         const SizedBox(height: LiftrSpacing.x8),
         if (_targets.isEmpty)
-          // An empty distance routine is a real plan, not an unfinished one —
-          // it says "go for a run" and the tracker already treats a missing
-          // target as a free run. Worth saying, or you'd think it was broken.
           _EmptyBox(lt,
               'No targets — this day is just a run.\n'
               'Add one for a set distance, or several for intervals.')
@@ -433,8 +387,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
               key: ValueKey('${_targets[i]}#$i'),
               meters: _targets[i],
               index: i,
-              // Numbered, because with four identical 400s the position is the
-              // only thing telling them apart.
               label: _targets.length == 1 ? null : 'Leg ${i + 1}',
               onRemove: () => setState(() => _targets.removeAt(i)),
             ),
@@ -443,7 +395,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
         _AddRow(label: 'Add a target', onTap: _addTarget),
       ];
 
-  /// Asks how far, and appends it.
   Future<void> _addTarget() async {
     final meters = await showModalBottomSheet<double>(
       context: context,
@@ -455,7 +406,6 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
   }
 }
 
-/// The shared "nothing here yet" box both halves use.
 class _EmptyBox extends StatelessWidget {
   final LiftrTheme lt;
   final String message;
@@ -480,7 +430,6 @@ class _EmptyBox extends StatelessWidget {
       );
 }
 
-/// The accent "add something" row, shared by both halves.
 class _AddRow extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -521,7 +470,6 @@ class _AddRow extends StatelessWidget {
   }
 }
 
-/// What the routine is for.
 class _DisciplineChoice extends StatelessWidget {
   final Discipline discipline;
   final bool isSelected;
@@ -570,7 +518,6 @@ class _DisciplineChoice extends StatelessWidget {
   }
 }
 
-/// One planned leg.
 class _TargetRow extends StatelessWidget {
   final double meters;
   final int index;
@@ -645,7 +592,6 @@ class _TargetRow extends StatelessWidget {
   }
 }
 
-/// One exercise in the routine being built.
 class _PickedRow extends StatelessWidget {
   final CatalogExercises exercise;
   final int index;
@@ -727,11 +673,6 @@ class _PickedRow extends StatelessWidget {
   }
 }
 
-/// Search the catalog and tick off several exercises in one go.
-///
-/// Deliberately multi-select and deliberately stays open: building a routine is
-/// a handful of picks in a row, and a sheet that closed on each one would turn
-/// a one-time setup into six.
 class _ExercisePickerSheet extends StatefulWidget {
   final ExerciseSearch search;
   final List<CatalogExercises> catalog;
@@ -745,8 +686,6 @@ class _ExercisePickerSheet extends StatefulWidget {
 class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   final _ctrl = TextEditingController();
 
-  /// In tap order, which is the order they'll be added in — picking bench then
-  /// incline puts them in the routine that way round.
   final List<CatalogExercises> _chosen = [];
 
   @override
@@ -762,9 +701,6 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
   }
 
   void _toggle(CatalogExercises e) => setState(() {
-        // Compared by id, not identity: the same catalog row can legitimately be
-        // added twice, but a tap on an already-chosen row should take it back
-        // out rather than silently stack another copy.
         final i = _chosen.indexWhere((x) => x.catalogId == e.catalogId);
         if (i >= 0) {
           _chosen.removeAt(i);

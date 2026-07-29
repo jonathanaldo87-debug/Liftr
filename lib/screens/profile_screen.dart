@@ -11,10 +11,6 @@ import '../theme/widgets.dart';
 import 'onboarding_screen.dart';
 import 'routines_screen.dart';
 
-/// Account and app settings.
-///
-/// Also the only place the theme toggle is reachable from, and — for guests —
-/// the only route to a permanent account.
 class ProfileTab extends StatefulWidget {
   final VoidCallback onSignOut;
   const ProfileTab({super.key, required this.onSignOut});
@@ -23,14 +19,6 @@ class ProfileTab extends StatefulWidget {
   State<ProfileTab> createState() => _ProfileTabState();
 }
 
-/// Signs out, but never lets a guest do it by accident.
-///
-/// A guest account has no email, so signing out is irreversible: the session
-/// token is the only key to it, and there's no way to ask for another. Every
-/// route to sign-out goes through here — Profile *and* the avatar menu on Home —
-/// because a warning that only guards one of them is no warning at all.
-///
-/// A real account skips the dialog: signing out is harmless there.
 Future<void> confirmAndSignOut(
     BuildContext context, VoidCallback doSignOut) async {
   if (!AuthService.isGuest) {
@@ -81,7 +69,6 @@ Future<void> confirmAndSignOut(
   if (choice == 'save') await openUpgradeSheet(context);
 }
 
-/// The guest → permanent account form. Returns true if the upgrade happened.
 Future<bool> openUpgradeSheet(BuildContext context) async {
   final upgraded = await showModalBottomSheet<bool>(
     context: context,
@@ -99,7 +86,6 @@ Future<bool> openUpgradeSheet(BuildContext context) async {
 }
 
 class _ProfileTabState extends State<ProfileTab> {
-  /// The catalog, only so saved discipline *keys* can be shown as labels.
   List<Discipline> _disciplines = [];
 
   @override
@@ -113,8 +99,6 @@ class _ProfileTabState extends State<ProfileTab> {
     if (mounted) setState(() => _disciplines = list);
   }
 
-  /// e.g. "Gym · Running". Falls back to the raw key if the catalog hasn't
-  /// loaded yet, so the row never sits empty.
   String get _disciplineLabel {
     final enabled = Prefs.enabledDisciplines;
     if (enabled.isEmpty) return 'Set up your training';
@@ -130,7 +114,6 @@ class _ProfileTabState extends State<ProfileTab> {
 
   Future<void> _openUpgradeSheet() async {
     final upgraded = await openUpgradeSheet(context);
-    // No longer a guest — the badge and warning card have to go.
     if (upgraded && mounted) setState(() {});
   }
 
@@ -151,7 +134,6 @@ class _ProfileTabState extends State<ProfileTab> {
           Text('Profile', style: tt.displaySmall),
           const SizedBox(height: LiftrSpacing.x20),
 
-          // Identity
           Container(
             padding: const EdgeInsets.all(LiftrSpacing.x16),
             decoration: BoxDecoration(
@@ -203,7 +185,6 @@ class _ProfileTabState extends State<ProfileTab> {
             ),
           ),
 
-          // The one thing a guest most needs to know, stated where they'll see it.
           if (isGuest) ...[
             const SizedBox(height: LiftrSpacing.x10),
             _GuestWarningCard(onSave: _openUpgradeSheet),
@@ -232,8 +213,6 @@ class _ProfileTabState extends State<ProfileTab> {
                   horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
               leading: Icon(Icons.tune, size: 20, color: lt.textSecondary),
               title: Text(
-                // The disciplines you picked in onboarding. These are now
-                // load-bearing: they decide which chips the home screen offers.
                 _disciplineLabel,
                 style:
                     TextStyle(fontSize: LiftrType.x14, color: lt.textPrimary),
@@ -352,7 +331,6 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 }
 
-// ── Guest warning ─────────────────────────────────────────────
 class _GuestWarningCard extends StatelessWidget {
   final VoidCallback onSave;
   const _GuestWarningCard({required this.onSave});
@@ -410,7 +388,6 @@ class _GuestWarningCard extends StatelessWidget {
   }
 }
 
-// ── Guest → real account ──────────────────────────────────────
 class _UpgradeSheet extends StatefulWidget {
   const _UpgradeSheet();
 
@@ -450,7 +427,6 @@ class _UpgradeSheetState extends State<_UpgradeSheet> {
       _error = null;
     });
     try {
-      // Keeps the same user id, so every workout already logged comes along.
       await AuthService.upgradeToAccount(email: email, password: pass);
       if (mounted) Navigator.pop(context, true);
     } on AuthException catch (e) {

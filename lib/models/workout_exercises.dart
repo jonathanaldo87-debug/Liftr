@@ -9,10 +9,6 @@ class WorkoutExercises {
   final String? notes;
   final DateTime? createdAt;
 
-  /// Which of this exercise's setups it was done on, or null for "not said".
-  ///
-  /// Null is the honest and common case. It is never filled in for you — see
-  /// migration 017 for what happened the last time something was.
   final String? setupId;
 
   const WorkoutExercises({

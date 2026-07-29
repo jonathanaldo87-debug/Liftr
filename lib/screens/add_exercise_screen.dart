@@ -20,8 +20,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
   final _exerciseCtrl = TextEditingController();
   final _exerciseFocus = FocusNode();
 
-  /// The exercise picked from the dropdown. Null means the field holds free text
-  /// that matches nothing, which is what keeps Save disabled.
   CatalogExercises? _selected;
 
   bool _nameError = false;
@@ -30,12 +28,8 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
   List<CatalogExercises> _catalog = [];
   List<CatalogExercises> _recent = [];
 
-  /// Built once when the catalog lands — it precomputes a search index, so
-  /// rebuilding it per keystroke would defeat the point.
   ExerciseSearch? _search;
 
-  /// The workout already logged on this date, if any. When it exists we append
-  /// to it instead of starting a second session for the same day.
   WorkoutSessions? _existingSession;
 
   @override
@@ -55,8 +49,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
         _search = ExerciseSearch(catalog);
         _recent = recent;
         _existingSession = session;
-        // Adding to a day that already has a workout: show its name rather than
-        // asking for one again. Editing it renames the session.
         if (session?.name != null) _sessionNameCtrl.text = session!.name!;
       });
     }
@@ -71,8 +63,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     super.dispose();
   }
 
-  /// Matches on any word, in any order, across name *and* equipment/muscle —
-  /// see [ExerciseSearch]. An empty field offers your recent lifts instead.
   Iterable<CatalogExercises> _rank(String raw) {
     if (raw.trim().isEmpty) {
       return _recent.isNotEmpty ? _recent : _catalog.take(8);
@@ -80,7 +70,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     return _search?.search(raw) ?? const [];
   }
 
-  /// e.g. "Barbell · Biceps" — the only way to tell the curl variants apart.
   static String _subtitle(CatalogExercises e) =>
       detailLine([e.equipment, e.muscleGroup]);
 
@@ -100,9 +89,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     try {
       final notes = _noteCtrl.text.trim();
 
-      // Reuse the day's session if it has one. Unconditionally creating here is
-      // what produced two sessions for a single day the moment you added a
-      // second exercise.
       final sessionId = await WorkoutService.getOrCreateSession(
         widget.sessionDate,
         name,
@@ -120,8 +106,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
         );
       }
 
-      // orderIndex omitted on purpose: the service appends. Hardcoding 1 here
-      // left every exercise in the session sitting at the same position.
       await WorkoutService.createWorkoutExercise(
         WorkoutExercisePayload(
           sessionId: sessionId,
@@ -153,7 +137,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Nav header ──────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
               child: Row(
@@ -184,7 +167,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
               ),
             ),
 
-            // ── Form ────────────────────────────────────────
             Expanded(
               child: SingleChildScrollView(
                 padding:
@@ -192,7 +174,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Session name
                     const SectionLabel('Session Name'),
                     const SizedBox(height: LiftrSpacing.x8),
                     Container(
@@ -233,13 +214,11 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                     ],
                     const SizedBox(height: LiftrSpacing.x20),
 
-                    // ── Exercise autocomplete ───────────────
                     const SectionLabel('Exercise'),
                     const SizedBox(height: LiftrSpacing.x8),
                     _buildExerciseField(lt),
                     const SizedBox(height: LiftrSpacing.x20),
 
-                    // Notes
                     const SectionLabel('Notes'),
                     const SizedBox(height: LiftrSpacing.x8),
                     Container(
@@ -268,7 +247,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
               ),
             ),
 
-            // ── Cancel / Save ────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Row(
@@ -325,8 +303,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
   }
 
   Widget _buildExerciseField(LiftrTheme lt) {
-    // LayoutBuilder gives the dropdown the field's exact width — optionsViewBuilder
-    // renders into an unconstrained Align, so without this it collapses.
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -367,7 +343,6 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
                       style: TextStyle(
                           fontSize: LiftrType.x14, color: lt.textPrimary),
                       onChanged: (v) {
-                        // Typing past a selection invalidates it, which disables Save.
                         if (selected != null && v.trim() != selected.name) {
                           setState(() => _selected = null);
                         }

@@ -3,8 +3,6 @@ import '../models/models.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 
-/// Training totals across every session. The Progress tab used to be a dead
-/// icon; these are the numbers the data can actually answer.
 class ProgressTab extends StatefulWidget {
   const ProgressTab({super.key});
 
@@ -171,7 +169,6 @@ class _ProgressTabState extends State<ProgressTab> {
     );
   }
 
-  /// Volume runs into the hundreds of thousands fast; raw digits are unreadable.
   static String _volume(double kg) {
     if (kg >= 1000000) return '${(kg / 1000000).toStringAsFixed(1)}M kg';
     if (kg >= 1000) return '${(kg / 1000).toStringAsFixed(1)}k kg';

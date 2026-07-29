@@ -50,15 +50,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       if (!mounted) return;
 
-      // If email confirmation is disabled in Supabase, session is available immediately
       if (res.session != null) {
-        // A brand-new account has never onboarded, so this lands on Onboarding.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => landingScreen()),
         );
       } else {
-        // Email confirmation is required — show a message and go back to login
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Check your email to confirm your account.')),
@@ -112,7 +109,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x28),
 
-              // Email
               const SectionLabel('Email'),
               const SizedBox(height: LiftrSpacing.x6),
               TextField(
@@ -124,7 +120,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x14),
 
-              // Password
               const SectionLabel('Password'),
               const SizedBox(height: LiftrSpacing.x6),
               TextField(
@@ -149,7 +144,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x14),
 
-              // Confirm password
               const SectionLabel('Confirm Password'),
               const SizedBox(height: LiftrSpacing.x6),
               TextField(
@@ -173,7 +167,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
 
-              // Error message
               if (_errorMsg != null) ...[
                 const SizedBox(height: LiftrSpacing.x10),
                 Text(
@@ -185,7 +178,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
               const SizedBox(height: LiftrSpacing.x20),
 
-              // CTA
               ElevatedButton(
                 onPressed: _isLoading ? null : _signUp,
                 child: _isLoading
@@ -199,7 +191,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x24),
 
-              // Log in footer
               Center(
                 child: RichText(
                   text: TextSpan(

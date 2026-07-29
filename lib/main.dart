@@ -13,23 +13,15 @@ void main() async {
 
   await Supabase.initialize(
     url: 'https://fenwzvwhmutoappysqdr.supabase.co',
-    // Public by design: this key ships inside the APK and is only safe because
-    // row-level security is enabled. Never put a service_role key here.
     anonKey:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlbnd6dndobXV0b2FwcHlzcWRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDg2OTUsImV4cCI6MjA4OTMyNDY5NX0.edotP7cZbnSO5KruZXkqkWXXewBgLRqLdpXYNx0AZLI',
   );
 
-  // Awaited here so the first screen can be chosen synchronously, with no
-  // loading flash between splash and content.
   await Prefs.init();
 
   runApp(const LiftrApp());
 }
 
-/// The screen to open on launch, and after signing in — as a guest or otherwise.
-///
-/// Signed out goes to Login. Signed in but never onboarded goes to Onboarding.
-/// A guest is signed in like anyone else, so this needs no special case.
 Widget landingScreen() {
   if (!AuthService.isSignedIn) return const LoginScreen();
   return Prefs.hasOnboarded ? const HomeScreen() : const OnboardingScreen();
@@ -38,7 +30,6 @@ Widget landingScreen() {
 class LiftrApp extends StatefulWidget {
   const LiftrApp({super.key});
 
-  /// Lets any screen reach the theme toggle.
   static LiftrAppState of(BuildContext context) =>
       context.findAncestorStateOfType<LiftrAppState>()!;
 
@@ -47,8 +38,6 @@ class LiftrApp extends StatefulWidget {
 }
 
 class LiftrAppState extends State<LiftrApp> {
-  // Seeded from the saved choice so a relaunch opens in the theme the user
-  // left it in. Prefs is initialised in main() before this state is built.
   ThemeMode _themeMode =
       Prefs.isDarkMode ? ThemeMode.dark : ThemeMode.light;
 
@@ -59,7 +48,6 @@ class LiftrAppState extends State<LiftrApp> {
       _themeMode =
           _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     });
-    // Fire-and-forget: the write is reliable and nothing waits on it.
     Prefs.setDarkMode(_themeMode == ThemeMode.dark);
   }
 

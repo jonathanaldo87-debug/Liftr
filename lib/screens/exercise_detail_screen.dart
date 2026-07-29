@@ -14,11 +14,6 @@ class ExerciseDetailScreen extends StatefulWidget {
   final WorkoutExercises exercise;
   final DateTime selectedDate;
 
-  /// Opened from a session that isn't active and hasn't been unlocked.
-  ///
-  /// You can still read everything — the chart and the sets are the point of
-  /// looking at history — but nothing here may change it. Without this the lock
-  /// on the home card would be cosmetic: you'd just tap through and edit anyway.
   final bool readOnly;
 
   const ExerciseDetailScreen({
@@ -42,38 +37,22 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
-  /// The last set logged for this lift in an earlier session. Only used to seed
-  /// the fields before you've logged anything today.
   ExerciseSets? _lastTime;
 
-  /// The set being edited, or null when logging a new one.
   ExerciseSets? _editing;
 
-  /// Set to true by any change that the previous screen needs to see.
   bool _dirty = false;
 
-  /// How this exercise's station is set up — seat 4, back pad 2, moves in 5s.
-  ///
-  /// A list because a movement can have more than one: the 5 kg cable stack and
-  /// the 2.5 kg one. Empty unless you've entered something, which most exercises
-  /// never will.
   List<ExerciseSetup> _setups = [];
 
-  /// Which setup today's sets are recorded against. Null means you haven't
-  /// said, which is the honest default and never filled in for you.
   String? _selectedSetupId;
 
-  /// The rule-based hint for what to aim for, built from earlier sessions.
-  /// Null until loaded, when there's no history to build one from, or in
-  /// read-only mode where planning the next set makes no sense.
   ProgressionHint? _progression;
 
   String get _exerciseId => widget.exercise.exerciseId ?? '';
 
   String? get _catalogId => widget.exercise.catalogId;
 
-  /// Barbell, dumbbell, cable, machine — what decides which stations this lift
-  /// can be done on, and whether it can have a setup at all.
   String? get _equipment => widget.exercise.catalogDetail?.equipment;
 
   bool get _hasSetup => exerciseHasSetup(_equipment);
@@ -82,7 +61,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   void initState() {
     super.initState();
     _noteCtrl = TextEditingController(text: widget.exercise.notes ?? '');
-    // What the session already says, including on a workout from weeks ago.
     _selectedSetupId = widget.exercise.setupId;
     _load();
   }
@@ -105,8 +83,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           ? <WeightPoint>[]
           : await WorkoutService.getExerciseHistory(catalogId);
 
-      // Only worth asking when today is still empty — otherwise today's own
-      // last set is the better default anyway.
       final lastTime = (sets.isEmpty && catalogId != null)
           ? await WorkoutService.getLastSetForExercise(catalogId)
           : null;
@@ -127,22 +103,18 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     }
   }
 
-  /// Loads the progression hint. Read-only skips it — a session you're only
-  /// inspecting isn't one you're about to add a set to — and it fails soft, so
-  /// a missing hint never disturbs the rest of the screen.
   Future<void> _loadHint() async {
     final detail = widget.exercise.catalogDetail;
     if (widget.readOnly || detail == null) return;
 
-    final hint = await ProgressionService.hintFor(detail);
+    final hint = await ProgressionService.hintFor(
+      detail,
+      selectedSetupId: _selectedSetupId,
+    );
     if (!mounted) return;
     setState(() => _progression = hint);
   }
 
-  /// Loads how this exercise's station is set up.
-  ///
-  /// Skipped entirely for barbells and bodyweight: a bench press has no seat
-  /// height and no stack, so there is nothing here worth a round trip.
   Future<void> _loadSetup() async {
     final catalogId = _catalogId;
     if (!_hasSetup || catalogId == null) return;
@@ -154,19 +126,12 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     if (!mounted) return;
     setState(() {
       _setups = setups;
-      // A setup that was removed must not stay selected on screen. The database
-      // has already cleared the column for us — 017's foreign key is ON DELETE
-      // SET NULL — so this is only keeping the UI honest about it.
       if (!setups.any((s) => s.setupId == _selectedSetupId)) {
         _selectedSetupId = null;
       }
     });
   }
 
-  /// Records which stack today's sets were done on, or clears it.
-  ///
-  /// Written on the tap, not on save: the point is that the sets you're about
-  /// to log belong to this setup, so it has to be true before they exist.
   Future<void> _selectSetup(String? setupId) async {
     final previous = _selectedSetupId;
     setState(() => _selectedSetupId = setupId);
@@ -174,23 +139,13 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     try {
       await ExerciseSetupService.assignSetup(_exerciseId, setupId);
       _dirty = true;
+      await _loadHint();
     } catch (e) {
-      // Put the chip back rather than leaving the screen claiming something the
-      // database doesn't say.
       if (mounted) setState(() => _selectedSetupId = previous);
       _toast('Could not record the setup: $e', error: true);
     }
   }
 
-  /// Opens the setup sheet — on [setup] to edit it, or with null for a new one.
-  ///
-  /// The inferred step is offered as a fact to accept rather than a field to
-  /// fill, but only while this is the exercise's first setup. Once a second
-  /// exists, the logged weights are known to be a blend of two stacks, so the
-  /// inference over them can be finer than either machine can actually load —
-  /// and a suggestion you can't pin is worse than no suggestion. That's the same
-  /// hazard `looksLikeTwoMachines` was written to detect, except here you've
-  /// told the app outright instead of it having to guess.
   Future<void> _editSetup(ExerciseSetup? setup) async {
     final catalogId = _catalogId;
     if (catalogId == null) return;
@@ -211,16 +166,11 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
     if (!saved || !mounted) return;
     await _loadSetup();
+    if (!mounted) return;
+    await _loadHint();
   }
 
-  /// Carries the last set forward into the input fields, so a working set of
-  /// 5×5 is four taps of Save rather than four rounds of retyping.
-  ///
-  /// Today's most recent set wins; failing that, the last time you did this
-  /// lift at all. Never overwrites what you've already typed, and never fights
-  /// an edit in progress.
   void _prefill() {
-    // Nothing to prefill when there's no input to prefill into.
     if (widget.readOnly) return;
     if (_editing != null) return;
     if (_weightCtrl.text.isNotEmpty || _repsCtrl.text.isNotEmpty) return;
@@ -244,8 +194,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       ),
     );
   }
-
-  // ── Sets ────────────────────────────────────────────────────
 
   Future<void> _saveSet() async {
     final weight = double.tryParse(_weightCtrl.text.trim());
@@ -301,8 +249,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     }
   }
 
-  // ── Exercise ────────────────────────────────────────────────
-
   Future<void> _saveNotes() async {
     final text = _noteCtrl.text.trim();
     try {
@@ -335,14 +281,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     }
   }
 
-  // ── Build ───────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
 
-    // The back arrow and the system back gesture must both report whether
-    // anything changed, or the home screen shows stale sets.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -361,9 +303,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                     children: [
-                      // Above the chart because it says how the station the
-                      // numbers came from was arranged. Renders nothing at all
-                      // for barbell and bodyweight work.
                       if (_hasSetup) ...[
                         ExerciseSetupLine(
                           setups: _setups,
@@ -376,12 +315,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         const SizedBox(height: LiftrSpacing.x10),
                       ],
                       _chartCard(lt),
-                      // The suggestion sits under the chart: the graph is what
-                      // happened, this is what to do next. Only when there's a
-                      // suggestion to make.
                       const SizedBox(height: LiftrSpacing.x14),
                       _notesCard(lt),
-                      if (_progression?.suggestion != null) ...[
+                      if (_progression != null) ...[
                         const SizedBox(height: LiftrSpacing.x14),
                         _suggestionCard(lt, _progression!),
                       ],
@@ -418,8 +354,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                       else
                         ..._sets.map((s) => _setRow(lt, s)),
 
-                      // The whole logging surface, gone when read-only — there's
-                      // nothing to type into a session you're only looking at.
                       if (!widget.readOnly) ...[
                         const SizedBox(height: LiftrSpacing.x4),
                         _weightInput(lt),
@@ -476,8 +410,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             ),
           ),
           if (widget.readOnly)
-            // Says why the controls are missing, rather than leaving them
-            // mysteriously absent. Same metrics as the chips on the home card.
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
@@ -517,7 +449,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         ? null
         : _history.map((p) => p.topWeight).reduce((a, b) => a > b ? a : b);
 
-    // Up only when the last session actually beat the one before it.
     final improving = _history.length >= 2 &&
         _history.last.topWeight > _history[_history.length - 2].topWeight;
 
@@ -586,15 +517,19 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// The hint card: what to aim for next, why, and what last time looked like.
   Widget _suggestionCard(LiftrTheme lt, ProgressionHint hint) {
-    final s = hint.suggestion!;
+    final s = hint.suggestion;
     final note = _incrementNote(hint.increment);
+
+    final waiting = s == null;
 
     return Container(
       decoration: BoxDecoration(
-        color: lt.accentBg,
-        border: Border.all(color: LiftrColors.accent, width: LiftrBorders.thin),
+        color: waiting ? lt.card : lt.accentBg,
+        border: Border.all(
+          color: waiting ? lt.border : LiftrColors.accent,
+          width: waiting ? LiftrBorders.hairline : LiftrBorders.thin,
+        ),
         borderRadius: BorderRadius.circular(LiftrRadii.cardLarge),
       ),
       padding: const EdgeInsets.all(LiftrSpacing.x14),
@@ -608,24 +543,27 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                 style: TextStyle(
                   fontSize: LiftrType.x12,
                   fontWeight: FontWeight.w500,
-                  color: lt.accentMid,
+                  color: waiting ? lt.textMuted : lt.accentMid,
                 ),
               ),
               const Spacer(),
-              Text(
-                _target(s),
-                style: TextStyle(
-                  fontSize: LiftrType.x16,
-                  fontWeight: FontWeight.w600,
-                  color: lt.accentStrong,
+              if (s != null)
+                Text(
+                  _target(s),
+                  style: TextStyle(
+                    fontSize: LiftrType.x16,
+                    fontWeight: FontWeight.w600,
+                    color: lt.accentStrong,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: LiftrSpacing.x8),
           Text(
-            _reasonText(s.reason),
-            style: TextStyle(fontSize: LiftrType.x12, color: lt.textPrimary),
+            s != null ? _reasonText(s.reason) : _notEnoughText(hint),
+            style: TextStyle(
+                fontSize: LiftrType.x12,
+                color: waiting ? lt.textSecondary : lt.textPrimary),
           ),
           const SizedBox(height: LiftrSpacing.x8),
           Text(
@@ -636,7 +574,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
             const SizedBox(height: LiftrSpacing.x8),
             _footnote(lt, Icons.tune, note),
           ],
-          if (hint.plateau) ...[
+          if (hint.plateau && s != null) ...[
             const SizedBox(height: LiftrSpacing.x6),
             _footnote(
               lt,
@@ -650,7 +588,15 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// A small icon + muted line for the setup and plateau asides.
+  String _notEnoughText(ProgressionHint hint) {
+    final n = hint.sessionsSeen;
+    final more = kMinSessionsForSuggestion - n;
+    return 'Not enough history to suggest from yet — one session tells me you '
+        'had a good day, not which way you\'re trending. '
+        '${more == 1 ? 'One more session' : '$more more sessions'} and there '
+        'will be a suggestion here.';
+  }
+
   Widget _footnote(LiftrTheme lt, IconData icon, String text) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -667,8 +613,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// The right-hand target: a weight and rep window, or reps alone for
-  /// bodyweight where there's no load to name.
   String _target(ProgressionSuggestion s) {
     final w = s.suggestedWeightKg;
     final r = s.targetReps;
@@ -707,7 +651,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     }
   }
 
-  /// "40×12, 40×10, 40×7" — or reps alone for bodyweight sets.
   String _lastSummary(ExerciseSessionHistory h) {
     return h.sets
         .map((s) => s.weightKg == null
@@ -716,8 +659,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         .join(', ');
   }
 
-  /// The "you can make this sharper" nudge, when the step was defaulted or
-  /// ambiguous. Nothing for a confirmed setup or a bodyweight lift.
   String? _incrementNote(ResolvedIncrement increment) {
     if (increment.isAmbiguous) {
       return 'Sized with a default 2.5 kg step — pick which stack you used for '
@@ -741,8 +682,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         controller: _noteCtrl,
         maxLines: 2,
         readOnly: widget.readOnly,
-        // Persist on blur: typing a note and walking away used to silently
-        // discard it, because the field had no controller at all.
         onTapOutside: (_) {
           FocusScope.of(context).unfocus();
           if (widget.readOnly) return;
@@ -796,8 +735,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   Widget _setRow(LiftrTheme lt, ExerciseSets s) {
     final isEditing = _editing?.setId != null && _editing!.setId == s.setId;
 
-    // Read-only: no swipe-to-delete and no tap-to-edit. Wrapping in Dismissible
-    // at all would leave the swipe live even with the handler stubbed out.
     if (widget.readOnly) {
       return Padding(
         padding: const EdgeInsets.only(bottom: LiftrSpacing.x8),
@@ -873,12 +810,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// The step the weight field's − / + buttons move by: this exercise's
-  /// resolved increment, or null for bodyweight (nothing to step) — which
-  /// leaves the weight field a plain typed box.
-  ///
-  /// Comes from the same pure resolver the hint uses, over the setups already
-  /// loaded, so it works before any history exists (defaulting to 2.5 kg).
   double? get _stepIncrement {
     final isBodyweight = (_equipment ?? '').toLowerCase().trim() == 'bodyweight';
     if (isBodyweight) return null;
@@ -889,9 +820,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     ).incrementKg;
   }
 
-  /// Nudges [c]'s value by [delta], snapping to the [snap] grid first so a
-  /// tap always lands on a loadable weight even if the typed number was off it.
-  /// Floored at zero.
   void _step(TextEditingController c, double delta, double snap) {
     final current = double.tryParse(c.text.trim()) ?? 0;
     var next = roundToIncrement(current, snap) + delta;
@@ -915,9 +843,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// A labelled number field — the same box for weight and reps, so the two
-  /// read as one control rather than two mismatched inputs. Pass [step] to flank
-  /// it with − / + buttons that move by that amount.
   Widget _numberField(
     LiftrTheme lt, {
     required String label,
@@ -938,7 +863,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       ),
       decoration: InputDecoration(
         hintText: '0',
-        // Dim, so an empty field never looks like a logged 0.
         hintStyle: TextStyle(fontSize: LiftrType.x20, color: lt.textDim),
         border: InputBorder.none,
         contentPadding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x10),
@@ -1014,7 +938,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                     _weightCtrl.clear();
                     _repsCtrl.clear();
                     setState(() => _editing = null);
-                    _prefill(); // back to logging a new set, seeded again
+                    _prefill();
                   },
                   child: Text(
                     'Cancel',
@@ -1026,11 +950,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
           ),
           const SizedBox(height: LiftrSpacing.x10),
           Row(
-            // Bottom-aligned so the Save button lines up with the field boxes,
-            // not with the labels sitting above them.
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Weight gets the wider share — it carries decimals like 142.5.
               Expanded(
                 flex: 3,
                 child: _numberField(
@@ -1054,7 +975,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               ),
               const SizedBox(width: LiftrSpacing.x8),
               SizedBox(
-                height: 46, // matches a field box, so the row bottoms align
+                height: 46,
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : _saveSet,
                   style: ElevatedButton.styleFrom(
@@ -1090,8 +1011,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     );
   }
 
-  /// Says where a prefilled number came from, so a value you didn't type never
-  /// looks like one you did.
   String get _hint {
     if (_editing != null) return 'Editing an existing set';
 
@@ -1110,13 +1029,11 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     return 'Tap a set to edit · swipe left to delete';
   }
 
-  /// 72.5 stays 72.5; 70.0 shows as 70.
   static String _trim(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 }
 
-// ── Confirm dialog ────────────────────────────────────────────
 class _ConfirmDialog extends StatelessWidget {
   final String title;
   final String message;
@@ -1148,7 +1065,6 @@ class _ConfirmDialog extends StatelessWidget {
   }
 }
 
-// ── Line Chart Painter ────────────────────────────────────────
 class _ChartPainter extends CustomPainter {
   final List<double> data;
   final List<String> labels;
@@ -1168,14 +1084,13 @@ class _ChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Guarded because x() divides by data.length - 1.
     if (data.length < 2) return;
 
     final minVal = data.reduce((a, b) => a < b ? a : b);
     final maxVal = data.reduce((a, b) => a > b ? a : b);
     final range = (maxVal - minVal).clamp(1.0, double.infinity);
 
-    final chartH = size.height - 18; // leave room for labels
+    final chartH = size.height - 18;
     const padX = 8.0;
     final usableW = size.width - padX * 2;
 

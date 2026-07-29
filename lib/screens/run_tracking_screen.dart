@@ -14,46 +14,13 @@ import '../theme/app_theme.dart';
 import '../utils/run_math.dart';
 import 'run_save_screen.dart';
 
-/// The tracked run — GPS from here down, and the one screen that owns the live
-/// session while it's happening.
-///
-/// Built as a single widget with an internal phase rather than a stack of routes
-/// because setup → acquiring → countdown → running → summary all share one live
-/// thing: the GPS subscription, the accumulator, the wakelock, the notification.
-/// Pushing a new route per phase would tear those down and rebuild them between
-/// every step, and "Add another interval" would have to reassemble the session
-/// from nothing. The save screen is a separate route because by then the run is
-/// over and there's nothing live left to hand it.
-///
-/// Pops `true` if anything was saved, so the home screen knows to reload.
 class RunTrackingScreen extends StatefulWidget {
-  /// The day the run is filed under.
   final DateTime date;
 
-  /// Supplies the label and emoji, and the `discipline_key` the session is
-  /// created against — so a cycling discipline seeded as `logging_type =
-  /// 'distance'` gets this screen without a line changing here.
   final Discipline discipline;
 
-  /// A leg recovered from a crash, or null for a fresh start. When present the
-  /// screen skips setup and picks that leg up where it stopped.
   final RunBackup? resume;
 
-  /// The legs of the day's plan this run is working through, in order, starting
-  /// with the one you tapped Start on.
-  ///
-  /// Each carries its slot, which the finished interval records as `plan_slot`
-  /// — that's what lets the day's card put the result back in the right row
-  /// while the legs you haven't run stay planned. Running leg 3 first is
-  /// therefore fine.
-  ///
-  /// Pre-fills the target field, and again after each leg, so "4 × 400 m"
-  /// doesn't mean typing 400 four times. Still only a starting value: the
-  /// field, the quick targets and the free-run toggle all work as usual, and
-  /// nothing is written until a leg is actually run.
-  ///
-  /// Empty for a free run — a routine that plans no targets, or no routine at
-  /// all, which is what this screen has always done by default.
   final List<PlannedLeg> plannedLegs;
 
   const RunTrackingScreen({
@@ -68,31 +35,19 @@ class RunTrackingScreen extends StatefulWidget {
   State<RunTrackingScreen> createState() => _RunTrackingScreenState();
 }
 
-/// The step of the flow currently on screen. See the class doc for why these are
-/// phases of one widget rather than separate routes.
 enum _Phase { setup, acquiring, countdown, running, summary }
 
 class _RunTrackingScreenState extends State<RunTrackingScreen> {
   _Phase _phase = _Phase.setup;
 
-  // ── The session ──────────────────────────────────────────────
-  /// Created on the first Start and reused for every interval after. Null until
-  /// then — an empty run claims no session.
   String? _sessionId;
 
-  /// The legs already saved to Supabase this session, in order. Appended to as
-  /// each finishes; loaded up front on a crash recovery.
   final List<DistanceInterval> _completed = [];
 
-  /// The leg just finished — what the summary screen leads with.
   DistanceInterval? _justCompleted;
 
-  // ── The current leg ──────────────────────────────────────────
-  /// Target for the leg being set up / run, in metres. Null is a free run.
   double? _targetMeters;
 
-  /// The last target the user picked, remembered so "Add another interval"
-  /// pre-fills it rather than making them type the same 5 km again.
   double? _lastTarget;
 
   final _acc = DistanceAccumulator();
@@ -100,19 +55,10 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
 
   StreamSubscription<GpsSample>? _gpsSub;
 
-  /// The freshest fix the stream has produced, kept so a lock gathered while
-  /// warming (during setup) can be reused the instant Start is tapped rather
-  /// than waiting on the distance-filtered stream's next event.
   GpsSample? _lastSample;
 
-  /// Whether fixes are being counted. False during acquiring and the countdown,
-  /// so the walk to the start line and the 3-2-1 don't end up in the distance.
   bool _tracking = false;
 
-  // Elapsed time is measured against the wall clock, not a tick count: a timer
-  // that misses beats while the app is backgrounded would under-report a run,
-  // whereas the difference from a start instant is right the moment the app
-  // comes back.
   DateTime? _legStartWall;
   int _baseElapsed = 0;
   int _elapsedSeconds = 0;
@@ -120,37 +66,23 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   Timer? _ticker;
   Timer? _backupTimer;
 
-  // ── Acquiring state ──────────────────────────────────────────
   double? _lastAccuracy;
 
-  // ── Setup inputs ─────────────────────────────────────────────
   final _targetCtrl = TextEditingController();
   bool _freeRun = false;
 
-  /// What stopped the run from starting, so the setup screen can say the right
-  /// thing. Null when nothing's wrong.
   LocationAccess? _accessError;
 
   bool _starting = false;
 
-  /// Common targets, in metres — one tap instead of typing.
   static const _quickTargets = <double>[1000, 3000, 5000, 10000];
 
-  /// How far through [RunTrackingScreen.plannedLegs] we are.
-  ///
-  /// Advances on each finished leg. Past the end the screen falls back to
-  /// remembering your last target, exactly as it did before routines existed —
-  /// a plan that's run out shouldn't stop you adding another interval, it just
-  /// stops naming which leg you're on.
   int _plannedIndex = 0;
 
-  /// The leg the plan says we're on, or null once the plan is exhausted (or
-  /// there never was one).
   PlannedLeg? get _plannedLeg => _plannedIndex < widget.plannedLegs.length
       ? widget.plannedLegs[_plannedIndex]
       : null;
 
-  /// The target the plan suggests for the leg being set up, if any.
   double? get _plannedTarget => _plannedLeg?.targetMeters;
 
   @override
@@ -158,8 +90,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     super.initState();
     final resume = widget.resume;
     if (resume != null) {
-      // Straight into a recovered run: the session and its saved legs already
-      // exist, so load them and re-acquire GPS rather than showing setup.
       _sessionId = resume.sessionId;
       _targetMeters = resume.targetMeters;
       _lastTarget = resume.lastTargetMeters ?? resume.targetMeters;
@@ -170,15 +100,9 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _loadCompleted();
       _beginAcquiring();
     } else {
-      // A planned first leg goes straight into the field. Still just a starting
-      // value — the field, the quick targets and the free-run toggle all work
-      // exactly as they do without a routine.
       final planned = _plannedTarget;
       if (planned != null) _targetCtrl.text = _kmText(planned);
 
-      // Fresh run: the target's about to be chosen. Warm the receiver now so the
-      // wait on Start is a warm fix (seconds) instead of a cold one (often half a
-      // minute).
       unawaited(_warmGps());
     }
   }
@@ -189,16 +113,11 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     _ticker?.cancel();
     _backupTimer?.cancel();
     _targetCtrl.dispose();
-    // Belt and braces: whatever route we leave by, the screen shouldn't stay lit
-    // or leave a notification behind.
     WakelockPlus.disable();
     RunNotification.clear();
     super.dispose();
   }
 
-  /// Pulls the session's already-saved legs in, for the summary list after a
-  /// recovery. Best-effort: a run can be resumed without them, they just won't
-  /// show in the prior-intervals list until the next reload.
   Future<void> _loadCompleted() async {
     final id = _sessionId;
     if (id == null) return;
@@ -212,8 +131,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       });
     } catch (_) {}
   }
-
-  // ── Starting a leg ───────────────────────────────────────────
 
   double? _parseTargetMeters() {
     final km = double.tryParse(_targetCtrl.text.trim().replaceAll(',', '.'));
@@ -233,8 +150,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _accessError = null;
     });
 
-    // GPS permission first: without it there's nothing to track, and the ask has
-    // obvious context here — you just tapped Start on a run.
     final access = await LocationService.ensurePermission();
     if (access != LocationAccess.granted) {
       if (mounted) {
@@ -246,8 +161,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       return;
     }
 
-    // The notification is a nicety, so its permission is requested but not
-    // waited on: a denied notification must not stop a run.
     unawaited(RunNotification.ensurePermission());
 
     try {
@@ -278,10 +191,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     _beginAcquiring();
   }
 
-  /// The day's session for this discipline, created on first use.
-  ///
-  /// Nothing is "activated" — the run in progress is tracked by this screen and
-  /// its GPS backup, not by a flag on the row.
   Future<String> _ensureSession() => WorkoutService.getOrCreateSession(
         widget.date,
         _defaultName,
@@ -290,18 +199,9 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
 
   String get _defaultName => widget.discipline.isGym ? 'Session' : 'Run';
 
-  // ── Acquiring GPS ────────────────────────────────────────────
-
-  /// Quietly spins the GPS receiver up while the target's being chosen, so the
-  /// lock on Start comes from a warm fix rather than a cold cold-start. Only if
-  /// permission's already granted — warming must never surface a permission
-  /// prompt before the user has committed to a run. No-op if the stream's
-  /// already running (e.g. a second interval where teardown hasn't happened).
   Future<void> _warmGps() async {
     if (_gpsSub != null) return;
     if (!await LocationService.hasPermission()) return;
-    // The await gives the user time to tap Start; only warm if we're still
-    // sitting in setup and nothing else has claimed the stream.
     if (!mounted || _phase != _Phase.setup || _gpsSub != null) return;
     _subscribe();
   }
@@ -309,17 +209,12 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   void _beginAcquiring() {
     setState(() => _phase = _Phase.acquiring);
 
-    // A fix gathered while warming may already clear the bar — lock straight
-    // from it rather than waiting on the stream's next event, which is
-    // distance-filtered and might not arrive until the runner moves.
     final warm = _lastSample;
     if (warm != null && isUsableFix(warm)) {
       _onLocked();
       return;
     }
 
-    // Otherwise wait for a good fix. The stream is already flowing if warming
-    // started it; subscribe now if it isn't.
     if (_gpsSub == null) _subscribe();
   }
 
@@ -328,8 +223,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     _gpsSub = LocationService.positionStream().listen(
       _onSample,
       onError: (Object e) {
-        // A stream error mid-run isn't fatal — the OS often recovers on its own
-        // — so it's surfaced quietly rather than tearing the run down.
         if (mounted && _phase == _Phase.acquiring) {
           _toast('GPS error: $e', error: true);
         }
@@ -340,8 +233,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   void _onSample(GpsSample sample) {
     if (!mounted) return;
 
-    // Warming while the target's being chosen: remember the freshest fix so
-    // Start can lock from it, but don't advance — the run hasn't begun.
     if (_phase == _Phase.setup) {
       _lastSample = sample;
       setState(() => _lastAccuracy = sample.accuracy);
@@ -365,8 +256,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     }
   }
 
-  /// A good-enough fix has landed. A recovered run resumes straight away; a
-  /// fresh one counts down first.
   void _onLocked() {
     if (widget.resume != null && !_tracking) {
       _startRunning(resumed: true);
@@ -375,28 +264,19 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     }
   }
 
-  // ── Countdown ────────────────────────────────────────────────
-
   void _beginCountdown() {
     setState(() => _phase = _Phase.countdown);
   }
-
-  // ── Running ──────────────────────────────────────────────────
 
   void _startRunning({bool resumed = false}) {
     setState(() => _phase = _Phase.running);
     _tracking = true;
 
     if (!resumed) {
-      // Fresh baseline at GO, so distance is only ever counted from the line —
-      // the fixes gathered while acquiring and counting down are discarded.
       _acc.reset();
       _distance = 0;
       _baseElapsed = 0;
     } else {
-      // Recovered: keep the restored total, and don't invent a segment between
-      // the last pre-crash fix and the first new one — restore() already dropped
-      // the baseline for exactly this.
       _acc.restore(_distance);
     }
 
@@ -413,8 +293,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       if (start == null) return;
       final elapsed = _baseElapsed + DateTime.now().difference(start).inSeconds;
       setState(() => _elapsedSeconds = elapsed);
-      // The notification only needs the coarse picture; refreshing it every
-      // second would be churn for a line nobody's watching that closely.
       if (elapsed % 5 == 0) unawaited(_pushNotification());
     });
   }
@@ -443,10 +321,8 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     }
   }
 
-  // ── Finishing a leg ──────────────────────────────────────────
-
   Future<void> _finishLeg({required bool reachedTarget}) async {
-    if (!_tracking) return; // stop tapped as the target lands — run once
+    if (!_tracking) return;
     _tracking = false;
 
     _gpsSub?.cancel();
@@ -461,14 +337,8 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     final target = _targetMeters;
     final id = _sessionId;
 
-    if (id == null) return; // shouldn't happen — a leg only runs on a session
+    if (id == null) return;
 
-    // Persist immediately, retrying on failure: this leg exists nowhere else
-    // yet, and dropping it silently because the network blinked would lose the
-    // run you just did.
-    // Which leg of the day's plan this was. Read before the save so a retry
-    // can't pick up a different one, and null once the plan's exhausted — an
-    // extra interval past the plan is ad-hoc and belongs to no slot.
     final slot = _plannedLeg?.slot;
 
     String? intervalId;
@@ -484,7 +354,7 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
         break;
       } catch (e) {
         final retry = await _confirmRetrySave(e);
-        if (!retry) break; // gave up — the leg is lost, but by choice
+        if (!retry) break;
       }
     }
 
@@ -501,7 +371,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _justCompleted = _completed.last;
     }
 
-    // The leg has a home now (or was abandoned) — nothing left to recover.
     await RunBackupStore.clear();
 
     unawaited(RunNotification.update(
@@ -552,8 +421,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     try {
       final has = await Vibration.hasVibrator();
       if (has == true) {
-        // A distinct triple-pulse — long enough to feel through a sleeve without
-        // watching the screen, which is the whole point of it.
         Vibration.vibrate(pattern: const [0, 300, 150, 300, 150, 300]);
       }
     } catch (_) {}
@@ -569,9 +436,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     );
   }
 
-  // ── After a leg ──────────────────────────────────────────────
-
-  /// Back to setup for the next interval, remembering the last target.
   void _addAnother() {
     setState(() {
       _justCompleted = null;
@@ -581,20 +445,13 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       _lastAccuracy = null;
       _lastSample = null;
 
-      // A leg is behind us, so the plan moves on. Done here rather than when the
-      // leg saves: this is the only path back to setup, and advancing anywhere
-      // else would skip a target when you finish the run instead of going again.
       if (_plannedIndex < widget.plannedLegs.length) _plannedIndex++;
 
-      // The plan wins while it lasts, then it's back to repeating your last
-      // target — which is what this did before routines existed.
       final next = _plannedTarget ?? _lastTarget;
       if (next != null && !_freeRun) _targetCtrl.text = _kmText(next);
 
       _phase = _Phase.setup;
     });
-    // Warm the receiver again for the next interval — the stream was torn down
-    // when the last leg finished.
     unawaited(_warmGps());
   }
 
@@ -613,15 +470,11 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       ),
     );
 
-    // Only a completed save or discard ends the run. Backing out of the save
-    // screen returns null and drops us back on the summary, still in it.
     if (result == 'saved' || result == 'discarded') {
       await RunNotification.clear();
       if (mounted) Navigator.pop(context, result == 'saved');
     }
   }
-
-  // ── Leaving mid-run ──────────────────────────────────────────
 
   Future<void> _abandon() async {
     _tracking = false;
@@ -633,9 +486,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     await RunNotification.clear();
 
     final id = _sessionId;
-    // Nothing was ever saved into it — delete the empty session rather than
-    // leaving a hollow row that shows as a run with no runs. Legs that did save
-    // need no cleanup: leaving the session is just leaving the screen.
     if (id != null && _completed.isEmpty) {
       try {
         await RunService.discardSession(id);
@@ -684,8 +534,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     );
     return leave ?? false;
   }
-
-  // ── Build ────────────────────────────────────────────────────
 
   bool get _canPopFreely =>
       _phase == _Phase.setup && _completed.isEmpty && _sessionId == null;
@@ -750,7 +598,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
         await LocationService.openLocationSettings();
         break;
       default:
-        // Plain denied — just ask again by trying to start.
         await _startLeg();
     }
   }
@@ -772,9 +619,6 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   }
 }
 
-// ══ Setup ═══════════════════════════════════════════════════════
-/// Target distance (or free run) and the Start button — the one screen between
-/// picking Running and being out on it.
 class _SetupView extends StatelessWidget {
   final Discipline discipline;
   final TextEditingController targetCtrl;
@@ -1069,9 +913,6 @@ class _AccessErrorBanner extends StatelessWidget {
   }
 }
 
-// ══ Acquiring ═══════════════════════════════════════════════════
-/// The wait for a lock good enough to trust — GPS pulses until accuracy drops
-/// under the threshold the accumulator will accept.
 class _AcquiringView extends StatefulWidget {
   final double? accuracy;
   final int rejected;
@@ -1104,8 +945,6 @@ class _AcquiringViewState extends State<_AcquiringView>
   Widget build(BuildContext context) {
     final lt = context.lt;
     final acc = widget.accuracy;
-    // Once we've seen a fix but it's not good enough for a while, say so rather
-    // than spinning silently — "it's working, just weak" is the reassurance.
     final struggling = acc != null && acc > kMaxAccuracyMeters;
 
     return Scaffold(
@@ -1114,8 +953,6 @@ class _AcquiringViewState extends State<_AcquiringView>
           padding: const EdgeInsets.all(LiftrSpacing.x24),
           child: Stack(
             children: [
-              // Centre the lock indicator against the whole screen — the Cancel
-              // button is pinned separately below so it can't pull the cluster up.
               Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1174,8 +1011,6 @@ class _AcquiringViewState extends State<_AcquiringView>
   }
 }
 
-// ══ Countdown ═══════════════════════════════════════════════════
-/// 3 · 2 · 1 · GO, each scaling in, then a hand-off to running.
 class _CountdownView extends StatefulWidget {
   final VoidCallback onDone;
   const _CountdownView({required this.onDone});
@@ -1185,7 +1020,6 @@ class _CountdownView extends StatefulWidget {
 }
 
 class _CountdownViewState extends State<_CountdownView> {
-  /// 3 → 2 → 1 → 0 (GO). Stepped every [_step].
   int _count = 3;
   Timer? _timer;
   static const _step = Duration(milliseconds: 850);
@@ -1238,10 +1072,6 @@ class _CountdownViewState extends State<_CountdownView> {
   }
 }
 
-// ══ Running ═════════════════════════════════════════════════════
-/// The live run: pure black, one enormous number, and a stop button. Kept
-/// deliberately still — only the number changes — so an OLED screen draws almost
-/// nothing for the length of the run.
 class _RunningView extends StatelessWidget {
   final double? targetMeters;
   final double distance;
@@ -1255,7 +1085,6 @@ class _RunningView extends StatelessWidget {
     required this.onStop,
   });
 
-  /// Base colour of the big number, warming to lime as the last 50 m tick down.
   static const _idle = Color(0xFFF5F5F0);
 
   @override
@@ -1277,8 +1106,6 @@ class _RunningView extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // The small line up top: elapsed, and pace once there's enough
-            // distance to make it meaningful.
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
               child: Row(
@@ -1373,8 +1200,6 @@ class _RunningView extends StatelessWidget {
   }
 }
 
-// ══ Interval summary ════════════════════════════════════════════
-/// What you just did, the legs before it, and the fork: go again, or wrap up.
 class _SummaryView extends StatelessWidget {
   final Discipline discipline;
   final DistanceInterval? justCompleted;
@@ -1394,7 +1219,6 @@ class _SummaryView extends StatelessWidget {
   Widget build(BuildContext context) {
     final lt = context.lt;
     final done = justCompleted;
-    // The legs before this one, newest of the earlier ones first.
     final prior = all.where((i) => i.intervalId != done?.intervalId).toList();
 
     return Scaffold(

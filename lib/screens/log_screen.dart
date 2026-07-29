@@ -5,10 +5,7 @@ import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import '../utils/dates.dart';
 
-/// Every workout you've logged, newest first. Reached from the Log tab, which
-/// previously did nothing but highlight itself.
 class LogTab extends StatefulWidget {
-  /// Opens the given date on the Home tab.
   final ValueChanged<DateTime> onOpenDate;
 
   const LogTab({super.key, required this.onOpenDate});
@@ -159,7 +156,6 @@ class _LogTabState extends State<LogTab> {
   }
 }
 
-/// Keeps pull-to-refresh working on an otherwise empty screen.
 class _Scrollable extends StatelessWidget {
   final Widget child;
   const _Scrollable({required this.child});
@@ -215,7 +211,6 @@ class _SessionCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Date block
               Container(
                 width: 44,
                 padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x6),

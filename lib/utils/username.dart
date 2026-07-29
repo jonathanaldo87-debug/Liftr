@@ -1,22 +1,14 @@
 import 'dart:math';
 
-/// Auto-generated names for guest accounts.
-///
-/// A guest never types anything, so the app has to invent a name it can show in
-/// the header and on Profile. Two words plus a number: readable, gym-flavoured,
-/// and collision-resistant enough that two guests on the same device history
-/// won't look identical. Nothing depends on it being unique — the account is
-/// keyed by its auth id, not this string.
 String generateUsername([Random? random]) {
   final rng = random ?? Random();
   final adjective = _adjectives[rng.nextInt(_adjectives.length)];
   final noun = _nouns[rng.nextInt(_nouns.length)];
-  final number = rng.nextInt(9000) + 1000; // always 4 digits
+  final number = rng.nextInt(9000) + 1000;
 
   return '$adjective $noun $number';
 }
 
-/// Initials for the avatar circle: "Swift Falcon 4821" -> "SF".
 String initialsFromUsername(String username) {
   final words = username
       .split(RegExp(r'\s+'))

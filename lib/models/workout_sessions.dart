@@ -7,17 +7,7 @@ class WorkoutSessions {
   final String? name;
   final String? notes;
 
-  /// Which discipline this session belongs to — a `disciplines.discipline_key`
-  /// ('gym', 'running', …). Defaults to gym: every session logged before
-  /// migration 009 was a gym session.
   final String discipline;
-
-  // There is no `is_active` here, and none in the database either as of
-  // migration 020.
-  //
-  // It recorded no time and routed no data — nothing keyed off it but a banner,
-  // and half the UI (the run card) always ignored it in favour of the date. The
-  // date is the mode now: today is live, the past is history until unlocked.
 
   final DateTime? createdAt;
   final DateTime? updatedAt;

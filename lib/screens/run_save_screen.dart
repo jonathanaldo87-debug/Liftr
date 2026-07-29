@@ -6,17 +6,6 @@ import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/run_math.dart';
 
-/// Wrapping up a tracked session: the totals across every interval, an optional
-/// title and notes, and the two ways out — save it, or throw it away.
-///
-/// Reached from the interval summary's "End session". It's a real route rather
-/// than another phase of the tracking screen because by now the run is over —
-/// nothing is live, there's no GPS or wakelock to keep hold of, so it has no
-/// reason to share that screen's machinery.
-///
-/// Pops a string the caller acts on: `'saved'` once the session is named and
-/// ended, `'discarded'` once it's deleted, and null if the user backed out to
-/// go add another interval after all.
 class RunSaveScreen extends StatefulWidget {
   final String sessionId;
   final DateTime date;
@@ -37,9 +26,6 @@ class _RunSaveScreenState extends State<RunSaveScreen> {
   final _nameCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
-  /// The intervals themselves rather than just [RunTotals]: the count and the
-  /// per-interval numbers both come off them, and refetching for each would be
-  /// two round trips for one question.
   List<DistanceInterval>? _intervals;
   bool _loading = true;
   bool _busy = false;
@@ -80,7 +66,6 @@ class _RunSaveScreenState extends State<RunSaveScreen> {
         widget.sessionId,
         WorkoutSessionsPayload(
           sessionDate: widget.date,
-          // Never blank — an empty name would leave the day's card titleless.
           name: name.isEmpty ? 'Run' : name,
           notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           discipline: widget.discipline.key,
@@ -256,7 +241,6 @@ class _RunSaveScreenState extends State<RunSaveScreen> {
   }
 }
 
-/// The four numbers that describe a session — distance, time, intervals, pace.
 class _TotalsPanel extends StatelessWidget {
   final RunTotals totals;
   const _TotalsPanel({required this.totals});

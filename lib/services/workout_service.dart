@@ -14,24 +14,10 @@ class WorkoutService {
   static const _sessionCols = 'session_id, session_date, name, notes, '
       'discipline, created_at, updated_at';
 
-  // ── Disciplines ─────────────────────────────────────────────
-
-  /// The disciplines the app can log, from the `disciplines` table.
-  ///
-  /// Read from the database rather than a Dart enum on purpose: adding swimming
-  /// should be an INSERT, not a release. Inactive rows are filtered out, which
-  /// is how a discipline can be seeded before its logging UI exists.
-  ///
-  /// Falls back to gym if the fetch fails — an empty list would leave the user
-  /// unable to log anything at all.
   static Future<List<Discipline>> getDisciplines() async {
     try {
       final data = await _db
           .from('disciplines')
-          // logging_type decides which logging UI a discipline opens, so
-          // leaving it out of this list silently makes every discipline look
-          // like it has none — which is exactly what made running keep saying
-          // its logger was "on the way" after the logger existed.
           .select('discipline_key, label, emoji, description, sort_order, '
               'logging_type')
           .eq('is_active', true)
@@ -41,12 +27,6 @@ class WorkoutService {
       if (list.isEmpty) return const [_gymFallback];
       return list;
     } catch (_) {
-      // The column above only exists from migration 013. Against an older
-      // database the whole query fails, and falling straight to gym would make
-      // every other discipline's chip vanish — a much stranger symptom than the
-      // missing feature actually behind it. Retry without it: disciplines load,
-      // each reporting no logging type, which renders as "logger on the way".
-      // Self-heals the moment 013 is applied.
       try {
         final data = await _db
             .from('disciplines')
@@ -57,7 +37,6 @@ class WorkoutService {
         final list = data.map((j) => Discipline.fromJson(j)).toList();
         if (list.isNotEmpty) return list;
       } catch (_) {
-        // Genuinely can't reach the table — fall through.
       }
       return const [_gymFallback];
     }
@@ -66,17 +45,6 @@ class WorkoutService {
   static const _gymFallback =
       Discipline(key: Discipline.gymKey, label: 'Gym', emoji: '🏋️');
 
-  // ── Sessions ────────────────────────────────────────────────
-
-  /// The [discipline] session logged on [date], or null.
-  ///
-  /// Scoped by discipline because a day can now hold one session per discipline
-  /// — a gym workout and a run are separate sessions on the same date. Migration
-  /// 009 widened the unique index to (user, date, discipline) to allow exactly
-  /// that.
-  ///
-  /// Deliberately not `.maybeSingle()`: that throws if a day somehow holds more
-  /// than one matching session, which would take the whole home screen down.
   static Future<WorkoutSessions?> getWorkoutSession(
     DateTime date, {
     String discipline = Discipline.gymKey,
@@ -94,7 +62,6 @@ class WorkoutService {
     return WorkoutSessions.fromJson(data.first);
   }
 
-  /// Every session on [date], across all disciplines — what the "All" chip shows.
   static Future<List<WorkoutSessions>> getSessionsForDate(DateTime date) async {
     final data = await _db
         .from('workout_sessions')
@@ -122,10 +89,6 @@ class WorkoutService {
     return result['session_id'] as String;
   }
 
-  /// The [discipline] session for [date], creating it with [name] if absent.
-  ///
-  /// Adding an exercise must never mint a second session for the same day and
-  /// discipline. It used to, which is what broke adding a second exercise.
   static Future<String> getOrCreateSession(
     DateTime date,
     String name, {
@@ -144,11 +107,6 @@ class WorkoutService {
         ),
       );
     } on PostgrestException catch (e) {
-      // 23505 = unique_violation on (user_id, session_date, discipline). Another
-      // create for the same day and discipline landed between the check above
-      // and this insert — a double-tapped Start, or two code paths racing to
-      // open the day's session. The row we wanted now exists, so this isn't an
-      // error to surface: fetch it and carry on as if we'd found it first.
       if (e.code == '23505') {
         final raced = await getWorkoutSession(date, discipline: discipline);
         final racedId = raced?.sessionId;
@@ -158,19 +116,6 @@ class WorkoutService {
     }
   }
 
-  // There is no start/end here any more, and no "active session".
-  //
-  // `is_active` recorded nothing (no start or end time was ever stored) and
-  // routed nothing — an exercise saves into the session for its *date*, never
-  // the flagged one. All it powered was a banner, at the cost of a
-  // one-at-a-time rule, a switch prompt, and a typed clash exception with its
-  // own 23505 race handling. A session is now purely the (date + discipline)
-  // container it always claimed to be, and [getOrCreateSession] is the only way
-  // one comes into existence.
-
-  /// Renames / re-notes a session. Deliberately does not touch `discipline`:
-  /// a session's discipline decides which child rows are valid under it, so
-  /// changing it after the fact would orphan them.
   static Future<void> updateWorkoutSession(
       String sessionId, WorkoutSessionsPayload payload) async {
     await _db.from('workout_sessions').update({
@@ -179,11 +124,6 @@ class WorkoutService {
     }).eq('session_id', sessionId);
   }
 
-  /// Deletes the session and everything hanging off it.
-  ///
-  /// Children go first and explicitly. If the foreign keys happen to cascade
-  /// this is redundant but harmless; if they don't, it's the only thing keeping
-  /// orphaned sets out of the database.
   static Future<void> deleteWorkoutSession(String sessionId) async {
     final exercises = await _db
         .from('workout_exercises')
@@ -201,8 +141,6 @@ class WorkoutService {
     await _db.from('workout_sessions').delete().eq('session_id', sessionId);
   }
 
-  /// Dates in [from]..[to] that have a session, as `yyyy-MM-dd`.
-  /// Drives the dots on the calendar strip.
   static Future<Set<String>> getSessionDates(DateTime from, DateTime to) async {
     try {
       final data = await _db
@@ -218,7 +156,6 @@ class WorkoutService {
     }
   }
 
-  /// Sessions newest-first, each with its exercise count, for the Log tab.
   static Future<List<SessionSummary>> getSessionHistory(
       {int limit = 50}) async {
     final data = await _db
@@ -236,8 +173,6 @@ class WorkoutService {
         .toList();
   }
 
-  // ── Exercises in a session ──────────────────────────────────
-
   static Future<List<WorkoutExercises>> getWorkoutExercises(
       String sessionId) async {
     final data = await _db
@@ -252,11 +187,6 @@ class WorkoutService {
     return data.map((e) => WorkoutExercises.fromJson(e)).toList();
   }
 
-  /// Appends an exercise to a session and returns its id.
-  ///
-  /// The order index is derived here rather than passed in — the caller has no
-  /// reliable way to know what's already in the session, and hardcoding it (as
-  /// the add screen did) left every exercise sitting at position 1.
   static Future<String> createWorkoutExercise(
       WorkoutExercisePayload payload) async {
     final sessionId = payload.sessionId;
@@ -302,8 +232,6 @@ class WorkoutService {
     await _db.from('workout_exercises').delete().eq('exercise_id', exerciseId);
   }
 
-  // ── Sets ────────────────────────────────────────────────────
-
   static Future<List<ExerciseSets>> getExerciseSets(String exerciseId) async {
     final sets = await _db
         .from('exercise_sets')
@@ -323,7 +251,6 @@ class WorkoutService {
     });
   }
 
-  /// Logs the next set on an exercise, numbering it for you.
   static Future<void> addSet(
       String exerciseId, double weightKg, int reps) async {
     final existing = await getExerciseSets(exerciseId);
@@ -350,11 +277,6 @@ class WorkoutService {
     }).eq('set_id', setId);
   }
 
-  /// The most recent set logged for a catalog exercise, across every session.
-  ///
-  /// Seeds the weight/reps fields when you open a lift you haven't touched yet
-  /// today, so the common case ("same as last time") is zero typing. Null when
-  /// you've never logged this exercise.
   static Future<ExerciseSets?> getLastSetForExercise(String catalogId) async {
     try {
       final data = await _db
@@ -375,8 +297,6 @@ class WorkoutService {
     }
   }
 
-  /// Deletes a set, then closes the gap it left in the numbering — otherwise
-  /// deleting set 2 of 3 leaves you with sets numbered 1 and 3.
   static Future<void> deleteExerciseSet(String setId, String exerciseId) async {
     await _db.from('exercise_sets').delete().eq('set_id', setId);
 
@@ -391,30 +311,17 @@ class WorkoutService {
     }
   }
 
-  // ── Catalog ─────────────────────────────────────────────────
-
-  /// The whole catalog (~120 rows), for the exercise picker.
-  ///
-  /// Small enough to fetch once and search on the device — no per-keystroke
-  /// round trip.
   static Future<List<CatalogExercises>> getExerciseCatalog() async {
     final data = await _db
         .from('exercise_catalog')
         .select('catalog_id, name, category, muscle_group, equipment, '
             'is_compound, is_global, created_by, created_at')
         .order('name', ascending: true)
-        .limit(2000); // PostgREST caps at 1000 by default
+        .limit(2000);
 
     return data.map((e) => CatalogExercises.fromJson(e)).toList();
   }
 
-  /// Exercises this user logged most recently, most recent first, de-duplicated.
-  ///
-  /// Shown when the exercise field is empty — most sessions repeat the same
-  /// lifts, so this turns the common case into zero typing.
-  ///
-  /// Returns an empty list rather than throwing: recents are a convenience, and
-  /// failing to load them must never block the picker.
   static Future<List<CatalogExercises>> getRecentExercises(
       {int limit = 8}) async {
     try {
@@ -443,12 +350,6 @@ class WorkoutService {
     }
   }
 
-  // ── Progress ────────────────────────────────────────────────
-
-  /// Heaviest set per day for one catalog exercise, oldest first.
-  ///
-  /// This is what the detail chart plots. It replaces the hardcoded stub the
-  /// screen used to show, which displayed the same fake numbers for every lift.
   static Future<List<WeightPoint>> getExerciseHistory(String catalogId) async {
     try {
       final data = await _db
@@ -482,7 +383,6 @@ class WorkoutService {
     }
   }
 
-  /// Everything the Progress tab shows.
   static Future<WorkoutStats> getStats() async {
     final sessions = await _db
         .from('workout_sessions')
@@ -523,8 +423,6 @@ class WorkoutService {
     );
   }
 
-  /// Consecutive trained days ending today, or ending yesterday if today isn't
-  /// logged yet — a streak shouldn't read as broken just because it's 9am.
   static int _streak(Set<DateTime> days, DateTime today) {
     var cursor = today;
     if (!days.contains(cursor)) {

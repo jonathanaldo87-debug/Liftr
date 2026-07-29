@@ -3,17 +3,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../utils/run_math.dart';
 
-/// How far is this leg? Quick distances, or type one.
-///
-/// The presets match the tracker's own, so a target set here and a target set
-/// mid-run are picked from the same four numbers.
-///
-/// Pops the chosen distance in **metres**, or null if dismissed.
-///
-/// Public, and in its own file, so it can be pumped in a widget test. It's pure
-/// layout over the app theme — no services, nothing to stub — and the first
-/// version of it shipped a layout crash that only appeared on tap. See
-/// `test/target_sheet_test.dart`.
 class TargetSheet extends StatefulWidget {
   const TargetSheet({super.key});
 
@@ -145,12 +134,6 @@ class TargetSheetState extends State<TargetSheet> {
                 ),
               ),
               const SizedBox(height: LiftrSpacing.x12),
-              // Full width, below the field rather than beside it. The theme
-              // gives every ElevatedButton `minimumSize: Size.fromHeight(52)`,
-              // which is an infinite width request — fine in an Expanded or a
-              // bounded SizedBox, but a Row hands its non-flex children
-              // unbounded width and the layout blows up. Every other button in
-              // the app is full width for the same reason.
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: LiftrSpacing.x16),

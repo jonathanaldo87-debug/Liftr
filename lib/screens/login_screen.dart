@@ -28,8 +28,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  /// Creates an anonymous Supabase account, so the app has a real user id to
-  /// hang workouts off and RLS keeps working exactly as it does for a login.
   Future<void> _continueAsGuest() async {
     setState(() {
       _isGuestLoading = true;
@@ -44,8 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on AuthException catch (e) {
-      // The most likely cause by far: anonymous sign-ins are switched off in the
-      // Supabase dashboard (Authentication → Sign In / Providers).
       setState(() => _errorMsg = e.message);
     } catch (_) {
       setState(() => _errorMsg = 'Could not start a guest session.');
@@ -65,8 +61,6 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passCtrl.text,
       );
       if (mounted) {
-        // Not HomeScreen directly: a first-time user has to see onboarding,
-        // and landingScreen() is the single place that decides which is which.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => landingScreen()),
@@ -93,7 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Logo centred
               const SizedBox(height: LiftrSpacing.x28),
               Center(
                 child: Column(
@@ -112,7 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x36),
 
-              // Headline
               Text('Welcome\nback.', style: tt.displayMedium),
               const SizedBox(height: LiftrSpacing.x6),
               Text(
@@ -121,7 +113,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x28),
 
-              // Email
               const SectionLabel('Email'),
               const SizedBox(height: LiftrSpacing.x6),
               TextField(
@@ -133,7 +124,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x14),
 
-              // Password
               const SectionLabel('Password'),
               const SizedBox(height: LiftrSpacing.x6),
               TextField(
@@ -170,7 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x12),
 
-              // Error message
               if (_errorMsg != null) ...[
                 const SizedBox(height: LiftrSpacing.x4),
                 Text(
@@ -181,7 +170,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: LiftrSpacing.x8),
               ],
 
-              // CTA
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 child: _isLoading
@@ -195,7 +183,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x20),
 
-              // Divider
               Row(
                 children: [
                   const Expanded(child: Divider()),
@@ -211,13 +198,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x20),
 
-              // No Google or Apple buttons here on purpose. They existed as
-              // placeholders with empty onTap handlers, which is worse than not
-              // offering them: the button looked live, did nothing, and gave no
-              // reason why. They come back when there's an auth call behind
-              // them — Google needs the provider enabled in Supabase and this
-              // app's release SHA-1 registered, and offering it would then make
-              // Sign in with Apple mandatory for App Store review.
               _SocialButton(
                 label:
                     _isGuestLoading ? 'Setting you up…' : 'Continue as guest',
@@ -237,8 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: LiftrSpacing.x8),
               Center(
                 child: Text(
-                  // Said up front, not buried in settings: a guest account only
-                  // exists on this device, and signing out ends it.
                   'No email needed. Your workouts stay on this device\n'
                   'until you add a login.',
                   textAlign: TextAlign.center,
@@ -248,7 +226,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: LiftrSpacing.x24),
 
-              // Sign-up footer
               Center(
                 child: RichText(
                   text: TextSpan(
@@ -321,4 +298,3 @@ class _SocialButton extends StatelessWidget {
     );
   }
 }
-

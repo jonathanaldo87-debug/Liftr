@@ -7,38 +7,13 @@ import '../theme/app_theme.dart';
 import '../utils/dates.dart';
 import '../utils/run_math.dart';
 
-/// Logging a run that already happened.
-///
-/// The whole of running, for now, and deliberately the first part built: it
-/// needs no GPS, no permissions and no live state, so it's the one path that
-/// works on a treadmill, indoors, or when you forgot to start tracking. Every
-/// failure mode of the tracked flow eventually lands here.
-///
-/// Pops true if something was saved.
 class AddRunScreen extends StatefulWidget {
-  /// The day the run goes on — taken from the home screen's calendar rather
-  /// than asked for again here. You already picked a date to get this far.
   final DateTime date;
 
-  /// The interval being corrected, or null when logging a new one.
-  ///
-  /// Editing deliberately covers distance and time only. Name and notes live on
-  /// the session, which every interval of the day shares, so offering them here
-  /// would mean fixing one leg's distance and silently relabelling the rest.
   final DistanceInterval? interval;
 
-  /// Opened from a day that isn't today and hasn't been unlocked.
-  ///
-  /// You can still read what you logged — looking back at it is the point — but
-  /// nothing here may change it. Mirrors [ExerciseDetailScreen.readOnly].
   final bool readOnly;
 
-  /// How many *other* runs share this day's session.
-  ///
-  /// Only used to warn that the name and notes are shared. Passed in rather
-  /// than counted here: the caller already has the day's intervals loaded, and
-  /// refetching them to render one line of text would be a round trip for
-  /// nothing.
   final int otherRunsToday;
 
   const AddRunScreen({
@@ -63,8 +38,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
 
   bool _isSaving = false;
 
-  /// The day's running session, loaded when editing so the name and notes start
-  /// from what's already saved rather than blank.
   String? _sessionId;
 
   bool get _isEditing => widget.interval?.intervalId != null;
@@ -72,8 +45,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
   @override
   void initState() {
     super.initState();
-    // Recompute the pace line as the numbers change — it's the fastest way to
-    // notice you typed minutes into the hours box.
     for (final c in [_distanceCtrl, _hoursCtrl, _minutesCtrl, _secondsCtrl]) {
       c.addListener(_onChanged);
     }
@@ -81,12 +52,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
     if (_isEditing) _loadSession();
   }
 
-  /// Fetches the day's running session so the name and notes fields open with
-  /// what's already on it.
-  ///
-  /// Looked up by date and discipline rather than by the interval's session id:
-  /// getWorkoutSession already answers exactly this question, and adding a
-  /// fetch-by-id purely for this screen would be a second way to ask it.
   Future<void> _loadSession() async {
     try {
       final session = await WorkoutService.getWorkoutSession(
@@ -100,16 +65,9 @@ class _AddRunScreenState extends State<AddRunScreen> {
         _notesCtrl.text = session.notes ?? '';
       });
     } catch (_) {
-      // The name is a nicety; failing to load it must not block correcting a
-      // distance, which is what you actually came here for.
     }
   }
 
-  /// Loads the interval being corrected into the fields.
-  ///
-  /// Seconds are only filled when there are any: a 32-minute run should open as
-  /// "32 m" with an empty seconds box, not "32 m 0 s", so the common case
-  /// doesn't look like it was typed by a machine.
   void _prefill() {
     final i = widget.interval;
     if (i == null) return;
@@ -145,8 +103,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
     super.dispose();
   }
 
-  /// Kilometres in the field, metres in the database. People say "5.2 km", and
-  /// asking for 5200 would be a small daily tax for no benefit.
   double? get _distanceMeters {
     final km = double.tryParse(_distanceCtrl.text.trim().replaceAll(',', '.'));
     if (km == null || km <= 0) return null;
@@ -166,12 +122,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
       _durationSeconds > 0 &&
       !_isSaving;
 
-  /// Removes this run, after asking.
-  ///
-  /// Lives here rather than behind a menu on the home card: the row's job is to
-  /// open the run, and the destructive action belongs on the screen that shows
-  /// you what you're about to destroy. Confirmed because there's nothing to undo
-  /// it with — the distance and time came off a watch you've already put away.
   Future<void> _delete() async {
     final id = widget.interval?.intervalId;
     if (id == null) return;
@@ -244,8 +194,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
           durationSeconds: seconds,
         );
 
-        // The name and notes belong to the day's session, not to this leg, so
-        // they're written separately — and only when the session was found.
         final sessionId = _sessionId;
         if (sessionId != null) {
           final name = _nameCtrl.text.trim();
@@ -253,7 +201,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
             sessionId,
             WorkoutSessionsPayload(
               sessionDate: widget.date,
-              // Never blank: an empty name would leave the card's title empty.
               name: name.isEmpty ? 'Run' : name,
               notes: _notesCtrl.text.trim().isEmpty
                   ? null
@@ -333,9 +280,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
                     ],
                   ),
 
-                  // The one derived number worth showing while typing: a pace
-                  // that reads as nonsense is how you catch a mistyped field
-                  // before it's saved.
                   const SizedBox(height: LiftrSpacing.x12),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -373,10 +317,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
                   const SizedBox(height: LiftrSpacing.x6),
                   _field(lt, _nameCtrl, hint: 'Morning run'),
 
-                  // Both of these live on the day's session, which every run of
-                  // that day shares. Said out loud only when there's more than
-                  // one, since that's the only time changing it here touches
-                  // something you weren't looking at.
                   if (_isEditing && widget.otherRunsToday > 0) ...[
                     const SizedBox(height: LiftrSpacing.x6),
                     Text(
@@ -393,8 +333,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
                   const SizedBox(height: LiftrSpacing.x6),
                   _field(lt, _notesCtrl, hint: 'How did it feel?', lines: 3),
 
-                  // No save button on a locked day — there's nothing you could
-                  // press it to do.
                   if (!widget.readOnly) ...[
                     const SizedBox(height: LiftrSpacing.x24),
                     ElevatedButton(
@@ -461,8 +399,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
             ),
           ),
 
-          // Says why the controls are missing, rather than leaving them
-          // mysteriously absent. Same badge as the exercise detail screen.
           if (widget.readOnly)
             Container(
               padding: const EdgeInsets.symmetric(
@@ -483,8 +419,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
                 ),
               ),
             )
-          // Deleting lives here, on the screen showing what you'd delete —
-          // never behind a menu on the card that merely lists it.
           else if (_isEditing)
             GestureDetector(
               onTap: _delete,
@@ -536,8 +470,6 @@ class _AddRunScreenState extends State<AddRunScreen> {
       child: TextField(
         controller: ctrl,
         maxLines: lines,
-        // Locked days are readable but not editable — the fields still show
-        // what you logged, they just won't take a keystroke.
         readOnly: widget.readOnly,
         keyboardType: numeric
             ? const TextInputType.numberWithOptions(decimal: true)

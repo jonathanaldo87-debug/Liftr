@@ -2,12 +2,6 @@ import 'package:liftr/models/models.dart';
 import 'package:liftr/services/workout_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Running sessions and the intervals inside them.
-///
-/// Sits alongside [WorkoutService] rather than inside it: a run and a gym
-/// workout share the session parent but nothing else, and folding distance
-/// logic into the class that owns sets and reps is how that shared parent stops
-/// being shared. Session creation itself is delegated, not duplicated.
 class RunService {
   static final _db = Supabase.instance.client;
 
@@ -17,8 +11,6 @@ class RunService {
       'interval_id, session_id, target_distance_meters, '
       'actual_distance_meters, duration_seconds, logged_manually, '
       'sort_order, plan_slot, created_at';
-
-  // ── Intervals ───────────────────────────────────────────────
 
   static Future<List<DistanceInterval>> getIntervals(String sessionId) async {
     final data = await _db
@@ -30,17 +22,6 @@ class RunService {
     return data.map((j) => DistanceInterval.fromJson(j)).toList();
   }
 
-  /// Appends an interval to a session and returns its id.
-  ///
-  /// The sort order is derived here rather than passed in — the caller has just
-  /// finished running and has no reliable idea what else is already in the
-  /// session, which is exactly the mistake `createWorkoutExercise` was written
-  /// to stop making for exercises.
-  ///
-  /// [planSlot] is the opposite case and *is* passed in: only the caller knows
-  /// which leg of the day's plan it set out to run, and that is not derivable
-  /// from what the session already holds — you can run leg 3 before leg 1. Null
-  /// for an ad-hoc run, which is the ordinary case.
   static Future<String> addInterval(
     String sessionId, {
     double? targetDistanceMeters,
@@ -80,11 +61,6 @@ class RunService {
     return ((rows.first['sort_order'] as num?)?.toInt() ?? 0) + 1;
   }
 
-  /// Corrects a logged interval.
-  ///
-  /// Only the distance and the time: the name and notes belong to the session,
-  /// which several intervals share, so editing one leg must not quietly rewrite
-  /// the label on all of them.
   static Future<void> updateInterval(
     String intervalId, {
     required double actualDistanceMeters,
@@ -100,25 +76,12 @@ class RunService {
     await _db.from('distance_intervals').delete().eq('interval_id', intervalId);
   }
 
-  // ── Sessions ────────────────────────────────────────────────
-
-  /// The running session for [date], creating it if there isn't one.
-  ///
-  /// Reuses [WorkoutService.getOrCreateSession] rather than inserting directly,
-  /// because migration 009 allows exactly one session per (user, date,
-  /// discipline). A second run on the same day is another interval on the same
-  /// session — inserting a fresh one would simply fail against that index.
   static Future<String> getOrCreateRunSession(
     DateTime date, {
     String name = 'Run',
   }) =>
       WorkoutService.getOrCreateSession(date, name, discipline: disciplineKey);
 
-  /// Logs a run that already happened, in one call.
-  ///
-  /// The whole manual path: find or make the day's running session, append the
-  /// interval, done. No live tracking, no active-session flag — you're
-  /// recording history, not starting something.
   static Future<String> logManualRun({
     required DateTime date,
     required double distanceMeters,
@@ -147,16 +110,11 @@ class RunService {
     return sessionId;
   }
 
-  /// Totals across a session's intervals — what the save screen shows.
   static Future<RunTotals> getTotals(String sessionId) async {
     final intervals = await getIntervals(sessionId);
     return RunTotals.from(intervals);
   }
 
-  /// Throws away a session and its intervals.
-  ///
-  /// Delegated so there is one delete path for sessions, not two that drift.
-  /// The intervals go with it via the cascade in migration 013.
   static Future<void> discardSession(String sessionId) =>
       WorkoutService.deleteWorkoutSession(sessionId);
 }

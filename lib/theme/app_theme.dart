@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// ── Brand Colors ──────────────────────────────────────────────
 class LiftrColors {
-  // Accent — lime green (same in both modes)
   static const accent = Color(0xFFC8F075);
   static const accentDark = Color(0xFF80E850);
-  static const accentText = Color(0xFF0F1A04); // text ON accent bg
+  static const accentText = Color(0xFF0F1A04);
 
-  // Destructive actions — delete, sign-out warnings, form errors. Same in both
-  // modes. Was copy-pasted as a raw 0xFFE24B4A in ~20 places; use this, or
-  // `context.lt.danger` where a theme is in hand.
   static const danger = Color(0xFFE24B4A);
 
-  // Drop shadow beneath popovers (the exercise dropdown). Deliberately soft.
   static const shadow = Color(0x33000000);
 
-  // Dark mode palette
   static const darkBg = Color(0xFF0F0F10);
   static const darkSurface = Color(0xFF15151A);
   static const darkCard = Color(0xFF1A1A1E);
@@ -27,16 +20,12 @@ class LiftrColors {
   static const darkTextMuted = Color(0xFF5A5A62);
   static const darkTextDim = Color(0xFF3A3A42);
 
-  // Dark mode accent tints
   static const darkAccentBg = Color(0xFF1A2208);
   static const darkAccentBorder = Color(0xFF3A5010);
   static const darkAccentMid = Color(0xFF80A840);
   static const darkAccentText = Color(0xFFA0D050);
-  // Vivid accent as a foreground (dots, key figures, links). The bright lime
-  // already reads on dark, so it stays; only the light variant changes.
   static const darkAccentStrong = accent;
 
-  // Light mode palette
   static const lightBg = Color(0xFFF5F5F0);
   static const lightSurface = Color(0xFFFFFFFF);
   static const lightCard = Color(0xFFF0F0EA);
@@ -47,17 +36,13 @@ class LiftrColors {
   static const lightTextMuted = Color(0xFF6A6A73);
   static const lightTextDim = Color(0xFF7C7C86);
 
-  // Light mode accent tints
   static const lightAccentBg = Color(0xFFEEFAD8);
   static const lightAccentBorder = Color(0xFF9AC840);
   static const lightAccentMid = Color(0xFF4A8010);
   static const lightAccentText = Color(0xFF3A6008);
-  // The bright lime is invisible as a foreground on the near-white background,
-  // so the strong accent drops to a readable green here.
   static const lightAccentStrong = Color(0xFF4A8010);
 }
 
-// ── Theme Extension (custom tokens) ───────────────────────────
 class LiftrTheme extends ThemeExtension<LiftrTheme> {
   final Color surface;
   final Color card;
@@ -72,8 +57,6 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
   final Color accentMid;
   final Color accentTextColor;
 
-  /// Vivid accent used as a foreground — dots, key figures, inline links.
-  /// Bright lime on dark, a readable green on light.
   final Color accentStrong;
   final Color danger;
 
@@ -182,44 +165,27 @@ class LiftrTheme extends ThemeExtension<LiftrTheme> {
   }
 }
 
-// ── Shape tokens ──────────────────────────────────────────────
-// Corner radii and border widths don't change between light and dark, so they
-// live here as plain constants rather than in the theme extension. One entry
-// per value the design already uses — these preserve the exact numbers that
-// were scattered as literals, so adopting them is a rename, not a restyle.
-
-/// Corner radii, smallest to largest.
 class LiftrRadii {
-  static const pip = 2.0; // progress dots
-  static const inset = 7.0; // inner accent icon square
-  static const tile = 8.0; // emoji tiles, calendar day cells
-  static const control = 10.0; // icon buttons, set rows, inner input fields
-  static const field = 12.0; // text fields and most small cards
-  static const button = 14.0; // primary / cancel buttons
-  static const card = 16.0; // standard cards and list rows
-  static const cardLarge = 18.0; // chart card, profile identity block
-  static const panel = 20.0; // chips, toggles, section containers
-  static const sheet = 24.0; // workout card, bottom-sheet top
+  static const pip = 2.0;
+  static const inset = 7.0;
+  static const tile = 8.0;
+  static const control = 10.0;
+  static const field = 12.0;
+  static const button = 14.0;
+  static const card = 16.0;
+  static const cardLarge = 18.0;
+  static const panel = 20.0;
+  static const sheet = 24.0;
 
-  /// `BorderRadius.circular(field)` in one call.
   static BorderRadius all(double r) => BorderRadius.circular(r);
 }
 
-/// Border stroke widths.
 class LiftrBorders {
-  static const hairline = 0.5; // the default divider/card outline
-  static const thin = 1.0; // selected / emphasised
-  static const medium = 1.5; // focused input, chart line
+  static const hairline = 0.5;
+  static const thin = 1.0;
+  static const medium = 1.5;
 }
 
-/// Layout spacing — gaps between widgets and padding inside them.
-///
-/// The suffix is the pixel value, so this is a rename that preserves every
-/// existing gap exactly; nothing shifts. Named `xN` rather than sm/md/lg because
-/// the design uses 16 distinct steps, more than a t-shirt scale can hold
-/// cleanly. Applied to SizedBox spacers and EdgeInsets.all/symmetric; positional
-/// fromLTRB paddings keep their literals, since they're layout-specific rather
-/// than part of this rhythm.
 class LiftrSpacing {
   static const x2 = 2.0;
   static const x3 = 3.0;
@@ -239,46 +205,30 @@ class LiftrSpacing {
   static const x36 = 36.0;
 }
 
-/// Font sizes.
-///
-/// Same convention as [LiftrSpacing]: the suffix is the pixel value, so
-/// adopting these is a rename that preserves every existing size exactly.
-/// Named `xN` rather than by role because the design uses 15 distinct steps —
-/// and because the same size does different jobs in different places (13 is
-/// both a set row and a button label), so a role name would be a lie at half
-/// the call sites.
-///
-/// These are the raw scale. Where a piece of text fits one of the roles in
-/// `AppTheme`'s `textTheme` — screen titles, section headers, body copy — reach
-/// for `Theme.of(context).textTheme` instead; it carries colour and weight too.
-/// This class is for the rest: the one-off labels, hints and chips that make up
-/// most of the app's text.
 class LiftrType {
-  static const x9 = 9.0; // chart axis labels
-  static const x10 = 10.0; // input hints, badge text
-  static const x11 = 11.0; // section headers, chip labels, metadata
-  static const x12 = 12.0; // secondary labels, card captions
-  static const x13 = 13.0; // body text, set rows, button labels
-  static const x14 = 14.0; // emphasised body, list titles
-  static const x15 = 15.0; // primary buttons, field text
-  static const x16 = 16.0; // card titles, stat values
-  static const x18 = 18.0; // section titles
-  static const x20 = 20.0; // the weight input
-  static const x22 = 22.0; // screen titles (serif)
-  static const x26 = 26.0; // large display (serif)
-  static const x28 = 28.0; // stat headline
-  static const x30 = 30.0; // onboarding emoji
-  static const x32 = 32.0; // hero display (serif)
+  static const x9 = 9.0;
+  static const x10 = 10.0;
+  static const x11 = 11.0;
+  static const x12 = 12.0;
+  static const x13 = 13.0;
+  static const x14 = 14.0;
+  static const x15 = 15.0;
+  static const x16 = 16.0;
+  static const x18 = 18.0;
+  static const x20 = 20.0;
+  static const x22 = 22.0;
+  static const x26 = 26.0;
+  static const x28 = 28.0;
+  static const x30 = 30.0;
+  static const x32 = 32.0;
 }
 
-// ── Helper extension on BuildContext ──────────────────────────
 extension LiftrThemeX on BuildContext {
   LiftrTheme get lt => Theme.of(this).extension<LiftrTheme>()!;
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
   Color get bgColor => isDark ? LiftrColors.darkBg : LiftrColors.lightBg;
 }
 
-// ── ThemeData builders ─────────────────────────────────────────
 class AppTheme {
   static ThemeData dark() => _build(Brightness.dark);
   static ThemeData light() => _build(Brightness.light);

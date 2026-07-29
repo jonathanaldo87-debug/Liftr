@@ -5,8 +5,6 @@ class WorkoutSessionsPayload {
   final String name;
   final String? notes;
 
-  /// A `disciplines.discipline_key`. Defaults to gym so existing gym callers
-  /// don't have to spell it out.
   final String discipline;
 
   final DateTime? updatedAt;

@@ -8,12 +8,6 @@ import '../theme/widgets.dart';
 import '../utils/dates.dart';
 import 'routine_edit_screen.dart';
 
-/// Your routines, and which weekday each one runs on.
-///
-/// Two lists that read top-down as the thing you actually want to know: what's
-/// on this week, then what the routines themselves contain. The week comes first
-/// because that's the answer you're usually after — the routine list below it is
-/// where you go to change one.
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
 
@@ -25,9 +19,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   List<Routine> _routines = [];
   WeeklySchedule _schedule = {};
 
-  /// Only the disciplines that can actually hold a routine. One seeded without a
-  /// logging screen has nothing to plan, so offering it would produce a routine
-  /// you could never put anything in.
   List<Discipline> _disciplines = [];
 
   bool _isLoading = true;
@@ -86,7 +77,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     if (saved == true) await _load();
   }
 
-  /// Assigns a weekday, or clears it back to a rest day.
   Future<void> _assign(int weekday) async {
     final lt = context.lt;
     final current = _schedule[weekday]?.routineId;
@@ -124,8 +114,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                 subtitle: Text(r.summary,
                     style: TextStyle(
                         fontSize: LiftrType.x12, color: lt.textMuted)),
-                // Returns the id, or the empty string for "leave it as it was" —
-                // null is already spoken for by dismissing the sheet.
                 onTap: () => Navigator.pop(ctx, r.routineId),
               ),
             const Divider(),
@@ -146,7 +134,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       ),
     );
 
-    // Dismissed without choosing.
     if (picked == null || !mounted) return;
 
     try {
@@ -208,7 +195,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +331,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 }
 
-/// One weekday and what runs on it.
 class _DayRow extends StatelessWidget {
   final int weekday;
   final Routine? routine;
@@ -375,8 +360,6 @@ class _DayRow extends StatelessWidget {
           decoration: BoxDecoration(
             color: lt.card,
             border: Border.all(
-              // Today gets the accent edge, so the week reads as a week you're
-              // standing in rather than an abstract table.
               color: isToday ? lt.accentBorder : lt.border,
               width: LiftrBorders.hairline,
             ),

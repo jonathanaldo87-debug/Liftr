@@ -2,18 +2,6 @@ import 'package:liftr/models/models.dart';
 import 'package:liftr/utils/increment_inference.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// The stations you train on, and how each is set for a given exercise.
-///
-/// Everything here is optional by design. An account that never opens the setup
-/// sheet behaves exactly as the app did before it existed.
-///
-/// Two tables behind this (migration 018): `user_setup` holds the station and
-/// its step, shared across every exercise using that equipment; and
-/// `user_setup_exercise` holds the seat height, which is only true of one
-/// station and one exercise together.
-///
-/// The arithmetic lives in `utils/increment_inference.dart`, which is pure and
-/// tested. This class is the IO around it.
 class ExerciseSetupService {
   static final _db = Supabase.instance.client;
 
@@ -27,16 +15,6 @@ class ExerciseSetupService {
       'setup_id, label, equipment, catalog_id, weight_increment_kg, '
       'min_weight_kg';
 
-  /// The stations worth offering for one exercise, each carrying that
-  /// exercise's own settings.
-  ///
-  /// Offered when the equipment matches and the station isn't pinned to a
-  /// different exercise. So both cable stacks appear on every cable movement —
-  /// entered once, not once per lift — while the preacher curl machine appears
-  /// only on preacher curls.
-  ///
-  /// Returns an empty list rather than throwing: setup is an enhancement, and
-  /// failing to load it must never block logging a set.
   static Future<List<ExerciseSetup>> getSetups({
     required String catalogId,
     required String? equipment,
@@ -49,7 +27,6 @@ class ExerciseSetupService {
           .select(_cols)
           .eq('user_id', _userId)
           .eq('equipment', equipment.toLowerCase().trim())
-          // Unpinned stations, plus any pinned to this exercise.
           .or('catalog_id.is.null,catalog_id.eq.$catalogId')
           .order('created_at', ascending: true);
 
@@ -69,7 +46,6 @@ class ExerciseSetupService {
     }
   }
 
-  /// Seat heights for these stations on one exercise, keyed by station.
   static Future<Map<String, Map<String, String>>> _settingsFor(
     List<String> setupIds,
     String catalogId,
@@ -93,17 +69,6 @@ class ExerciseSetupService {
     }
   }
 
-  /// Creates a station, or updates [setupId] when one is given, and writes its
-  /// settings for [catalogId].
-  ///
-  /// Insert-or-update rather than upsert, because which one it is genuinely
-  /// matters: a save with no id is a second stack, not a correction to the
-  /// first.
-  ///
-  /// [pinToExercise] is what keeps a dozen machines off every machine
-  /// exercise — see migration 018. It's decided by the caller from the
-  /// equipment, not chosen by the user, because "is this station one of many
-  /// like it" is a fact about the gym rather than a preference.
   static Future<void> saveSetup({
     required String catalogId,
     required String? equipment,
@@ -143,9 +108,6 @@ class ExerciseSetupService {
           .eq('user_id', _userId);
     }
 
-    // Settings belong to the pair, so they're written even when the station
-    // itself was only edited — and cleared to {} rather than deleted, so the
-    // row's absence keeps meaning "never set up here".
     await _db.from('user_setup_exercise').upsert({
       'setup_id': id,
       'catalog_id': catalogId,
@@ -154,22 +116,12 @@ class ExerciseSetupService {
     }, onConflict: 'setup_id,catalog_id');
   }
 
-  /// Records which station a logged exercise was done on. Passing null clears
-  /// it, which is how you undo a mis-tap without inventing a "no setup" row.
-  ///
-  /// Only ever called from a tap. Nothing in the app infers this: the last
-  /// version of this idea guessed, and guessed wrong — see migration 017.
   static Future<void> assignSetup(String exerciseId, String? setupId) async {
     await _db
         .from('workout_exercises')
         .update({'setup_id': setupId}).eq('exercise_id', exerciseId);
   }
 
-  /// Forgets a station everywhere, including its seat heights on every exercise.
-  ///
-  /// The workouts survive — 017's foreign key sets their setup_id to NULL
-  /// rather than cascading, so removing a station you no longer use can never
-  /// delete training history.
   static Future<void> deleteSetup(String setupId) async {
     await _db
         .from('user_setup')
@@ -178,12 +130,6 @@ class ExerciseSetupService {
         .eq('user_id', _userId);
   }
 
-  /// The step this exercise appears to move in, worked out from what you've
-  /// logged on it. Null when the evidence is too thin to say.
-  ///
-  /// Deliberately never written back automatically — the app offers this as a
-  /// guess for you to accept or correct, so an inference can't harden into a
-  /// stored fact behind your back.
   static Future<double?> inferIncrementFor(String catalogId) async {
     return inferIncrement(await _weightsLoggedFor(catalogId));
   }

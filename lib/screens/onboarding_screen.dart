@@ -7,14 +7,6 @@ import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
 import 'home_screen.dart';
 
-/// Shown once, on first launch after signing in, and re-runnable from Profile.
-///
-/// Picks the disciplines you train. That answer is load-bearing: it decides
-/// which chips the home screen offers, so this is no longer a decorative
-/// questionnaire.
-///
-/// The flow is 1 or 2 pages depending on the answer — templates are a gym-only
-/// concept, so a runner never sees that page.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -26,14 +18,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
 
-  /// Straight from the `disciplines` table — never a hardcoded list, so adding
-  /// swimming is an INSERT rather than a release.
   List<Discipline> _disciplines = [];
   bool _isLoading = true;
 
-  /// Multi-select: people cross-train. Pre-seeded from whatever's already saved
-  /// so re-running this from Profile shows your current answer rather than a
-  /// blank slate.
   late Set<String> _selected = Prefs.enabledDisciplines.toSet();
 
   int _selectedTemplate = 0;
@@ -50,15 +37,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (!mounted) return;
     setState(() {
       _disciplines = list;
-      // Drop anything saved that the catalog no longer offers (a discipline
-      // could be retired), but never end up with an empty selection.
       _selected = _selected.where((k) => list.any((d) => d.key == k)).toSet();
       if (_selected.isEmpty && list.isNotEmpty) _selected = {list.first.key};
       _isLoading = false;
     });
   }
 
-  /// Templates are a gym idea. Someone who only runs shouldn't be asked.
   bool get _showsTemplates => _selected.contains(Discipline.gymKey);
 
   int get _pageCount => _showsTemplates ? 2 : 1;
@@ -67,14 +51,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _toggle(String key) {
     setState(() {
-      // Never allow zero: with no discipline there's nothing to log.
       if (_selected.contains(key) && _selected.length > 1) {
         _selected.remove(key);
       } else {
         _selected.add(key);
       }
 
-      // Deselecting gym removes the template page underneath us.
       if (_currentPage > _pageCount - 1) {
         _currentPage = _pageCount - 1;
         _pageController.jumpToPage(_currentPage);
@@ -93,8 +75,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     setState(() => _isFinishing = true);
 
-    // Save in catalog order, so the home chips are stable rather than ordered by
-    // whatever the user happened to tap first.
     final ordered =
         _disciplines.map((d) => d.key).where(_selected.contains).toList();
     await Prefs.completeOnboarding(disciplines: ordered);
@@ -131,7 +111,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Only worth showing when there's more than one page to track.
             Padding(
               padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: _pageCount > 1
@@ -182,7 +161,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-// ── Page 1: what do you train (multi-select) ──────────────────
 class _DisciplinePage extends StatelessWidget {
   final List<Discipline> disciplines;
   final Set<String> selected;
@@ -240,7 +218,6 @@ class _DisciplinePage extends StatelessWidget {
   }
 }
 
-// ── Page 2: gym templates (gym only) ──────────────────────────
 class _TemplatePage extends StatelessWidget {
   final int selected;
   final ValueChanged<int> onSelect;

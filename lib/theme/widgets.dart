@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-// ── Logo Mark ─────────────────────────────────────────────────
 class LiftrLogoMark extends StatelessWidget {
   final double size;
   const LiftrLogoMark({super.key, this.size = 52});
@@ -42,10 +41,8 @@ class _LogoPainter extends CustomPainter {
     final cy = size.height / 2;
     final r = size.width * 0.36;
 
-    // Circle
     canvas.drawCircle(Offset(cx, cy), r, paint);
 
-    // Arrow right through center
     canvas.drawLine(Offset(cx - r * 0.8, cy), Offset(cx + r * 0.8, cy), paint);
     canvas.drawLine(
         Offset(cx + r * 0.2, cy - r * 0.5), Offset(cx + r * 0.8, cy), paint);
@@ -57,7 +54,6 @@ class _LogoPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Section Label ─────────────────────────────────────────────
 class SectionLabel extends StatelessWidget {
   final String text;
   const SectionLabel(this.text, {super.key});
@@ -76,7 +72,6 @@ class SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Accent Tag / Chip ─────────────────────────────────────────
 class AccentChip extends StatelessWidget {
   final String label;
   const AccentChip(this.label, {super.key});
@@ -105,7 +100,6 @@ class AccentChip extends StatelessWidget {
   }
 }
 
-// ── Three-dot menu button ─────────────────────────────────────
 class ThreeDotMenu extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
@@ -162,7 +156,6 @@ class ThreeDotMenu extends StatelessWidget {
   }
 }
 
-// ── Avatar circle ─────────────────────────────────────────────
 class AvatarCircle extends StatelessWidget {
   final String initials;
   final double size;
@@ -196,7 +189,6 @@ class AvatarCircle extends StatelessWidget {
   }
 }
 
-// ── Icon square button ────────────────────────────────────────
 class IconSquareButton extends StatelessWidget {
   final Widget icon;
   final VoidCallback? onTap;
@@ -221,7 +213,6 @@ class IconSquareButton extends StatelessWidget {
   }
 }
 
-// ── Progress step dots ────────────────────────────────────────
 class ProgressDots extends StatelessWidget {
   final int total;
   final int current;
@@ -248,7 +239,6 @@ class ProgressDots extends StatelessWidget {
   }
 }
 
-// ── Activity card ─────────────────────────────────────────────
 class ActivityCard extends StatelessWidget {
   final String emoji;
   final String name;
