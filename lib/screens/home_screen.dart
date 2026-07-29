@@ -17,7 +17,6 @@ import 'add_exercise_screen.dart';
 import 'add_run_screen.dart';
 import 'exercise_detail_screen.dart';
 import 'run_tracking_screen.dart';
-import 'log_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'progress_screen.dart';
@@ -46,21 +45,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openDate(DateTime date) {
-    setState(() {
-      _selectedDate = date;
-      _navIndex = 0;
-      _homeEpoch++;
-    });
-  }
-
   Widget get _tab {
     switch (_navIndex) {
       case 1:
-        return LogTab(onOpenDate: _openDate);
-      case 2:
         return const ProgressTab();
-      case 3:
+      case 2:
         return ProfileTab(onSignOut: _signOut);
       default:
         return _TodayTab(
@@ -87,10 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.home_outlined),
               activeIcon: Icon(Icons.home),
               label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.list_outlined),
-              activeIcon: Icon(Icons.list),
-              label: 'Log'),
           BottomNavigationBarItem(
               icon: Icon(Icons.bar_chart_outlined),
               activeIcon: Icon(Icons.bar_chart),
@@ -248,19 +233,15 @@ class _TodayTabState extends State<_TodayTab> {
         }
       }
 
-      final dates = await WorkoutService.getSessionDates(
-        _selectedDate.subtract(const Duration(days: 60)),
-        _selectedDate.add(const Duration(days: 60)),
-      );
-
       if (mounted) {
         setState(() {
           _sessions = sessions;
           _exercisesBySession = byId;
           _runsBySession = runsById;
-          _sessionDates = dates;
         });
       }
+
+      await _loadSessionDates(_selectedDate);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -280,6 +261,14 @@ class _TodayTabState extends State<_TodayTab> {
     });
     widget.onDateChanged(d);
     _loadData();
+  }
+
+  Future<void> _loadSessionDates(DateTime around) async {
+    final dates = await WorkoutService.getSessionDates(
+      DateTime(around.year, around.month - 2),
+      DateTime(around.year, around.month + 3, 0),
+    );
+    if (mounted) setState(() => _sessionDates = dates);
   }
 
   bool _hasWorkout(DateTime d) => _sessionDates.contains(_key(d));
@@ -570,6 +559,41 @@ class _TodayTabState extends State<_TodayTab> {
     if (changed == true) await _loadData();
   }
 
+  Future<void> _deleteSession(WorkoutSessions s, Discipline d) async {
+    final id = s.sessionId;
+    if (id == null) return;
+
+    final n = d.logsDistance
+        ? _intervalsFor(s).length
+        : _exercisesFor(s).length;
+    final unit = d.logsDistance ? 'run' : 'exercise';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => _ConfirmDialog(
+        title: 'Delete ${s.name ?? 'this session'}?',
+        message: n == 0
+            ? 'This session is empty, so nothing logged is lost.'
+            : 'Its $n $unit${n == 1 ? '' : 's'} and everything logged in '
+                'them will be permanently removed.',
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await WorkoutService.deleteWorkoutSession(id);
+      _relock();
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not delete it: $e'),
+          backgroundColor: LiftrColors.danger,
+        ));
+      }
+    }
+  }
+
   Future<void> _deleteExercise(WorkoutExercises ex) async {
     final id = ex.exerciseId;
     if (id == null) return;
@@ -650,6 +674,7 @@ class _TodayTabState extends State<_TodayTab> {
             selectedDate: _selectedDate,
             onDateSelected: _onDateSelected,
             hasWorkout: _hasWorkout,
+            onVisibleMonthChanged: _loadSessionDates,
           ),
 
           const SizedBox(height: LiftrSpacing.x12),
@@ -810,6 +835,9 @@ class _TodayTabState extends State<_TodayTab> {
         onSetUpRoutine: _routineNudge,
         isEditable: _canEdit(gym),
         onToggleEdit: _toggleFor(gym),
+        onDeleteSession: gym == null
+            ? null
+            : () => _deleteSession(gym, _disciplineFor(Discipline.gymKey)),
         onExerciseTap: _openExercise,
         onExerciseDelete: _deleteExercise,
       );
@@ -833,6 +861,8 @@ class _TodayTabState extends State<_TodayTab> {
           isLoading: _isLoading,
           isEditable: _canEdit(session),
           onToggleEdit: _toggleFor(session),
+          onDeleteSession:
+              session == null ? null : () => _deleteSession(session, d),
           onStartLeg: _isToday(_selectedDate)
               ? (from) => _startPlannedLeg(d, routine, from)
               : null,
@@ -1081,41 +1111,13 @@ class _AllSessionsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${dayLabel(date)} · ${shortDate(date)}',
-                        style: TextStyle(
-                          fontSize: LiftrType.x11,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.08,
-                          color: lt.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: LiftrSpacing.x3),
-                      Text(
-                        sessions.isEmpty ? 'No sessions' : 'Everything logged',
-                        style: TextStyle(
-                          fontSize: LiftrType.x16,
-                          fontWeight: FontWeight.w500,
-                          color: sessions.isEmpty ? lt.textDim : lt.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (sessions.isNotEmpty)
-                  AccentChip(
-                      '${sessions.length} session${sessions.length == 1 ? '' : 's'}'),
-              ],
-            ),
+          _CardHeader(
+            date: date,
+            title: sessions.isEmpty ? 'No sessions' : 'Everything logged',
+            isPlaceholder: sessions.isEmpty,
+            badge: sessions.isEmpty
+                ? null
+                : '${sessions.length} session${sessions.length == 1 ? '' : 's'}',
           ),
 
           const Divider(),
@@ -1492,6 +1494,8 @@ class _RunCard extends StatelessWidget {
 
   final VoidCallback? onToggleEdit;
 
+  final VoidCallback? onDeleteSession;
+
   final ValueChanged<DistanceInterval> onOpenInterval;
 
   final ValueChanged<int>? onStartLeg;
@@ -1505,6 +1509,7 @@ class _RunCard extends StatelessWidget {
     required this.isLoading,
     required this.isEditable,
     required this.onToggleEdit,
+    required this.onDeleteSession,
     required this.onOpenInterval,
     required this.onStartLeg,
   });
@@ -1541,52 +1546,18 @@ class _RunCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${dayLabel(date)} · ${shortDate(date)}',
-                        style: TextStyle(
-                          fontSize: LiftrType.x11,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.08,
-                          color: lt.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: LiftrSpacing.x3),
-                      Text(
-                        session?.name ?? routine?.name ?? 'No session',
-                        style: TextStyle(
-                          fontSize: LiftrType.x16,
-                          fontWeight: FontWeight.w500,
-                          color: (session ?? routine) != null
-                              ? lt.textPrimary
-                              : lt.textDim,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_planned.isNotEmpty) ...[
-                  AccentChip('${intervals.length}/${_planned.length}'),
-                  const SizedBox(width: LiftrSpacing.x6),
-                ] else if (intervals.isNotEmpty) ...[
-                  AccentChip(formatDistance(totals.distanceMeters)),
-                  const SizedBox(width: LiftrSpacing.x6),
-                ],
-                if (onToggleEdit != null)
-                  _EditToggleChip(
-                    isEditing: isEditable,
-                    onTap: onToggleEdit!,
-                  ),
-              ],
-            ),
+          _CardHeader(
+            date: date,
+            title: session?.name ?? routine?.name ?? 'No session',
+            isPlaceholder: (session ?? routine) == null,
+            badge: _planned.isNotEmpty
+                ? '${intervals.length}/${_planned.length}'
+                : intervals.isEmpty
+                    ? null
+                    : formatDistance(totals.distanceMeters),
+            isEditable: isEditable,
+            onToggleEdit: onToggleEdit,
+            onDelete: onDeleteSession,
           ),
 
           const Divider(),
@@ -1890,10 +1861,13 @@ class _CalendarStrip extends StatefulWidget {
   final ValueChanged<DateTime> onDateSelected;
   final bool Function(DateTime) hasWorkout;
 
+  final ValueChanged<DateTime> onVisibleMonthChanged;
+
   const _CalendarStrip({
     required this.selectedDate,
     required this.onDateSelected,
     required this.hasWorkout,
+    required this.onVisibleMonthChanged,
   });
 
   @override
@@ -1903,25 +1877,51 @@ class _CalendarStrip extends StatefulWidget {
 class _CalendarStripState extends State<_CalendarStrip> {
   late DateTime _weekStart = _getWeekStart(widget.selectedDate);
 
+  late DateTime _month = _firstOfMonth(widget.selectedDate);
+
+  bool _expanded = false;
+
   @override
   void didUpdateWidget(covariant _CalendarStrip old) {
     super.didUpdateWidget(old);
     if (old.selectedDate != widget.selectedDate) {
       _weekStart = _getWeekStart(widget.selectedDate);
+      _month = _firstOfMonth(widget.selectedDate);
     }
   }
 
   DateTime _getWeekStart(DateTime d) =>
       DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
 
-  void _shiftWeek(int delta) {
-    setState(() => _weekStart = _weekStart.add(Duration(days: delta * 7)));
+  static DateTime _firstOfMonth(DateTime d) => DateTime(d.year, d.month);
+
+  void _toggle() {
+    setState(() {
+      _expanded = !_expanded;
+      if (_expanded) {
+        _month = _firstOfMonth(_weekStart);
+      } else {
+        _weekStart = _getWeekStart(widget.selectedDate);
+      }
+    });
+    widget.onVisibleMonthChanged(_expanded ? _month : _weekStart);
+  }
+
+  void _shift(int delta) {
+    setState(() {
+      if (_expanded) {
+        _month = DateTime(_month.year, _month.month + delta);
+      } else {
+        _weekStart = _weekStart.add(Duration(days: delta * 7));
+      }
+    });
+    widget.onVisibleMonthChanged(_expanded ? _month : _weekStart);
   }
 
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
-    final now = DateTime.now();
+    final label = _expanded ? _month : _weekStart;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
@@ -1929,105 +1929,169 @@ class _CalendarStripState extends State<_CalendarStrip> {
         children: [
           Row(
             children: [
-              Text(
-                monthYear(_weekStart),
-                style: TextStyle(
-                  fontSize: LiftrType.x13,
-                  fontWeight: FontWeight.w500,
-                  color: lt.textPrimary,
+              GestureDetector(
+                onTap: _toggle,
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    Text(
+                      monthYear(label),
+                      style: TextStyle(
+                        fontSize: LiftrType.x13,
+                        fontWeight: FontWeight.w500,
+                        color: lt.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: LiftrSpacing.x4),
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(Icons.expand_more,
+                          size: 18, color: lt.textSecondary),
+                    ),
+                  ],
                 ),
               ),
               const Spacer(),
               IconSquareButton(
                 icon:
                     Icon(Icons.chevron_left, size: 16, color: lt.textSecondary),
-                onTap: () => _shiftWeek(-1),
+                onTap: () => _shift(-1),
               ),
               const SizedBox(width: LiftrSpacing.x8),
               IconSquareButton(
                 icon: Icon(Icons.chevron_right,
                     size: 16, color: lt.textSecondary),
-                onTap: () => _shiftWeek(1),
+                onTap: () => _shift(1),
               ),
             ],
           ),
           const SizedBox(height: LiftrSpacing.x12),
-          Row(
-            children: List.generate(7, (i) {
-              final day = _weekStart.add(Duration(days: i));
-              final isSelected = day.year == widget.selectedDate.year &&
-                  day.month == widget.selectedDate.month &&
-                  day.day == widget.selectedDate.day;
-              final isToday = day.year == now.year &&
-                  day.month == now.month &&
-                  day.day == now.day;
-              final hasWork = widget.hasWorkout(day);
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _expanded ? _monthGrid(lt) : _weekRow(lt),
+          ),
+        ],
+      ),
+    );
+  }
 
-              return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onDateSelected(day),
-                  child: Column(
-                    children: [
-                      Text(
-                        kWeekdaysUpper[i],
-                        style: TextStyle(
-                          fontSize: LiftrType.x10,
-                          fontWeight: FontWeight.w500,
-                          color: hasWork ? lt.accentMid : lt.textDim,
-                        ),
-                      ),
-                      const SizedBox(height: LiftrSpacing.x4),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? LiftrColors.accent
-                              : isToday
-                                  ? lt.accentBg
-                                  : Colors.transparent,
-                          borderRadius: BorderRadius.circular(LiftrRadii.tile),
-                          border: isToday && !isSelected
-                              ? Border.all(
-                                  color: lt.accentBorder,
-                                  width: LiftrBorders.hairline)
-                              : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${day.day}',
-                            style: TextStyle(
-                              fontSize: LiftrType.x13,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: isSelected
-                                  ? LiftrColors.accentText
-                                  : lt.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: LiftrSpacing.x4),
-                      AnimatedOpacity(
-                        opacity: hasWork ? 1 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Container(
-                          width: 4,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: lt.accentStrong,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
+  Widget _weekRow(LiftrTheme lt) {
+    return Row(
+      children: List.generate(7, (i) {
+        final day = _weekStart.add(Duration(days: i));
+        return Expanded(
+          child: Column(
+            children: [
+              Text(
+                kWeekdaysUpper[i],
+                style: TextStyle(
+                  fontSize: LiftrType.x10,
+                  fontWeight: FontWeight.w500,
+                  color: widget.hasWorkout(day) ? lt.accentMid : lt.textDim,
+                ),
+              ),
+              const SizedBox(height: LiftrSpacing.x4),
+              _dayCell(lt, day),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _monthGrid(LiftrTheme lt) {
+    final cells = monthGrid(_month);
+    final rows = cells.length ~/ 7;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            for (final w in kWeekdaysUpper)
+              Expanded(
+                child: Center(
+                  child: Text(
+                    w,
+                    style: TextStyle(
+                      fontSize: LiftrType.x10,
+                      fontWeight: FontWeight.w500,
+                      color: lt.textDim,
+                    ),
                   ),
                 ),
-              );
+              ),
+          ],
+        ),
+        const SizedBox(height: LiftrSpacing.x8),
+        for (var r = 0; r < rows; r++) ...[
+          Row(
+            children: List.generate(7, (c) {
+              final day = cells[r * 7 + c];
+              if (day == null) {
+                return const Expanded(child: SizedBox(height: 40));
+              }
+              return Expanded(child: _dayCell(lt, day));
             }),
+          ),
+          if (r < rows - 1) const SizedBox(height: LiftrSpacing.x6),
+        ],
+      ],
+    );
+  }
+
+  Widget _dayCell(LiftrTheme lt, DateTime day) {
+    final isSelected = isSameDay(day, widget.selectedDate);
+    final today = isToday(day);
+    final hasWork = widget.hasWorkout(day);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => widget.onDateSelected(day),
+      child: Column(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? LiftrColors.accent
+                  : today
+                      ? lt.accentBg
+                      : Colors.transparent,
+              borderRadius: BorderRadius.circular(LiftrRadii.tile),
+              border: today && !isSelected
+                  ? Border.all(
+                      color: lt.accentBorder, width: LiftrBorders.hairline)
+                  : null,
+            ),
+            child: Center(
+              child: Text(
+                '${day.day}',
+                style: TextStyle(
+                  fontSize: LiftrType.x13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color:
+                      isSelected ? LiftrColors.accentText : lt.textSecondary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: LiftrSpacing.x4),
+          AnimatedOpacity(
+            opacity: hasWork ? 1 : 0,
+            duration: const Duration(milliseconds: 200),
+            child: Container(
+              width: 4,
+              height: 4,
+              decoration: BoxDecoration(
+                color: lt.accentStrong,
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
         ],
       ),
@@ -2049,6 +2113,8 @@ class _WorkoutCard extends StatelessWidget {
 
   final VoidCallback? onToggleEdit;
 
+  final VoidCallback? onDeleteSession;
+
   final ValueChanged<WorkoutExercises> onExerciseTap;
   final ValueChanged<WorkoutExercises> onExerciseDelete;
 
@@ -2061,6 +2127,7 @@ class _WorkoutCard extends StatelessWidget {
     required this.onSetUpRoutine,
     required this.isEditable,
     required this.onToggleEdit,
+    required this.onDeleteSession,
     required this.onExerciseTap,
     required this.onExerciseDelete,
   });
@@ -2079,47 +2146,14 @@ class _WorkoutCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${dayLabel(date)} · ${shortDate(date)}',
-                        style: TextStyle(
-                          fontSize: LiftrType.x11,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.08,
-                          color: lt.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: LiftrSpacing.x3),
-                      Text(
-                        session?.name ?? 'No session',
-                        style: TextStyle(
-                          fontSize: LiftrType.x16,
-                          fontWeight: FontWeight.w500,
-                          color: session != null ? lt.textPrimary : lt.textDim,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (exercises.isNotEmpty) ...[
-                  AccentChip('${exercises.length} EX'),
-                  const SizedBox(width: LiftrSpacing.x6),
-                ],
-                if (onToggleEdit != null)
-                  _EditToggleChip(
-                    isEditing: isEditable,
-                    onTap: onToggleEdit!,
-                  ),
-              ],
-            ),
+          _CardHeader(
+            date: date,
+            title: session?.name ?? 'No session',
+            isPlaceholder: session == null,
+            badge: exercises.isEmpty ? null : '${exercises.length} EX',
+            isEditable: isEditable,
+            onToggleEdit: onToggleEdit,
+            onDelete: onDeleteSession,
           ),
 
           const Divider(),
@@ -2157,6 +2191,84 @@ class _WorkoutCard extends StatelessWidget {
                               onDelete: () => onExerciseDelete(exercises[i]),
                             ),
                           ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CardHeader extends StatelessWidget {
+  final DateTime date;
+  final String title;
+
+  /// Dimmed when the title stands in for a session that doesn't exist yet.
+  final bool isPlaceholder;
+
+  final String? badge;
+
+  final bool isEditable;
+  final VoidCallback? onToggleEdit;
+  final VoidCallback? onDelete;
+
+  const _CardHeader({
+    required this.date,
+    required this.title,
+    required this.badge,
+    this.isPlaceholder = false,
+    this.isEditable = false,
+    this.onToggleEdit,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${dayLabel(date)} · ${shortDate(date)}',
+                  style: TextStyle(
+                    fontSize: LiftrType.x11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.08,
+                    color: lt.textMuted,
+                  ),
+                ),
+              ),
+              if (badge != null) AccentChip(badge!),
+            ],
+          ),
+          const SizedBox(height: LiftrSpacing.x6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: LiftrType.x22,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                    color: isPlaceholder ? lt.textDim : lt.textPrimary,
+                  ),
+                ),
+              ),
+              if (onToggleEdit != null) ...[
+                _EditToggleChip(isEditing: isEditable, onTap: onToggleEdit!),
+                const SizedBox(width: LiftrSpacing.x6),
+              ],
+              if (onDelete != null)
+                ThreeDotMenu(onDelete: onDelete, boxed: true),
+            ],
           ),
         ],
       ),

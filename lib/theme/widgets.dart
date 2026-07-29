@@ -103,54 +103,83 @@ class AccentChip extends StatelessWidget {
 class ThreeDotMenu extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
-  const ThreeDotMenu({super.key, this.onEdit, this.onDelete});
+
+  /// Sits the dots in a bordered square, the way a card header's control does.
+  /// Inline rows leave it false so the dots stay quiet beside their content.
+  final bool boxed;
+
+  const ThreeDotMenu({
+    super.key,
+    this.onEdit,
+    this.onDelete,
+    this.boxed = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          3,
-          (_) => Container(
-            width: 3.5,
-            height: 3.5,
-            margin: const EdgeInsets.symmetric(vertical: 1.5),
-            decoration: BoxDecoration(
-              color: context.lt.textDim,
-              shape: BoxShape.circle,
-            ),
+    final lt = context.lt;
+
+    final dots = Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        3,
+        (_) => Container(
+          width: 3.5,
+          height: 3.5,
+          margin: const EdgeInsets.symmetric(vertical: 1.5),
+          decoration: BoxDecoration(
+            color: lt.textDim,
+            shape: BoxShape.circle,
           ),
         ),
       ),
-      iconSize: 24,
+    );
+
+    return PopupMenuButton<String>(
+      icon: boxed
+          ? Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: lt.card,
+                border:
+                    Border.all(color: lt.border, width: LiftrBorders.hairline),
+                borderRadius: BorderRadius.circular(LiftrRadii.control),
+              ),
+              child: Center(child: dots),
+            )
+          : dots,
+      iconSize: boxed ? 32 : 24,
       padding: EdgeInsets.zero,
-      color: context.lt.surface,
+      color: lt.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(LiftrRadii.field),
-        side:
-            BorderSide(color: context.lt.border, width: LiftrBorders.hairline),
+        side: BorderSide(color: lt.border, width: LiftrBorders.hairline),
       ),
       onSelected: (v) {
         if (v == 'edit') onEdit?.call();
         if (v == 'delete') onDelete?.call();
       },
+      // Only the actions that have somewhere to go. Listing "Edit" beside a
+      // null callback gave you a menu entry that did nothing.
       itemBuilder: (_) => [
-        PopupMenuItem(
-          value: 'edit',
-          height: 40,
-          child: Text('Edit',
-              style: TextStyle(
-                  fontSize: LiftrType.x13, color: context.lt.textPrimary)),
-        ),
-        const PopupMenuItem(
-          value: 'delete',
-          height: 40,
-          child: Text('Delete',
-              style: TextStyle(
-                  fontSize: LiftrType.x13, color: LiftrColors.danger)),
-        ),
+        if (onEdit != null)
+          PopupMenuItem(
+            value: 'edit',
+            height: 40,
+            child: Text('Edit',
+                style:
+                    TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary)),
+          ),
+        if (onDelete != null)
+          const PopupMenuItem(
+            value: 'delete',
+            height: 40,
+            child: Text('Delete',
+                style: TextStyle(
+                    fontSize: LiftrType.x13, color: LiftrColors.danger)),
+          ),
       ],
     );
   }

@@ -46,6 +46,20 @@ String weekdayDate(DateTime d) =>
 String dayLabel(DateTime d, {DateTime? now}) =>
     isToday(d, now: now) ? 'Today' : shortDate(d);
 
+List<DateTime?> monthGrid(DateTime month) {
+  final first = DateTime(month.year, month.month);
+  final days = DateTime(month.year, month.month + 1, 0).day;
+  final lead = first.weekday - 1;
+  final rows = ((lead + days) / 7).ceil();
+
+  return [
+    for (var i = 0; i < rows * 7; i++)
+      (i < lead || i - lead >= days)
+          ? null
+          : DateTime(month.year, month.month, i - lead + 1),
+  ];
+}
+
 String isoDate(DateTime d) =>
     '${d.year}-${_two(d.month)}-${_two(d.day)}';
 

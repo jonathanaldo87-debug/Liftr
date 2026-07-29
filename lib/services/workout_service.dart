@@ -156,23 +156,6 @@ class WorkoutService {
     }
   }
 
-  static Future<List<SessionSummary>> getSessionHistory(
-      {int limit = 50}) async {
-    final data = await _db
-        .from('workout_sessions')
-        .select('$_sessionCols, workout_exercises(exercise_id)')
-        .eq('user_id', _userId)
-        .order('session_date', ascending: false)
-        .limit(limit);
-
-    return data
-        .map((j) => SessionSummary(
-              session: WorkoutSessions.fromJson(j),
-              exerciseCount: (j['workout_exercises'] as List?)?.length ?? 0,
-            ))
-        .toList();
-  }
-
   static Future<List<WorkoutExercises>> getWorkoutExercises(
       String sessionId) async {
     final data = await _db

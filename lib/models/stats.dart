@@ -1,17 +1,8 @@
-import 'workout_sessions.dart';
-
 class WeightPoint {
   final DateTime date;
   final double topWeight;
 
   const WeightPoint(this.date, this.topWeight);
-}
-
-class SessionSummary {
-  final WorkoutSessions session;
-  final int exerciseCount;
-
-  const SessionSummary({required this.session, required this.exerciseCount});
 }
 
 class WorkoutStats {
