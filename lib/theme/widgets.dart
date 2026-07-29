@@ -100,9 +100,21 @@ class AccentChip extends StatelessWidget {
   }
 }
 
+/// One entry in a [ThreeDotMenu].
+class MenuAction {
+  final String label;
+  final VoidCallback onTap;
+
+  /// Renders in the danger colour. For the actions you can't take back.
+  final bool isDanger;
+
+  const MenuAction(this.label, this.onTap, {this.isDanger = false});
+}
+
 class ThreeDotMenu extends StatelessWidget {
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
+  /// What the menu offers, in order. Nulls are filtered by the caller, so an
+  /// action listed here always has somewhere to go.
+  final List<MenuAction> actions;
 
   /// Sits the dots in a bordered square, the way a card header's control does.
   /// Inline rows leave it false so the dots stay quiet beside their content.
@@ -110,8 +122,7 @@ class ThreeDotMenu extends StatelessWidget {
 
   const ThreeDotMenu({
     super.key,
-    this.onEdit,
-    this.onDelete,
+    required this.actions,
     this.boxed = false,
   });
 
@@ -157,28 +168,20 @@ class ThreeDotMenu extends StatelessWidget {
         borderRadius: BorderRadius.circular(LiftrRadii.field),
         side: BorderSide(color: lt.border, width: LiftrBorders.hairline),
       ),
-      onSelected: (v) {
-        if (v == 'edit') onEdit?.call();
-        if (v == 'delete') onDelete?.call();
-      },
-      // Only the actions that have somewhere to go. Listing "Edit" beside a
-      // null callback gave you a menu entry that did nothing.
+      onSelected: (v) => actions[int.parse(v)].onTap(),
       itemBuilder: (_) => [
-        if (onEdit != null)
+        for (var i = 0; i < actions.length; i++)
           PopupMenuItem(
-            value: 'edit',
+            value: '$i',
             height: 40,
-            child: Text('Edit',
-                style:
-                    TextStyle(fontSize: LiftrType.x13, color: lt.textPrimary)),
-          ),
-        if (onDelete != null)
-          const PopupMenuItem(
-            value: 'delete',
-            height: 40,
-            child: Text('Delete',
-                style: TextStyle(
-                    fontSize: LiftrType.x13, color: LiftrColors.danger)),
+            child: Text(
+              actions[i].label,
+              style: TextStyle(
+                fontSize: LiftrType.x13,
+                color:
+                    actions[i].isDanger ? LiftrColors.danger : lt.textPrimary,
+              ),
+            ),
           ),
       ],
     );

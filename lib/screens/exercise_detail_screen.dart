@@ -353,7 +353,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
                         )
                       else
                         ..._sets.map((s) => _setRow(lt, s)),
-
                       if (!widget.readOnly) ...[
                         const SizedBox(height: LiftrSpacing.x4),
                         _weightInput(lt),
@@ -430,10 +429,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               ),
             )
           else
-            ThreeDotMenu(
-              onEdit: _saveNotes,
-              onDelete: _deleteExercise,
-            ),
+            ThreeDotMenu(actions: [
+              MenuAction('Edit', _saveNotes),
+              MenuAction('Delete', _deleteExercise, isDanger: true),
+            ]),
         ],
       ),
     );
@@ -811,7 +810,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   }
 
   double? get _stepIncrement {
-    final isBodyweight = (_equipment ?? '').toLowerCase().trim() == 'bodyweight';
+    final isBodyweight =
+        (_equipment ?? '').toLowerCase().trim() == 'bodyweight';
     if (isBodyweight) return null;
     return resolveIncrement(
       setups: _setups,
@@ -893,8 +893,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
               ? field
               : Row(
                   children: [
-                    _stepButton(lt, Icons.remove,
-                        () => _step(controller, -step, step)),
+                    _stepButton(
+                        lt, Icons.remove, () => _step(controller, -step, step)),
                     Expanded(child: field),
                     _stepButton(
                         lt, Icons.add, () => _step(controller, step, step)),
@@ -1031,7 +1031,6 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   static String _trim(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
-
 }
 
 class _ConfirmDialog extends StatelessWidget {

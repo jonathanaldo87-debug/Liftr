@@ -105,8 +105,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                 leading: Text(_disciplineFor(r.discipline).emoji,
                     style: const TextStyle(fontSize: LiftrType.x20)),
                 trailing: r.routineId == current
-                    ? Icon(Icons.check_circle,
-                        size: 20, color: lt.accentStrong)
+                    ? Icon(Icons.check_circle, size: 20, color: lt.accentStrong)
                     : null,
                 title: Text(r.name,
                     style: TextStyle(
@@ -276,7 +275,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                               onTap: () => _assign(d),
                             ),
                         const SizedBox(height: LiftrSpacing.x20),
-
                         const SectionLabel('Routines'),
                         const SizedBox(height: LiftrSpacing.x8),
                         for (final r in _routines)
@@ -306,8 +304,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.add,
-                                    size: 16, color: lt.accentMid),
+                                Icon(Icons.add, size: 16, color: lt.accentMid),
                                 const SizedBox(width: LiftrSpacing.x8),
                                 Text(
                                   'New routine',
@@ -395,8 +392,8 @@ class _DayRow extends StatelessWidget {
               if (r != null) ...[
                 Text(
                   r.summary,
-                  style: TextStyle(
-                      fontSize: LiftrType.x11, color: lt.textMuted),
+                  style:
+                      TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                 ),
                 const SizedBox(width: LiftrSpacing.x8),
               ],
@@ -438,8 +435,7 @@ class _RoutineRow extends StatelessWidget {
               horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
           decoration: BoxDecoration(
             color: lt.card,
-            border:
-                Border.all(color: lt.border, width: LiftrBorders.hairline),
+            border: Border.all(color: lt.border, width: LiftrBorders.hairline),
             borderRadius: BorderRadius.circular(LiftrRadii.field),
           ),
           child: Row(
@@ -467,7 +463,10 @@ class _RoutineRow extends StatelessWidget {
                   ],
                 ),
               ),
-              ThreeDotMenu(onEdit: onTap, onDelete: onDelete),
+              ThreeDotMenu(actions: [
+                MenuAction('Edit', onTap),
+                MenuAction('Delete', onDelete, isDanger: true),
+              ]),
             ],
           ),
         ),

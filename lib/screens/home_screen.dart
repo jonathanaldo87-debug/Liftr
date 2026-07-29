@@ -158,8 +158,7 @@ class _TodayTabState extends State<_TodayTab> {
     _loadDisciplines();
     _loadSchedule();
     _loadData();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _maybeOfferRecovery());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeOfferRecovery());
   }
 
   Future<void> _loadDisciplines() async {
@@ -183,8 +182,7 @@ class _TodayTabState extends State<_TodayTab> {
           _hasRoutines = hasAny;
         });
       }
-    } catch (_) {
-    }
+    } catch (_) {}
   }
 
   WorkoutSessions? get _gymSession {
@@ -423,8 +421,8 @@ class _TodayTabState extends State<_TodayTab> {
             const SizedBox(height: LiftrSpacing.x18),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
-              child:
-                  Text('Add a run', style: Theme.of(ctx).textTheme.displaySmall),
+              child: Text('Add a run',
+                  style: Theme.of(ctx).textTheme.displaySmall),
             ),
             const SizedBox(height: LiftrSpacing.x12),
             ListTile(
@@ -563,9 +561,8 @@ class _TodayTabState extends State<_TodayTab> {
     final id = s.sessionId;
     if (id == null) return;
 
-    final n = d.logsDistance
-        ? _intervalsFor(s).length
-        : _exercisesFor(s).length;
+    final n =
+        d.logsDistance ? _intervalsFor(s).length : _exercisesFor(s).length;
     final unit = d.logsDistance ? 'run' : 'exercise';
 
     final confirmed = await showDialog<bool>(
@@ -669,34 +666,31 @@ class _TodayTabState extends State<_TodayTab> {
               ],
             ),
           ),
-
           _CalendarStrip(
             selectedDate: _selectedDate,
             onDateSelected: _onDateSelected,
             hasWorkout: _hasWorkout,
             onVisibleMonthChanged: _loadSessionDates,
           ),
-
           const SizedBox(height: LiftrSpacing.x12),
-
           _DisciplineChips(
             disciplines: _disciplines,
             selected: _selectedDiscipline,
+            // A filter row earns its space only once there's more than one
+            // thing on the day to filter between.
+            showFullRow: _sessions.length >= 2,
             onSelect: (key) => setState(() {
               _selectedDiscipline = key;
               _relock();
             }),
           ),
-
           const SizedBox(height: LiftrSpacing.x10),
-
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               child: _dayContent(),
             ),
           ),
-
           if (primaryAction != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
@@ -802,6 +796,13 @@ class _TodayTabState extends State<_TodayTab> {
     if (saved == true) _relock();
   }
 
+  VoidCallback? _fillFor(String disciplineKey) {
+    final r = _scheduledRoutine;
+    if (r == null || r.discipline != disciplineKey) return null;
+    if (r.isEmpty || isFutureDay(_selectedDate)) return null;
+    return () => _fillFromRoutine(r);
+  }
+
   Widget _dayContent() {
     final routine = _scheduledRoutine;
     final routineIsDistance =
@@ -818,9 +819,8 @@ class _TodayTabState extends State<_TodayTab> {
         routine: routine,
         emoji: _disciplineFor(routine.discipline).emoji,
         isDistance: _disciplineFor(routine.discipline).logsDistance,
-        onFill: isFutureDay(_selectedDate)
-            ? null
-            : () => _fillFromRoutine(routine),
+        onFill:
+            isFutureDay(_selectedDate) ? null : () => _fillFromRoutine(routine),
       );
     }
 
@@ -835,6 +835,7 @@ class _TodayTabState extends State<_TodayTab> {
         onSetUpRoutine: _routineNudge,
         isEditable: _canEdit(gym),
         onToggleEdit: _toggleFor(gym),
+        onFillRoutine: _fillFor(Discipline.gymKey),
         onDeleteSession: gym == null
             ? null
             : () => _deleteSession(gym, _disciplineFor(Discipline.gymKey)),
@@ -861,6 +862,7 @@ class _TodayTabState extends State<_TodayTab> {
           isLoading: _isLoading,
           isEditable: _canEdit(session),
           onToggleEdit: _toggleFor(session),
+          onFillRoutine: _fillFor(d.key),
           onDeleteSession:
               session == null ? null : () => _deleteSession(session, d),
           onStartLeg: _isToday(_selectedDate)
@@ -910,10 +912,17 @@ class _DisciplineChips extends StatelessWidget {
   final String? selected;
   final ValueChanged<String?> onSelect;
 
+  /// Whether the day has enough going on to be worth a whole row of chips.
+  ///
+  /// Most days hold one session, and a scrolling filter row over one thing is
+  /// noise. The pill still gets you anywhere the row could.
+  final bool showFullRow;
+
   const _DisciplineChips({
     required this.disciplines,
     required this.selected,
     required this.onSelect,
+    required this.showFullRow,
   });
 
   static const _maxVisible = 3;
@@ -921,6 +930,11 @@ class _DisciplineChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (disciplines.isEmpty) return const SizedBox.shrink();
+
+    // Nothing to filter between.
+    if (disciplines.length < 2) return const SizedBox.shrink();
+
+    if (!showFullRow) return _pill(context);
 
     final overflows = disciplines.length > _maxVisible;
     var visible = overflows
@@ -962,7 +976,7 @@ class _DisciplineChips extends StatelessWidget {
               label: 'Other',
               trailing: Icons.expand_more,
               isSelected: false,
-              onTap: () => _pickOther(context, hidden),
+              onTap: () => _pickDiscipline(context),
             ),
           ],
         ],
@@ -970,7 +984,32 @@ class _DisciplineChips extends StatelessWidget {
     );
   }
 
-  Future<void> _pickOther(BuildContext context, List<Discipline> hidden) async {
+  /// The quiet form: what you're looking at, and a way to change it.
+  Widget _pill(BuildContext context) {
+    final current = selected == null
+        ? null
+        : disciplines.firstWhere((d) => d.key == selected,
+            orElse: () =>
+                Discipline(key: selected!, label: selected!, emoji: '•'));
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
+        child: _Chip(
+          label: current?.label ?? 'All',
+          emoji: current?.emoji,
+          trailing: Icons.expand_more,
+          isSelected: false,
+          onTap: () => _pickDiscipline(context),
+        ),
+      ),
+    );
+  }
+
+  /// Every lens on offer, All included -- the pill has no row behind it to fall
+  /// back on, so the sheet has to be complete.
+  Future<void> _pickDiscipline(BuildContext context) async {
     final lt = context.lt;
     final picked = await showModalBottomSheet<String>(
       context: context,
@@ -984,15 +1023,28 @@ class _DisciplineChips extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(height: LiftrSpacing.x12),
-            const SectionLabel('Other disciplines'),
+            const SectionLabel('Show'),
             const SizedBox(height: LiftrSpacing.x8),
-            for (final d in hidden)
+            ListTile(
+              leading: Icon(Icons.apps, size: 20, color: lt.textSecondary),
+              title: Text('All',
+                  style: TextStyle(
+                      fontSize: LiftrType.x14, color: lt.textPrimary)),
+              trailing: selected == null
+                  ? Icon(Icons.check, size: 18, color: lt.accentStrong)
+                  : null,
+              onTap: () => Navigator.pop(ctx, _allSentinel),
+            ),
+            for (final d in disciplines)
               ListTile(
                 leading: Text(d.emoji,
                     style: const TextStyle(fontSize: LiftrType.x20)),
                 title: Text(d.label,
                     style: TextStyle(
                         fontSize: LiftrType.x14, color: lt.textPrimary)),
+                trailing: selected == d.key
+                    ? Icon(Icons.check, size: 18, color: lt.accentStrong)
+                    : null,
                 onTap: () => Navigator.pop(ctx, d.key),
               ),
             const SizedBox(height: LiftrSpacing.x8),
@@ -1000,8 +1052,13 @@ class _DisciplineChips extends StatelessWidget {
         ),
       ),
     );
-    if (picked != null) onSelect(picked);
+
+    // Null is "dismissed"; All needs a value of its own to be distinguishable.
+    if (picked == null) return;
+    onSelect(picked == _allSentinel ? null : picked);
   }
+
+  static const _allSentinel = '__all__';
 }
 
 class _Chip extends StatelessWidget {
@@ -1119,9 +1176,7 @@ class _AllSessionsCard extends StatelessWidget {
                 ? null
                 : '${sessions.length} session${sessions.length == 1 ? '' : 's'}',
           ),
-
           const Divider(),
-
           Expanded(
             child: isLoading
                 ? const Center(
@@ -1140,8 +1195,7 @@ class _AllSessionsCard extends StatelessWidget {
                         onSetUpRoutine: onSetUpRoutine,
                       )
                     : ListView(
-                        padding: const EdgeInsets.only(
-                            bottom: LiftrSpacing.x6),
+                        padding: const EdgeInsets.only(bottom: LiftrSpacing.x6),
                         children: [
                           for (var i = 0; i < sessions.length; i++)
                             ..._group(sessions[i], isFirst: i == 0),
@@ -1323,8 +1377,9 @@ class _RoutinePromptCardState extends State<_RoutinePromptCard> {
   String get _contents {
     final r = widget.routine;
     if (r.intervals.isNotEmpty) {
-      return [for (final i in r.intervals) formatDistance(i.targetDistanceMeters)]
-          .join(' · ');
+      return [
+        for (final i in r.intervals) formatDistance(i.targetDistanceMeters)
+      ].join(' · ');
     }
     return [for (final e in r.exercises) e.name].join(' · ');
   }
@@ -1388,7 +1443,6 @@ class _RoutinePromptCardState extends State<_RoutinePromptCard> {
                       style: TextStyle(
                           fontSize: LiftrType.x12, color: lt.textMuted),
                     ),
-
                     if (n > 1) ...[
                       const SizedBox(height: LiftrSpacing.x14),
                       Text(
@@ -1401,7 +1455,6 @@ class _RoutinePromptCardState extends State<_RoutinePromptCard> {
                         ),
                       ),
                     ],
-
                     if (widget.onFill != null && (n > 0 || _isRun)) ...[
                       const SizedBox(height: LiftrSpacing.x20),
                       SizedBox(
@@ -1494,6 +1547,8 @@ class _RunCard extends StatelessWidget {
 
   final VoidCallback? onToggleEdit;
 
+  final VoidCallback? onFillRoutine;
+
   final VoidCallback? onDeleteSession;
 
   final ValueChanged<DistanceInterval> onOpenInterval;
@@ -1509,6 +1564,7 @@ class _RunCard extends StatelessWidget {
     required this.isLoading,
     required this.isEditable,
     required this.onToggleEdit,
+    required this.onFillRoutine,
     required this.onDeleteSession,
     required this.onOpenInterval,
     required this.onStartLeg,
@@ -1557,11 +1613,10 @@ class _RunCard extends StatelessWidget {
                     : formatDistance(totals.distanceMeters),
             isEditable: isEditable,
             onToggleEdit: onToggleEdit,
+            onFillRoutine: onFillRoutine,
             onDelete: onDeleteSession,
           ),
-
           const Divider(),
-
           Expanded(
             child: isLoading
                 ? const Center(
@@ -1584,9 +1639,7 @@ class _RunCard extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             vertical: LiftrSpacing.x6),
                         children: [
-                          for (final leg in _planned)
-                            _legRow(leg),
-
+                          for (final leg in _planned) _legRow(leg),
                           for (final extra in _unplanned)
                             _IntervalRow(
                               interval: extra,
@@ -1595,7 +1648,6 @@ class _RunCard extends StatelessWidget {
                               name: _rowName,
                               onTap: () => onOpenInterval(extra),
                             ),
-
                           if (intervals.length > 1) _totalsRow(lt, totals),
                         ],
                       ),
@@ -1624,8 +1676,7 @@ class _RunCard extends StatelessWidget {
     return _PlannedLegRow(
       legNumber: leg.slot,
       targetMeters: leg.targetMeters,
-      onStart:
-          onStartLeg == null ? null : () => onStartLeg!(leg.slot),
+      onStart: onStartLeg == null ? null : () => onStartLeg!(leg.slot),
     );
   }
 
@@ -1925,55 +1976,68 @@ class _CalendarStripState extends State<_CalendarStrip> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _toggle,
-                behavior: HitTestBehavior.opaque,
-                child: Row(
-                  children: [
-                    Text(
-                      monthYear(label),
-                      style: TextStyle(
-                        fontSize: LiftrType.x13,
-                        fontWeight: FontWeight.w500,
-                        color: lt.textPrimary,
+      child: GestureDetector(
+        // Paging is a swipe now rather than two buttons. The day cells keep
+        // their own taps — a horizontal drag and a tap are different gestures,
+        // so they don't compete.
+        onHorizontalDragEnd: (details) {
+          final v = details.primaryVelocity;
+          if (v == null) return;
+          if (v < 0) {
+            _shift(1);
+          } else if (v > 0) {
+            _shift(-1);
+          }
+        },
+        child: Column(
+          children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: _toggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    children: [
+                      Text(
+                        monthYear(label),
+                        style: TextStyle(
+                          fontSize: LiftrType.x13,
+                          fontWeight: FontWeight.w500,
+                          color: lt.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: LiftrSpacing.x4),
-                    AnimatedRotation(
-                      turns: _expanded ? 0.5 : 0,
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.expand_more,
-                          size: 18, color: lt.textSecondary),
-                    ),
-                  ],
+                      const SizedBox(width: LiftrSpacing.x4),
+                      AnimatedRotation(
+                        turns: _expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(Icons.expand_more,
+                            size: 18, color: lt.textSecondary),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Spacer(),
-              IconSquareButton(
-                icon:
-                    Icon(Icons.chevron_left, size: 16, color: lt.textSecondary),
-                onTap: () => _shift(-1),
-              ),
-              const SizedBox(width: LiftrSpacing.x8),
-              IconSquareButton(
-                icon: Icon(Icons.chevron_right,
-                    size: 16, color: lt.textSecondary),
-                onTap: () => _shift(1),
-              ),
-            ],
-          ),
-          const SizedBox(height: LiftrSpacing.x12),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: _expanded ? _monthGrid(lt) : _weekRow(lt),
-          ),
-        ],
+                const Spacer(),
+                // A gesture leaves nothing on screen to discover it by, so the
+                // hint stands in for the buttons it replaced.
+                Text(
+                  '‹ swipe ›',
+                  style: TextStyle(
+                    fontSize: LiftrType.x11,
+                    fontWeight: FontWeight.w400,
+                    color: lt.textDim,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: LiftrSpacing.x12),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: _expanded ? _monthGrid(lt) : _weekRow(lt),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2074,8 +2138,7 @@ class _CalendarStripState extends State<_CalendarStrip> {
                 style: TextStyle(
                   fontSize: LiftrType.x13,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color:
-                      isSelected ? LiftrColors.accentText : lt.textSecondary,
+                  color: isSelected ? LiftrColors.accentText : lt.textSecondary,
                 ),
               ),
             ),
@@ -2113,6 +2176,8 @@ class _WorkoutCard extends StatelessWidget {
 
   final VoidCallback? onToggleEdit;
 
+  final VoidCallback? onFillRoutine;
+
   final VoidCallback? onDeleteSession;
 
   final ValueChanged<WorkoutExercises> onExerciseTap;
@@ -2127,6 +2192,7 @@ class _WorkoutCard extends StatelessWidget {
     required this.onSetUpRoutine,
     required this.isEditable,
     required this.onToggleEdit,
+    required this.onFillRoutine,
     required this.onDeleteSession,
     required this.onExerciseTap,
     required this.onExerciseDelete,
@@ -2153,11 +2219,10 @@ class _WorkoutCard extends StatelessWidget {
             badge: exercises.isEmpty ? null : '${exercises.length} EX',
             isEditable: isEditable,
             onToggleEdit: onToggleEdit,
+            onFillRoutine: onFillRoutine,
             onDelete: onDeleteSession,
           ),
-
           const Divider(),
-
           Expanded(
             child: isLoading
                 ? const Center(
@@ -2209,6 +2274,12 @@ class _CardHeader extends StatelessWidget {
 
   final bool isEditable;
   final VoidCallback? onToggleEdit;
+
+  /// Puts the day's routine into this session. Null when no routine is
+  /// scheduled — which is why this lives in the menu rather than as a button:
+  /// most days it isn't there at all.
+  final VoidCallback? onFillRoutine;
+
   final VoidCallback? onDelete;
 
   const _CardHeader({
@@ -2218,6 +2289,7 @@ class _CardHeader extends StatelessWidget {
     this.isPlaceholder = false,
     this.isEditable = false,
     this.onToggleEdit,
+    this.onFillRoutine,
     this.onDelete,
   });
 
@@ -2262,56 +2334,29 @@ class _CardHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onToggleEdit != null) ...[
-                _EditToggleChip(isEditing: isEditable, onTap: onToggleEdit!),
-                const SizedBox(width: LiftrSpacing.x6),
-              ],
-              if (onDelete != null)
-                ThreeDotMenu(onDelete: onDelete, boxed: true),
+              if (_actions.isNotEmpty)
+                ThreeDotMenu(actions: _actions, boxed: true),
             ],
           ),
         ],
       ),
     );
   }
-}
 
-class _EditToggleChip extends StatelessWidget {
-  final bool isEditing;
-  final VoidCallback onTap;
-
-  const _EditToggleChip({required this.isEditing, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final lt = context.lt;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(
-            horizontal: LiftrSpacing.x10, vertical: LiftrSpacing.x4),
-        decoration: BoxDecoration(
-          color: isEditing ? lt.accentBg : lt.card,
-          border: Border.all(
-            color: isEditing ? lt.accentBorder : lt.border,
-            width: LiftrBorders.hairline,
-          ),
-          borderRadius: BorderRadius.circular(LiftrRadii.panel),
-        ),
-        child: Text(
-          isEditing ? 'DONE' : 'EDIT',
-          style: TextStyle(
-            fontSize: LiftrType.x10,
-            fontWeight: FontWeight.w500,
-            letterSpacing: 0.06,
-            color: isEditing ? lt.accentTextColor : lt.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
+  /// Everything you can do to this session, in one place.
+  ///
+  /// The EDIT chip used to sit beside the menu doing exactly one of these; two
+  /// permanent controls for a card whose usual state needs neither is what this
+  /// collapses. Built from whichever callbacks the card actually passed, so an
+  /// entry here always goes somewhere.
+  List<MenuAction> get _actions => [
+        if (onToggleEdit != null)
+          MenuAction(isEditable ? 'Done editing' : 'Edit sets', onToggleEdit!),
+        if (onFillRoutine != null)
+          MenuAction('Fill from routine', onFillRoutine!),
+        if (onDelete != null)
+          MenuAction('Delete session', onDelete!, isDanger: true),
+      ];
 }
 
 const kNotYetHint = "Nothing here yet.\nThis day hasn't happened.";
