@@ -80,6 +80,19 @@ class RoutineInterval {
       );
 }
 
+/// A leg of the day's plan that still needs running: which slot it is, and how
+/// far.
+///
+/// The slot is 1-based and is what a finished run records as its
+/// `plan_slot`, so leg 3 stays leg 3 whether you ran it first or last.
+class PlannedLeg {
+  /// 1-based position in the routine's list.
+  final int slot;
+  final double targetMeters;
+
+  const PlannedLeg({required this.slot, required this.targetMeters});
+}
+
 /// A named exercise list you set up once and fill days from.
 ///
 /// Deliberately not linked to the sessions it produced. Filling a day copies
@@ -125,19 +138,32 @@ class Routine {
   double get totalTargetMeters =>
       intervals.fold(0, (sum, i) => sum + i.targetDistanceMeters);
 
-  /// How many planned legs are still to run, given [done] already logged.
+  /// Every leg of the plan, whether run or not, as slot + target.
   ///
-  /// The day's card pairs a plan with a session by *position*: the first run you
-  /// did is leg 1, the second is leg 2, and whatever's left of the plan is still
-  /// ahead of you. Nothing is stored to record that pairing — planned legs never
-  /// become `distance_intervals` rows — so this arithmetic is the whole of it.
+  /// 1-based, because that's what a run records in `plan_slot` and what the
+  /// card labels rows with.
+  List<PlannedLeg> get legs => [
+        for (var i = 0; i < intervals.length; i++)
+          PlannedLeg(
+            slot: i + 1,
+            targetMeters: intervals[i].targetDistanceMeters,
+          ),
+      ];
+
+  /// The legs still to run at or after [fromSlot], skipping any already in
+  /// [doneSlots].
   ///
-  /// Never negative. Running past the plan is ordinary: the extra legs are real
-  /// and the plan simply has nothing left to say about them.
-  int pendingLegsAfter(int done) {
-    final left = intervals.length - done;
-    return left > 0 ? left : 0;
-  }
+  /// What the tracker is handed when you tap Start on a leg: that leg first,
+  /// then whatever else remains ahead of it, so its own "add another interval"
+  /// flow keeps moving through the plan without you returning to the card.
+  ///
+  /// Forward only — tapping leg 3 does not queue up legs 1 and 2 behind it.
+  /// Going back for a leg you skipped is a deliberate act, so it stays a
+  /// deliberate tap.
+  List<PlannedLeg> legsFrom(int fromSlot, {Set<int> doneSlots = const {}}) => [
+        for (final leg in legs)
+          if (leg.slot >= fromSlot && !doneSlots.contains(leg.slot)) leg,
+      ];
 
   /// A one-line summary of what's in it, worded for whichever kind it holds.
   ///

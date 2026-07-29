@@ -218,14 +218,6 @@ class RoutineService {
 
   // ── Filling a day ───────────────────────────────────────────
 
-  /// A distance routine's targets in metres, in order — what the tracker
-  /// pre-fills leg by leg.
-  ///
-  /// Empty for a sets routine, and empty for a distance routine you left blank,
-  /// which the tracker already understands as a free run.
-  static List<double> plannedTargets(Routine routine) =>
-      [for (final i in routine.intervals) i.targetDistanceMeters];
-
   /// Where an appended exercise starts counting, given what the session already
   /// holds.
   ///
@@ -249,8 +241,9 @@ class RoutineService {
   /// **Sets disciplines only.** A distance routine has nothing this method could
   /// honestly write: `distance_intervals` rows mean runs that happened, so a
   /// planned one would sit at 0 m in 0:00 and count against the day's totals.
-  /// Its targets go to the tracker instead — see [plannedTargets] — and the run
-  /// writes the rows itself. Migration 022's header has the long version.
+  /// Its targets go to the tracker instead — see `Routine.legsFrom` — and the
+  /// run writes the rows itself, tagged with the leg it fulfilled. Migrations
+  /// 022 and 023 have the long version.
   ///
   /// Appends rather than replaces, and deliberately doesn't check for duplicates
   /// — the caller only offers this on a day with nothing logged, and second-

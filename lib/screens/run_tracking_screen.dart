@@ -39,23 +39,29 @@ class RunTrackingScreen extends StatefulWidget {
   /// screen skips setup and picks that leg up where it stopped.
   final RunBackup? resume;
 
-  /// Targets in metres from the day's routine, in order — one per planned leg.
+  /// The legs of the day's plan this run is working through, in order, starting
+  /// with the one you tapped Start on.
   ///
-  /// Pre-fills the setup field, and again after each leg finishes, so a "4 x 400
-  /// m" routine doesn't mean typing 400 four times. Nothing else changes: these
-  /// are a starting value in a text field you can still edit or ignore, and no
-  /// interval is written until it's actually run.
+  /// Each carries its slot, which the finished interval records as `plan_slot`
+  /// — that's what lets the day's card put the result back in the right row
+  /// while the legs you haven't run stay planned. Running leg 3 first is
+  /// therefore fine.
   ///
-  /// Empty for a free run, which is what a distance routine with no targets
-  /// means and what this screen has always done by default.
-  final List<double> plannedTargets;
+  /// Pre-fills the target field, and again after each leg, so "4 × 400 m"
+  /// doesn't mean typing 400 four times. Still only a starting value: the
+  /// field, the quick targets and the free-run toggle all work as usual, and
+  /// nothing is written until a leg is actually run.
+  ///
+  /// Empty for a free run — a routine that plans no targets, or no routine at
+  /// all, which is what this screen has always done by default.
+  final List<PlannedLeg> plannedLegs;
 
   const RunTrackingScreen({
     super.key,
     required this.date,
     required this.discipline,
     this.resume,
-    this.plannedTargets = const [],
+    this.plannedLegs = const [],
   });
 
   @override
@@ -130,18 +136,22 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
   /// Common targets, in metres — one tap instead of typing.
   static const _quickTargets = <double>[1000, 3000, 5000, 10000];
 
-  /// How far through [RunTrackingScreen.plannedTargets] we are.
+  /// How far through [RunTrackingScreen.plannedLegs] we are.
   ///
   /// Advances on each finished leg. Past the end the screen falls back to
   /// remembering your last target, exactly as it did before routines existed —
-  /// a plan that's run out shouldn't stop you adding another interval.
+  /// a plan that's run out shouldn't stop you adding another interval, it just
+  /// stops naming which leg you're on.
   int _plannedIndex = 0;
 
+  /// The leg the plan says we're on, or null once the plan is exhausted (or
+  /// there never was one).
+  PlannedLeg? get _plannedLeg => _plannedIndex < widget.plannedLegs.length
+      ? widget.plannedLegs[_plannedIndex]
+      : null;
+
   /// The target the plan suggests for the leg being set up, if any.
-  double? get _plannedTarget =>
-      _plannedIndex < widget.plannedTargets.length
-          ? widget.plannedTargets[_plannedIndex]
-          : null;
+  double? get _plannedTarget => _plannedLeg?.targetMeters;
 
   @override
   void initState() {
@@ -456,6 +466,11 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
     // Persist immediately, retrying on failure: this leg exists nowhere else
     // yet, and dropping it silently because the network blinked would lose the
     // run you just did.
+    // Which leg of the day's plan this was. Read before the save so a retry
+    // can't pick up a different one, and null once the plan's exhausted — an
+    // extra interval past the plan is ad-hoc and belongs to no slot.
+    final slot = _plannedLeg?.slot;
+
     String? intervalId;
     while (mounted) {
       try {
@@ -464,6 +479,7 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
           targetDistanceMeters: target,
           actualDistanceMeters: distance,
           durationSeconds: duration,
+          planSlot: slot,
         );
         break;
       } catch (e) {
@@ -480,6 +496,7 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
         actualDistanceMeters: distance,
         durationSeconds: duration,
         sortOrder: _completed.length + 1,
+        planSlot: slot,
       ));
       _justCompleted = _completed.last;
     }
@@ -567,7 +584,7 @@ class _RunTrackingScreenState extends State<RunTrackingScreen> {
       // A leg is behind us, so the plan moves on. Done here rather than when the
       // leg saves: this is the only path back to setup, and advancing anywhere
       // else would skip a target when you finish the run instead of going again.
-      if (_plannedIndex < widget.plannedTargets.length) _plannedIndex++;
+      if (_plannedIndex < widget.plannedLegs.length) _plannedIndex++;
 
       // The plan wins while it lasts, then it's back to repeating your last
       // target — which is what this did before routines existed.

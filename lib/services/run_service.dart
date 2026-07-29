@@ -16,7 +16,7 @@ class RunService {
   static const _intervalCols =
       'interval_id, session_id, target_distance_meters, '
       'actual_distance_meters, duration_seconds, logged_manually, '
-      'sort_order, created_at';
+      'sort_order, plan_slot, created_at';
 
   // ── Intervals ───────────────────────────────────────────────
 
@@ -36,12 +36,18 @@ class RunService {
   /// finished running and has no reliable idea what else is already in the
   /// session, which is exactly the mistake `createWorkoutExercise` was written
   /// to stop making for exercises.
+  ///
+  /// [planSlot] is the opposite case and *is* passed in: only the caller knows
+  /// which leg of the day's plan it set out to run, and that is not derivable
+  /// from what the session already holds — you can run leg 3 before leg 1. Null
+  /// for an ad-hoc run, which is the ordinary case.
   static Future<String> addInterval(
     String sessionId, {
     double? targetDistanceMeters,
     required double actualDistanceMeters,
     required int durationSeconds,
     bool loggedManually = false,
+    int? planSlot,
   }) async {
     final order = await _nextSortOrder(sessionId);
 
@@ -54,6 +60,7 @@ class RunService {
           'duration_seconds': durationSeconds,
           'logged_manually': loggedManually,
           'sort_order': order,
+          'plan_slot': planSlot,
         })
         .select('interval_id')
         .single();

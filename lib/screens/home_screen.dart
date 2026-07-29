@@ -933,7 +933,9 @@ class _TodayTabState extends State<_TodayTab> {
           builder: (_) => RunTrackingScreen(
             date: _selectedDate,
             discipline: d,
-            plannedTargets: RoutineService.plannedTargets(routine),
+            // From the top: this path only fires on a day with nothing run,
+            // so every leg is still ahead.
+            plannedLegs: routine.legs,
           ),
         ),
       );
@@ -964,19 +966,22 @@ class _TodayTabState extends State<_TodayTab> {
     }
   }
 
-  /// Runs the planned leg at [from], carrying the rest of the plan with it.
+  /// Runs planned leg [slot], carrying whatever's still ahead of it.
   ///
-  /// The tracker gets the targets from this point on, not just the one — so
-  /// once you're in there its own "add another interval" flow keeps pre-filling
-  /// correctly and you needn't come back to this card between reps. Coming back
-  /// is offered, not required: whichever legs got run are on the card when you
-  /// return, and the next one is startable again.
+  /// The tracker gets that leg and every unrun one after it, so its own "add
+  /// another interval" flow keeps moving through the plan and you needn't come
+  /// back here between reps. Coming back is offered, not required — whichever
+  /// legs got run show their results when you return, and the rest are still
+  /// there waiting, each with its own Start.
+  ///
+  /// Legs already run are left out of the queue, and legs *before* [slot] are
+  /// too: going back for one you skipped stays a deliberate tap on its row.
   Future<void> _startPlannedLeg(
-      Discipline d, Routine? routine, int from) async {
-    final all = routine == null
-        ? const <double>[]
-        : RoutineService.plannedTargets(routine);
-    final remaining = from < all.length ? all.sublist(from) : const <double>[];
+      Discipline d, Routine? routine, int slot) async {
+    final done = {
+      for (final i in _intervalsFor(_sessionFor(d.key)))
+        if (i.planSlot != null) i.planSlot!,
+    };
 
     final saved = await Navigator.push<bool>(
       context,
@@ -984,7 +989,7 @@ class _TodayTabState extends State<_TodayTab> {
         builder: (_) => RunTrackingScreen(
           date: _selectedDate,
           discipline: d,
-          plannedTargets: remaining,
+          plannedLegs: routine?.legsFrom(slot, doneSlots: done) ?? const [],
         ),
       ),
     );
@@ -1870,14 +1875,33 @@ class _RunCard extends StatelessWidget {
     required this.onStartLeg,
   });
 
-  /// The planned legs in metres, in order. Empty when no routine is scheduled,
-  /// or when the routine deliberately plans nothing — "just go for a run".
-  List<double> get _planned =>
-      [for (final i in routine?.intervals ?? const <RoutineInterval>[])
-        i.targetDistanceMeters];
+  /// The day's planned legs, run or not. Empty when no routine is scheduled, or
+  /// when the routine deliberately plans nothing — "just go for a run".
+  List<PlannedLeg> get _planned => routine?.legs ?? const [];
 
-  /// How many rows the plan adds beyond what's been run.
-  int get _pendingCount => routine?.pendingLegsAfter(intervals.length) ?? 0;
+  /// The run that filled a given plan slot, if one has.
+  ///
+  /// This is what makes a leg's result land back in its own row: a run started
+  /// from leg 3 recorded a 3, so it shows in leg 3's place while 1, 2 and 4 stay
+  /// planned. Takes the first match — two runs claiming a slot is a state the UI
+  /// can't produce, since a filled slot shows its log rather than a Start.
+  DistanceInterval? _runFor(int slot) {
+    for (final i in intervals) {
+      if (i.planSlot == slot) return i;
+    }
+    return null;
+  }
+
+  /// Runs that answer to no planned leg: logged manually, tracked on a day with
+  /// no routine, or an extra leg past the plan. Listed after the planned block,
+  /// unnumbered — they're real, the plan just has nothing to say about them.
+  List<DistanceInterval> get _unplanned {
+    final slots = {for (final leg in _planned) leg.slot};
+    return [
+      for (final i in intervals)
+        if (i.planSlot == null || !slots.contains(i.planSlot)) i,
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1971,61 +1995,69 @@ class _RunCard extends StatelessWidget {
                       ),
                     ),
                   )
-                : (intervals.isEmpty && _pendingCount == 0)
+                : (intervals.isEmpty && _planned.isEmpty)
                     ? _EmptyState(
                         message: isFutureDay(date)
                             ? kNotYetHint
                             : 'No runs logged for this day.\n'
                                 'Tap "Add a run" below to put one in.')
-                    : ListView.builder(
+                    : ListView(
                         padding: const EdgeInsets.symmetric(
                             vertical: LiftrSpacing.x6),
-                        // Done legs, then the plan's remaining ones, then the
-                        // totals — which only earn a line once there's more
-                        // than one run to total.
-                        itemCount: intervals.length +
-                            _pendingCount +
-                            (intervals.length > 1 ? 1 : 0),
-                        itemBuilder: (_, i) {
-                          if (i < intervals.length) {
-                            return _IntervalRow(
-                              interval: intervals[i],
+                        children: [
+                          // The plan, in its own order. Each leg shows its run
+                          // if it has one and a Start if it doesn't — so a
+                          // finished leg replaces its own planned row and the
+                          // rest carry on waiting.
+                          for (final leg in _planned)
+                            _legRow(leg),
+
+                          // Then anything the plan didn't ask for.
+                          for (final extra in _unplanned)
+                            _IntervalRow(
+                              interval: extra,
                               emoji: discipline.emoji,
-                              // Numbered only when there's a plan to be a
-                              // number within.
-                              legNumber: _planned.isEmpty ? null : i + 1,
-                              // Falls back to the discipline rather than showing
-                              // an empty title if a session somehow has no name.
-                              name: session?.name?.trim().isNotEmpty == true
-                                  ? session!.name!
-                                  : discipline.label,
-                              onTap: () => onOpenInterval(intervals[i]),
-                            );
-                          }
+                              legNumber: null,
+                              name: _rowName,
+                              onTap: () => onOpenInterval(extra),
+                            ),
 
-                          final planIndex = i - intervals.length;
-                          if (planIndex < _pendingCount) {
-                            final target = _planned[intervals.length + planIndex];
-                            return _PlannedLegRow(
-                              legNumber: intervals.length + planIndex + 1,
-                              targetMeters: target,
-                              // Only the next one up is startable. Positions are
-                              // how a done leg pairs with a planned one, so
-                              // letting you jump to leg 4 would file it as leg 3
-                              // the moment it saved. "Start the next one" is
-                              // also how you'd actually do it.
-                              onStart: (planIndex == 0 && onStartLeg != null)
-                                  ? () => onStartLeg!(intervals.length)
-                                  : null,
-                            );
-                          }
-
-                          return _totalsRow(lt, totals);
-                        },
+                          if (intervals.length > 1) _totalsRow(lt, totals),
+                        ],
                       ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Falls back to the discipline rather than showing an empty title if a
+  /// session somehow has no name.
+  String get _rowName => session?.name?.trim().isNotEmpty == true
+      ? session!.name!
+      : discipline.label;
+
+  /// One leg of the plan: what you ran, or an offer to run it.
+  Widget _legRow(PlannedLeg leg) {
+    final run = _runFor(leg.slot);
+    if (run != null) {
+      return _IntervalRow(
+        interval: run,
+        emoji: discipline.emoji,
+        legNumber: leg.slot,
+        name: _rowName,
+        onTap: () => onOpenInterval(run),
+      );
+    }
+
+    return _PlannedLegRow(
+      legNumber: leg.slot,
+      targetMeters: leg.targetMeters,
+      // Every unrun leg is startable, not just the next one. The run records
+      // which slot it was, so leg 3 stays leg 3 whether you run it first or
+      // last — nothing here depends on doing them in order.
+      onStart:
+          onStartLeg == null ? null : () => onStartLeg!(leg.slot),
     );
   }
 
@@ -2060,7 +2092,8 @@ class _PlannedLegRow extends StatelessWidget {
   final int legNumber;
   final double targetMeters;
 
-  /// Null for every leg but the next one up, and on days you can't run.
+  /// Null only on days you can't run — a day gone by, or one that hasn't
+  /// happened. Every unrun leg of a runnable day offers to start.
   final VoidCallback? onStart;
 
   const _PlannedLegRow({
@@ -2072,22 +2105,22 @@ class _PlannedLegRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
-    final isNext = onStart != null;
+    final runnable = onStart != null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
           horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
       child: Row(
         children: [
-          // A hollow tile against the done legs' filled one: the difference
-          // between the two states should be visible down the left edge without
-          // reading a word of it.
+          // A hollow numbered tile against the done legs' filled emoji one: the
+          // difference between "run" and "still to run" should be visible down
+          // the left edge without reading a word of it.
           Container(
             width: 34,
             height: 34,
             decoration: BoxDecoration(
               border: Border.all(
-                color: isNext ? lt.accentBorder : lt.border,
+                color: runnable ? lt.accentBorder : lt.border,
                 width: LiftrBorders.hairline,
               ),
               borderRadius: BorderRadius.circular(LiftrRadii.control),
@@ -2098,7 +2131,7 @@ class _PlannedLegRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: LiftrType.x13,
                   fontWeight: FontWeight.w500,
-                  color: isNext ? lt.accentMid : lt.textDim,
+                  color: runnable ? lt.accentMid : lt.textDim,
                 ),
               ),
             ),
@@ -2113,19 +2146,19 @@ class _PlannedLegRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: LiftrType.x13,
                     fontWeight: FontWeight.w500,
-                    color: isNext ? lt.textPrimary : lt.textDim,
+                    color: runnable ? lt.textPrimary : lt.textDim,
                   ),
                 ),
                 const SizedBox(height: LiftrSpacing.x2),
                 Text(
-                  isNext ? 'Up next' : 'Planned',
+                  'Not run yet',
                   style:
                       TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
                 ),
               ],
             ),
           ),
-          if (isNext)
+          if (runnable)
             GestureDetector(
               onTap: onStart,
               behavior: HitTestBehavior.opaque,

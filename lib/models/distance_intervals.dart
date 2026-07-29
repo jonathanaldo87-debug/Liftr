@@ -23,6 +23,20 @@ class DistanceInterval {
   final bool loggedManually;
 
   final int sortOrder;
+
+  /// Which leg of the day's planned routine this run fulfilled, 1-based.
+  ///
+  /// Null for an ad-hoc run: logged manually, tracked on a day with no routine,
+  /// or an extra leg past what was planned. Those are perfectly ordinary — they
+  /// just have no leg number to sit under.
+  ///
+  /// Deliberately a bare number, not a reference to a `routine_intervals` row.
+  /// The routine editor saves by replacing its rows, so a foreign key would go
+  /// stale the first time you edited the routine; and it keeps the rule that
+  /// nothing a session holds points at a routine. This records which leg *of
+  /// that day's plan* the run was, not which routine caused it.
+  final int? planSlot;
+
   final DateTime? createdAt;
 
   const DistanceInterval({
@@ -33,6 +47,7 @@ class DistanceInterval {
     this.durationSeconds = 0,
     this.loggedManually = false,
     this.sortOrder = 1,
+    this.planSlot,
     this.createdAt,
   });
 
@@ -58,6 +73,7 @@ class DistanceInterval {
         durationSeconds: (j['duration_seconds'] as num?)?.toInt() ?? 0,
         loggedManually: j['logged_manually'] as bool? ?? false,
         sortOrder: (j['sort_order'] as num?)?.toInt() ?? 1,
+        planSlot: (j['plan_slot'] as num?)?.toInt(),
         createdAt: j['created_at'] == null
             ? null
             : DateTime.parse(j['created_at'] as String),
