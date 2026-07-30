@@ -21,8 +21,12 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # Flags a BuildContext used after an await. Worth having on, but note it
+    # treats a `mounted` check as sufficient, so it will NOT catch every
+    # "Looking up a deactivated widget's ancestor is unsafe" -- between
+    # deactivate() and dispose(), mounted is still true while ancestor lookups
+    # already throw.
+    use_build_context_synchronously: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

@@ -100,24 +100,18 @@ class AccentChip extends StatelessWidget {
   }
 }
 
-/// One entry in a [ThreeDotMenu].
 class MenuAction {
   final String label;
   final VoidCallback onTap;
 
-  /// Renders in the danger colour. For the actions you can't take back.
   final bool isDanger;
 
   const MenuAction(this.label, this.onTap, {this.isDanger = false});
 }
 
 class ThreeDotMenu extends StatelessWidget {
-  /// What the menu offers, in order. Nulls are filtered by the caller, so an
-  /// action listed here always has somewhere to go.
   final List<MenuAction> actions;
 
-  /// Sits the dots in a bordered square, the way a card header's control does.
-  /// Inline rows leave it false so the dots stay quiet beside their content.
   final bool boxed;
 
   const ThreeDotMenu({

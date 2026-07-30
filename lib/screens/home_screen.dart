@@ -13,6 +13,7 @@ import '../theme/widgets.dart';
 import '../utils/dates.dart';
 import '../utils/format.dart';
 import '../utils/run_math.dart';
+import '../utils/swipe.dart';
 import 'add_exercise_screen.dart';
 import 'add_run_screen.dart';
 import 'exercise_detail_screen.dart';
@@ -120,6 +121,12 @@ class _TodayTabState extends State<_TodayTab> {
   Map<String, List<DistanceInterval>> _runsBySession = {};
 
   Set<String> _sessionDates = {};
+
+  late DateTime _visibleMonth =
+      DateTime(widget.initialDate.year, widget.initialDate.month);
+  DateTime? _datesFrom;
+  DateTime? _datesTo;
+  int _datesRequest = 0;
 
   WeeklySchedule _schedule = {};
 
@@ -239,7 +246,7 @@ class _TodayTabState extends State<_TodayTab> {
         });
       }
 
-      await _loadSessionDates(_selectedDate);
+      await _loadSessionDates(_visibleMonth, force: true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -255,18 +262,35 @@ class _TodayTabState extends State<_TodayTab> {
   void _onDateSelected(DateTime d) {
     setState(() {
       _selectedDate = d;
+      _visibleMonth = DateTime(d.year, d.month);
       _relock();
     });
     widget.onDateChanged(d);
     _loadData();
   }
 
-  Future<void> _loadSessionDates(DateTime around) async {
-    final dates = await WorkoutService.getSessionDates(
-      DateTime(around.year, around.month - 2),
-      DateTime(around.year, around.month + 3, 0),
-    );
-    if (mounted) setState(() => _sessionDates = dates);
+  Future<void> _loadSessionDates(DateTime around, {bool force = false}) async {
+    final needed = DateTime(around.year, around.month);
+    _visibleMonth = needed;
+
+    final covered = _datesFrom != null &&
+        _datesTo != null &&
+        !needed.isBefore(_datesFrom!) &&
+        !needed.isAfter(_datesTo!);
+    if (covered && !force) return;
+
+    final from = DateTime(needed.year, needed.month - 2);
+    final to = DateTime(needed.year, needed.month + 3, 0);
+
+    final token = ++_datesRequest;
+    final dates = await WorkoutService.getSessionDates(from, to);
+    if (!mounted || token != _datesRequest) return;
+
+    setState(() {
+      _sessionDates = dates;
+      _datesFrom = from;
+      _datesTo = to;
+    });
   }
 
   bool _hasWorkout(DateTime d) => _sessionDates.contains(_key(d));
@@ -672,13 +696,10 @@ class _TodayTabState extends State<_TodayTab> {
             hasWorkout: _hasWorkout,
             onVisibleMonthChanged: _loadSessionDates,
           ),
-          const SizedBox(height: LiftrSpacing.x12),
-          _DisciplineChips(
+          const SizedBox(height: LiftrSpacing.x4),
+          _DisciplineFilter(
             disciplines: _disciplines,
             selected: _selectedDiscipline,
-            // A filter row earns its space only once there's more than one
-            // thing on the day to filter between.
-            showFullRow: _sessions.length >= 2,
             onSelect: (key) => setState(() {
               _selectedDiscipline = key;
               _relock();
@@ -906,40 +927,91 @@ class _TodayTabState extends State<_TodayTab> {
   String _formattedFullDate(DateTime d) => weekdayDate(d);
 }
 
-class _DisciplineChips extends StatelessWidget {
+class _DisciplineFilter extends StatelessWidget {
   final List<Discipline> disciplines;
 
   final String? selected;
   final ValueChanged<String?> onSelect;
 
-  /// Whether the day has enough going on to be worth a whole row of chips.
-  ///
-  /// Most days hold one session, and a scrolling filter row over one thing is
-  /// noise. The pill still gets you anywhere the row could.
-  final bool showFullRow;
-
-  const _DisciplineChips({
+  const _DisciplineFilter({
     required this.disciplines,
     required this.selected,
     required this.onSelect,
-    required this.showFullRow,
   });
 
-  static const _maxVisible = 3;
+  static const _maxSegments = 4;
 
   @override
   Widget build(BuildContext context) {
-    if (disciplines.isEmpty) return const SizedBox.shrink();
-
-    // Nothing to filter between.
     if (disciplines.length < 2) return const SizedBox.shrink();
 
-    if (!showFullRow) return _pill(context);
+    final lt = context.lt;
+    if (disciplines.length + 1 > _maxSegments) {
+      return _scrollingRow(context, lt);
+    }
 
-    final overflows = disciplines.length > _maxVisible;
-    var visible = overflows
-        ? disciplines.take(_maxVisible - 1).toList()
-        : List<Discipline>.from(disciplines);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
+      child: Container(
+        padding: const EdgeInsets.all(LiftrSpacing.x3),
+        decoration: BoxDecoration(
+          color: lt.card,
+          border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+          borderRadius: BorderRadius.circular(LiftrRadii.panel),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: _segment(lt, null, null, 'All')),
+            for (final d in disciplines)
+              Expanded(child: _segment(lt, d.key, d.emoji, d.label)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _segment(LiftrTheme lt, String? key, String? emoji, String label) {
+    final isSelected = selected == key;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onSelect(key),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(vertical: LiftrSpacing.x8),
+        decoration: BoxDecoration(
+          color: isSelected ? LiftrColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(LiftrRadii.panel),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (emoji != null) ...[
+              Text(emoji, style: const TextStyle(fontSize: LiftrType.x12)),
+              const SizedBox(width: LiftrSpacing.x4),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: LiftrType.x13,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                  color: isSelected ? LiftrColors.accentText : lt.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _scrollingRow(BuildContext context, LiftrTheme lt) {
+    var visible = disciplines.take(_maxSegments - 2).toList();
     var hidden = disciplines.where((d) => !visible.contains(d)).toList();
 
     if (selected != null && !visible.any((d) => d.key == selected)) {
@@ -951,7 +1023,7 @@ class _DisciplineChips extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 34,
+      height: 36,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
@@ -973,9 +1045,9 @@ class _DisciplineChips extends StatelessWidget {
           if (hidden.isNotEmpty) ...[
             const SizedBox(width: LiftrSpacing.x6),
             _Chip(
-              label: 'Other',
+              label: 'More',
               trailing: Icons.expand_more,
-              isSelected: false,
+              isSelected: hidden.any((d) => d.key == selected),
               onTap: () => _pickDiscipline(context),
             ),
           ],
@@ -984,31 +1056,6 @@ class _DisciplineChips extends StatelessWidget {
     );
   }
 
-  /// The quiet form: what you're looking at, and a way to change it.
-  Widget _pill(BuildContext context) {
-    final current = selected == null
-        ? null
-        : disciplines.firstWhere((d) => d.key == selected,
-            orElse: () =>
-                Discipline(key: selected!, label: selected!, emoji: '•'));
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
-        child: _Chip(
-          label: current?.label ?? 'All',
-          emoji: current?.emoji,
-          trailing: Icons.expand_more,
-          isSelected: false,
-          onTap: () => _pickDiscipline(context),
-        ),
-      ),
-    );
-  }
-
-  /// Every lens on offer, All included -- the pill has no row behind it to fall
-  /// back on, so the sheet has to be complete.
   Future<void> _pickDiscipline(BuildContext context) async {
     final lt = context.lt;
     final picked = await showModalBottomSheet<String>(
@@ -1053,7 +1100,6 @@ class _DisciplineChips extends StatelessWidget {
       ),
     );
 
-    // Null is "dismissed"; All needs a value of its own to be distinguishable.
     if (picked == null) return;
     onSelect(picked == _allSentinel ? null : picked);
   }
@@ -1925,17 +1971,72 @@ class _CalendarStrip extends StatefulWidget {
   State<_CalendarStrip> createState() => _CalendarStripState();
 }
 
-class _CalendarStripState extends State<_CalendarStrip> {
+class _CalendarStripState extends State<_CalendarStrip>
+    with SingleTickerProviderStateMixin {
   late DateTime _weekStart = _getWeekStart(widget.selectedDate);
 
   late DateTime _month = _firstOfMonth(widget.selectedDate);
 
   bool _expanded = false;
 
+  late final AnimationController _settle;
+
+  double _offset = 0;
+  double _settleFrom = 0;
+  double _settleTo = 0;
+  int _pendingShift = 0;
+
+  double _viewportWidth = 0;
+
+  double _dragDx = 0;
+  double _dragDy = 0;
+
+  int _slideDir = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _settle = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    )..addListener(_onSettle);
+  }
+
+  @override
+  void dispose() {
+    _settle.dispose();
+    super.dispose();
+  }
+
+  void _onSettle() {
+    setState(() {
+      _offset = _settleFrom + (_settleTo - _settleFrom) * _settle.value;
+    });
+
+    if (_settle.isCompleted) {
+      final shift = _pendingShift;
+      _pendingShift = 0;
+      _offset = 0;
+      if (shift != 0) _shift(shift);
+    }
+  }
+
+  void _animateTo(double target, {int commit = 0}) {
+    _settleFrom = _offset;
+    _settleTo = target;
+    _pendingShift = commit;
+    _settle
+      ..value = 0
+      ..forward();
+  }
+
   @override
   void didUpdateWidget(covariant _CalendarStrip old) {
     super.didUpdateWidget(old);
     if (old.selectedDate != widget.selectedDate) {
+      _settle.stop();
+      _pendingShift = 0;
+      _offset = 0;
       _weekStart = _getWeekStart(widget.selectedDate);
       _month = _firstOfMonth(widget.selectedDate);
     }
@@ -1947,7 +2048,10 @@ class _CalendarStripState extends State<_CalendarStrip> {
   static DateTime _firstOfMonth(DateTime d) => DateTime(d.year, d.month);
 
   void _toggle() {
+    _settle.stop();
     setState(() {
+      _offset = 0;
+      _pendingShift = 0;
       _expanded = !_expanded;
       if (_expanded) {
         _month = _firstOfMonth(_weekStart);
@@ -1958,8 +2062,13 @@ class _CalendarStripState extends State<_CalendarStrip> {
     widget.onVisibleMonthChanged(_expanded ? _month : _weekStart);
   }
 
+  void _setExpanded(bool value) {
+    if (value != _expanded) _toggle();
+  }
+
   void _shift(int delta) {
     setState(() {
+      _slideDir = delta;
       if (_expanded) {
         _month = DateTime(_month.year, _month.month + delta);
       } else {
@@ -1967,6 +2076,33 @@ class _CalendarStripState extends State<_CalendarStrip> {
       }
     });
     widget.onVisibleMonthChanged(_expanded ? _month : _weekStart);
+  }
+
+  void _onWeekDragStart() {
+    _settle.stop();
+    _pendingShift = 0;
+    _dragDx = _offset;
+  }
+
+  void _onWeekDragUpdate(double dx) {
+    _dragDx += dx;
+    setState(() => _offset = _dragDx);
+  }
+
+  void _onWeekDragEnd(double velocity) {
+    final w = _viewportWidth;
+    final snap = carouselSnap(velocity: velocity, offset: _offset, width: w);
+
+    if (snap == null) {
+      _animateTo(0);
+      return;
+    }
+    _animateTo(snap > 0 ? -w : w, commit: snap);
+  }
+
+  void _onMonthDragEnd(double velocity) {
+    final dir = swipeDirection(velocity: velocity, delta: _dragDx);
+    if (dir != null) _shift(dir < 0 ? 1 : -1);
   }
 
   @override
@@ -1977,64 +2113,86 @@ class _CalendarStripState extends State<_CalendarStrip> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
       child: GestureDetector(
-        // Paging is a swipe now rather than two buttons. The day cells keep
-        // their own taps — a horizontal drag and a tap are different gestures,
-        // so they don't compete.
-        onHorizontalDragEnd: (details) {
-          final v = details.primaryVelocity;
-          if (v == null) return;
-          if (v < 0) {
-            _shift(1);
-          } else if (v > 0) {
-            _shift(-1);
+        onHorizontalDragStart: (_) {
+          if (_expanded) {
+            _dragDx = 0;
+          } else {
+            _onWeekDragStart();
           }
+        },
+        onHorizontalDragUpdate: (d) {
+          if (_expanded) {
+            _dragDx += d.delta.dx;
+          } else {
+            _onWeekDragUpdate(d.delta.dx);
+          }
+        },
+        onHorizontalDragEnd: (d) {
+          final v = d.primaryVelocity ?? 0;
+          if (_expanded) {
+            _onMonthDragEnd(v);
+          } else {
+            _onWeekDragEnd(v);
+          }
+        },
+        onVerticalDragStart: (_) => _dragDy = 0,
+        onVerticalDragUpdate: (d) => _dragDy += d.delta.dy,
+        onVerticalDragEnd: (d) {
+          final dir = swipeDirection(
+            velocity: d.primaryVelocity ?? 0,
+            delta: _dragDy,
+          );
+          if (dir != null) _setExpanded(dir > 0);
         },
         child: Column(
           children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: _toggle,
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    children: [
-                      Text(
-                        monthYear(label),
-                        style: TextStyle(
-                          fontSize: LiftrType.x13,
-                          fontWeight: FontWeight.w500,
-                          color: lt.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: LiftrSpacing.x4),
-                      AnimatedRotation(
-                        turns: _expanded ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(Icons.expand_more,
-                            size: 18, color: lt.textSecondary),
-                      ),
-                    ],
+            GestureDetector(
+              onTap: _toggle,
+              behavior: HitTestBehavior.opaque,
+              child: Row(
+                children: [
+                  Text(
+                    monthYear(label),
+                    style: TextStyle(
+                      fontSize: LiftrType.x13,
+                      fontWeight: FontWeight.w500,
+                      color: lt.textPrimary,
+                    ),
                   ),
-                ),
-                const Spacer(),
-                // A gesture leaves nothing on screen to discover it by, so the
-                // hint stands in for the buttons it replaced.
-                Text(
-                  '‹ swipe ›',
-                  style: TextStyle(
-                    fontSize: LiftrType.x11,
-                    fontWeight: FontWeight.w400,
-                    color: lt.textDim,
+                  const Spacer(),
+                  Text(
+                    '‹ swipe ›',
+                    style: TextStyle(
+                      fontSize: LiftrType.x11,
+                      fontWeight: FontWeight.w400,
+                      color: lt.textDim,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: LiftrSpacing.x12),
             AnimatedSize(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
-              child: _expanded ? _monthGrid(lt) : _weekRow(lt),
+              child: _expanded ? _monthPager(lt) : _weekCarousel(lt),
+            ),
+            GestureDetector(
+              onTap: _toggle,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: LiftrSpacing.x8, horizontal: LiftrSpacing.x32),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: lt.border,
+                    borderRadius: BorderRadius.circular(LiftrRadii.pip),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -2042,12 +2200,78 @@ class _CalendarStripState extends State<_CalendarStrip> {
     );
   }
 
-  Widget _weekRow(LiftrTheme lt) {
+  Widget _weekCarousel(LiftrTheme lt) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        if (w != _viewportWidth) {
+          _viewportWidth = w;
+        }
+
+        return ClipRect(
+          child: Stack(
+            children: [
+              IgnorePointer(
+                child: Opacity(
+                  opacity: 0,
+                  child: _weekRowFor(lt, _weekStart),
+                ),
+              ),
+              Positioned(
+                left: _offset - w,
+                top: 0,
+                width: w * 3,
+                child: Row(
+                  children: [
+                    for (final start in [
+                      _weekStart.subtract(const Duration(days: 7)),
+                      _weekStart,
+                      _weekStart.add(const Duration(days: 7)),
+                    ])
+                      SizedBox(width: w, child: _weekRowFor(lt, start)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _monthPager(LiftrTheme lt) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.topCenter,
+        children: [...previous, if (current != null) current],
+      ),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: Offset(_slideDir * 0.12, 0),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+      child: KeyedSubtree(
+        key: ValueKey('${_month.year}-${_month.month}'),
+        child: _monthGrid(lt),
+      ),
+    );
+  }
+
+  Widget _weekRowFor(LiftrTheme lt, DateTime weekStart) {
     return Row(
       children: List.generate(7, (i) {
-        final day = _weekStart.add(Duration(days: i));
+        final day = weekStart.add(Duration(days: i));
         return Expanded(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 kWeekdaysUpper[i],
@@ -2267,7 +2491,6 @@ class _CardHeader extends StatelessWidget {
   final DateTime date;
   final String title;
 
-  /// Dimmed when the title stands in for a session that doesn't exist yet.
   final bool isPlaceholder;
 
   final String? badge;
@@ -2275,9 +2498,6 @@ class _CardHeader extends StatelessWidget {
   final bool isEditable;
   final VoidCallback? onToggleEdit;
 
-  /// Puts the day's routine into this session. Null when no routine is
-  /// scheduled — which is why this lives in the menu rather than as a button:
-  /// most days it isn't there at all.
   final VoidCallback? onFillRoutine;
 
   final VoidCallback? onDelete;
@@ -2343,12 +2563,6 @@ class _CardHeader extends StatelessWidget {
     );
   }
 
-  /// Everything you can do to this session, in one place.
-  ///
-  /// The EDIT chip used to sit beside the menu doing exactly one of these; two
-  /// permanent controls for a card whose usual state needs neither is what this
-  /// collapses. Built from whichever callbacks the card actually passed, so an
-  /// entry here always goes somewhere.
   List<MenuAction> get _actions => [
         if (onToggleEdit != null)
           MenuAction(isEditable ? 'Done editing' : 'Edit sets', onToggleEdit!),

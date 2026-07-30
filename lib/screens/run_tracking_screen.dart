@@ -930,10 +930,16 @@ class _AcquiringView extends StatefulWidget {
 
 class _AcquiringViewState extends State<_AcquiringView>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat(reverse: true);
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
