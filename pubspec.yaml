@@ -16,6 +16,7 @@ dependencies:
   vibration: ^3.2.0                # haptic buzz when a target distance is hit
   wakelock_plus: ^1.6.1            # keep the screen on while a run is timing
   flutter_local_notifications: ^22.1.0  # persistent "run in progress" notification
+  timezone: ^0.11.1                # zonedSchedule needs a TZDateTime for the rest alarm
   # Add later as needed:
   # provider: ^6.1.0          # State management
   # go_router: ^12.0.0        # Navigation

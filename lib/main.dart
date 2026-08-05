@@ -7,6 +7,7 @@ import 'screens/onboarding_screen.dart';
 import 'services/auth_service.dart';
 import 'services/prefs.dart';
 import 'theme/app_theme.dart';
+import 'widgets/rest_timer_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +60,8 @@ class LiftrAppState extends State<LiftrApp> {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: _themeMode,
+      builder: (context, child) =>
+          child == null ? const SizedBox.shrink() : RestTimerHost(child: child),
       home: landingScreen(),
     );
   }

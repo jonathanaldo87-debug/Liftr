@@ -112,6 +112,23 @@ class _ProfileTabState extends State<ProfileTab> {
   Future<void> _confirmSignOut() =>
       confirmAndSignOut(context, widget.onSignOut);
 
+  Future<void> _setRestAutoStart(bool value) async {
+    await Prefs.setRestAutoStart(value);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _pickRestDuration() async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _RestDurationSheet(current: Prefs.restSeconds),
+    );
+    if (picked == null) return;
+
+    await Prefs.setRestSeconds(picked);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _openUpgradeSheet() async {
     final upgraded = await openUpgradeSheet(context);
     if (upgraded && mounted) setState(() {});
@@ -290,6 +307,70 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
           const SizedBox(height: LiftrSpacing.x20),
 
+          const SectionLabel('Rest timer'),
+          const SizedBox(height: LiftrSpacing.x8),
+          Container(
+            decoration: BoxDecoration(
+              color: lt.surface,
+              border: Border.all(
+                  color: lt.borderSubtle, width: LiftrBorders.hairline),
+              borderRadius: BorderRadius.circular(LiftrRadii.card),
+            ),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  value: Prefs.restAutoStart,
+                  onChanged: _setRestAutoStart,
+                  activeThumbColor: LiftrColors.accentText,
+                  activeTrackColor: LiftrColors.accent,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
+                  title: Text(
+                    'Start after every set',
+                    style: TextStyle(
+                        fontSize: LiftrType.x14, color: lt.textPrimary),
+                  ),
+                  subtitle: Text(
+                    Prefs.restAutoStart
+                        ? 'Counts down as soon as a set is logged'
+                        : 'Rest is never timed',
+                    style:
+                        TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                  ),
+                  secondary: Icon(Icons.timer_outlined,
+                      size: 20, color: lt.textSecondary),
+                ),
+                const Divider(),
+                ListTile(
+                  onTap: _pickRestDuration,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x2),
+                  leading: Icon(Icons.hourglass_empty,
+                      size: 20, color: lt.textSecondary),
+                  title: Text(
+                    'Rest length',
+                    style: TextStyle(
+                        fontSize: LiftrType.x14, color: lt.textPrimary),
+                  ),
+                  subtitle: Text(
+                    'Buzzes when it runs out, without making a sound',
+                    style:
+                        TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
+                  ),
+                  trailing: Text(
+                    restLengthLabel(Prefs.restSeconds),
+                    style: TextStyle(
+                      fontSize: LiftrType.x14,
+                      fontWeight: FontWeight.w500,
+                      color: lt.accentStrong,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: LiftrSpacing.x20),
+
           const SectionLabel('Session'),
           const SizedBox(height: LiftrSpacing.x8),
           Container(
@@ -326,6 +407,88 @@ class _ProfileTabState extends State<ProfileTab> {
                 style: TextStyle(fontSize: LiftrType.x12, color: lt.textDim)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+String restLengthLabel(int seconds) {
+  if (seconds < 60) return '$seconds sec';
+
+  final minutes = seconds ~/ 60;
+  final rest = seconds % 60;
+  final head = '$minutes min';
+  return rest == 0 ? head : '$head $rest sec';
+}
+
+class _RestDurationSheet extends StatelessWidget {
+  final int current;
+
+  const _RestDurationSheet({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    final lt = context.lt;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: lt.surface,
+        borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(LiftrRadii.sheet)),
+        border: Border.all(color: lt.border, width: LiftrBorders.hairline),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
+              child: Text(
+                'Rest length',
+                style: Theme.of(context).textTheme.displaySmall,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+              child: Text(
+                'How long to count down after each set you log.',
+                style: TextStyle(fontSize: LiftrType.x12, color: lt.textMuted),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: LiftrSpacing.x8),
+                children: [
+                  for (final seconds in Prefs.restPresets)
+                    ListTile(
+                      onTap: () => Navigator.pop(context, seconds),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: LiftrSpacing.x18),
+                      title: Text(
+                        restLengthLabel(seconds),
+                        style: TextStyle(
+                          fontSize: LiftrType.x14,
+                          fontWeight: seconds == current
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: seconds == current
+                              ? lt.accentStrong
+                              : lt.textPrimary,
+                        ),
+                      ),
+                      trailing: seconds == current
+                          ? Icon(Icons.check,
+                              size: 18, color: lt.accentStrong)
+                          : null,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

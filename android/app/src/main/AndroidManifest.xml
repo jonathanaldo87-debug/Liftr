@@ -22,6 +22,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
 
+    <!-- The rest timer's "rest over" buzz is an AlarmManager alarm, not a Dart
+         timer, so it still fires with the app asleep. USE_EXACT_ALARM is granted
+         at install and is what Android 14+ wants from a timer; SCHEDULE_EXACT_ALARM
+         covers 12/13. RestNotification falls back to an inexact alarm if neither
+         is available, so losing them delays the buzz rather than dropping it. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+
     <application
         android:label="liftr"
         android:name="${applicationName}"

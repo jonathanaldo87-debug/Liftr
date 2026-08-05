@@ -8,6 +8,10 @@ class Prefs {
   static const _seenOnboarding = 'seen_onboarding';
   static const _disciplines = 'enabled_disciplines';
   static const _darkMode = 'dark_mode';
+  static const _restSeconds = 'rest_seconds';
+  static const _restAutoStart = 'rest_auto_start';
+
+  static const restPresets = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 
   static Future<void> init() async {
     _p = await SharedPreferences.getInstance();
@@ -24,6 +28,16 @@ class Prefs {
   static bool get isDarkMode => _p.getBool(_darkMode) ?? true;
 
   static Future<void> setDarkMode(bool value) => _p.setBool(_darkMode, value);
+
+  static int get restSeconds => _p.getInt(_restSeconds) ?? 90;
+
+  static Future<void> setRestSeconds(int value) =>
+      _p.setInt(_restSeconds, value);
+
+  static bool get restAutoStart => _p.getBool(_restAutoStart) ?? true;
+
+  static Future<void> setRestAutoStart(bool value) =>
+      _p.setBool(_restAutoStart, value);
 
   static bool isEnabled(String disciplineKey) =>
       enabledDisciplines.contains(disciplineKey);

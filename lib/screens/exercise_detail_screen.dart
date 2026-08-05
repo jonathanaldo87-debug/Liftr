@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/exercise_setup_service.dart';
+import '../services/prefs.dart';
 import '../services/progression_service.dart';
+import '../services/rest_timer.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
@@ -211,6 +215,9 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         await WorkoutService.updateExerciseSet(editing!.setId!, weight, reps);
       } else {
         await WorkoutService.addSet(_exerciseId, weight, reps);
+        if (Prefs.restAutoStart) {
+          unawaited(RestTimer.start(widget.exercise.name));
+        }
       }
 
       _weightCtrl.clear();
