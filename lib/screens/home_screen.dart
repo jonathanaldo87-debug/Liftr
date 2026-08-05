@@ -112,6 +112,8 @@ class _TodayTabState extends State<_TodayTab> {
 
   List<Discipline> _disciplines = [];
 
+  Future<void> _disciplinesReady = Future.value();
+
   String? _selectedDiscipline;
 
   List<WorkoutSessions> _sessions = [];
@@ -162,7 +164,7 @@ class _TodayTabState extends State<_TodayTab> {
   @override
   void initState() {
     super.initState();
-    _loadDisciplines();
+    _disciplinesReady = _loadDisciplines();
     _loadSchedule();
     _loadData();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeOfferRecovery());
@@ -223,6 +225,7 @@ class _TodayTabState extends State<_TodayTab> {
     setState(() => _isLoading = true);
     try {
       final sessions = await WorkoutService.getSessionsForDate(_selectedDate);
+      await _disciplinesReady;
 
       final byId = <String, List<WorkoutExercises>>{};
       final runsById = <String, List<DistanceInterval>>{};
@@ -231,9 +234,10 @@ class _TodayTabState extends State<_TodayTab> {
         if (id == null) continue;
 
         final logging = _lookupLogging(s.discipline);
-        if (logging == Discipline.loggingSets) {
+        if (logging != Discipline.loggingDistance) {
           byId[id] = await WorkoutService.getWorkoutExercises(id);
-        } else if (logging == Discipline.loggingDistance) {
+        }
+        if (logging != Discipline.loggingSets) {
           runsById[id] = await RunService.getIntervals(id);
         }
       }
