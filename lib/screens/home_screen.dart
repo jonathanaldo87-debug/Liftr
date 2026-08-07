@@ -130,9 +130,20 @@ class _TodayTabState extends State<_TodayTab> {
   DateTime? _datesTo;
   int _datesRequest = 0;
 
-  WeeklySchedule _schedule = {};
+  List<Routine> _routines = [];
 
-  Routine? get _scheduledRoutine => _schedule[_selectedDate.weekday];
+  Map<String, Routine> _nextByDiscipline = {};
+
+  Routine? get _suggestedRoutine {
+    final key = _selectedDiscipline;
+    if (key != null) return _nextByDiscipline[key];
+
+    for (final d in _disciplines) {
+      final next = _nextByDiscipline[d.key];
+      if (next != null) return next;
+    }
+    return null;
+  }
 
   bool _hasRoutines = true;
 
@@ -165,7 +176,7 @@ class _TodayTabState extends State<_TodayTab> {
   void initState() {
     super.initState();
     _disciplinesReady = _loadDisciplines();
-    _loadSchedule();
+    _loadRoutines();
     _loadData();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeOfferRecovery());
   }
@@ -181,14 +192,15 @@ class _TodayTabState extends State<_TodayTab> {
     });
   }
 
-  Future<void> _loadSchedule() async {
+  Future<void> _loadRoutines() async {
     try {
-      final schedule = await RoutineService.getSchedule();
-      final hasAny = schedule.isNotEmpty || await RoutineService.hasAny();
+      final routines = await RoutineService.getRoutines();
+      final next = await RoutineService.nextByDiscipline();
       if (mounted) {
         setState(() {
-          _schedule = schedule;
-          _hasRoutines = hasAny;
+          _routines = routines;
+          _nextByDiscipline = next;
+          _hasRoutines = routines.isNotEmpty;
         });
       }
     } catch (_) {}
@@ -349,7 +361,7 @@ class _TodayTabState extends State<_TodayTab> {
       context,
       MaterialPageRoute(builder: (_) => const RoutinesScreen()),
     );
-    if (mounted) await _loadSchedule();
+    if (mounted) await _loadRoutines();
   }
 
   Future<Discipline?> _pickDiscipline() {
@@ -774,8 +786,10 @@ class _TodayTabState extends State<_TodayTab> {
           ),
         ),
       );
+      if (saved == true) await RoutineService.tagSession(_selectedDate, routine);
       if (!mounted) return;
       await _loadData();
+      await _loadRoutines();
       if (saved == true) _relock();
       return;
     }
@@ -785,6 +799,7 @@ class _TodayTabState extends State<_TodayTab> {
       if (!mounted) return;
 
       await _loadData();
+      await _loadRoutines();
       if (!mounted) return;
 
       setState(() => _selectedDiscipline = routine.discipline);
@@ -821,15 +836,35 @@ class _TodayTabState extends State<_TodayTab> {
     if (saved == true) _relock();
   }
 
+  List<Routine> _routinesFor(String disciplineKey) {
+    final logsDistance = _disciplineFor(disciplineKey).logsDistance;
+    return [
+      for (final r in _routines)
+        if (r.discipline == disciplineKey && (logsDistance || !r.isEmpty)) r,
+    ];
+  }
+
   VoidCallback? _fillFor(String disciplineKey) {
-    final r = _scheduledRoutine;
-    if (r == null || r.discipline != disciplineKey) return null;
-    if (r.isEmpty || isFutureDay(_selectedDate)) return null;
-    return () => _fillFromRoutine(r);
+    if (isFutureDay(_selectedDate)) return null;
+    if (_routinesFor(disciplineKey).isEmpty) return null;
+    return () => _pickAndFill(disciplineKey);
+  }
+
+  Future<void> _pickAndFill(String disciplineKey) async {
+    final picked = await pickRoutine(
+      context,
+      routines: _routinesFor(disciplineKey),
+      disciplineFor: _disciplineFor,
+      currentId: _nextByDiscipline[disciplineKey]?.routineId,
+      title: 'Fill from a routine',
+    );
+
+    if (picked == null || !mounted) return;
+    await _fillFromRoutine(picked);
   }
 
   Widget _dayContent() {
-    final routine = _scheduledRoutine;
+    final routine = _suggestedRoutine;
     final routineIsDistance =
         routine != null && _disciplineFor(routine.discipline).logsDistance;
 
@@ -846,6 +881,9 @@ class _TodayTabState extends State<_TodayTab> {
         isDistance: _disciplineFor(routine.discipline).logsDistance,
         onFill:
             isFutureDay(_selectedDate) ? null : () => _fillFromRoutine(routine),
+        onPickAnother: _routinesFor(routine.discipline).length < 2
+            ? null
+            : () => _pickAndFill(routine.discipline),
       );
     }
 
@@ -1402,12 +1440,15 @@ class _RoutinePromptCard extends StatefulWidget {
 
   final VoidCallback? onFill;
 
+  final VoidCallback? onPickAnother;
+
   const _RoutinePromptCard({
     required this.date,
     required this.routine,
     required this.emoji,
     required this.isDistance,
     required this.onFill,
+    this.onPickAnother,
   });
 
   @override
@@ -1521,6 +1562,24 @@ class _RoutinePromptCardState extends State<_RoutinePromptCard> {
                                   ),
                                 )
                               : Text(_isRun ? 'Start the run' : 'Fill this in'),
+                        ),
+                      ),
+                    ],
+                    if (widget.onPickAnother != null) ...[
+                      const SizedBox(height: LiftrSpacing.x10),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _filling ? null : widget.onPickAnother,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: LiftrSpacing.x4),
+                          child: Text(
+                            'Do a different one',
+                            style: TextStyle(
+                              fontSize: LiftrType.x12,
+                              color: lt.textSecondary,
+                            ),
+                          ),
                         ),
                       ),
                     ],

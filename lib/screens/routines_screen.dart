@@ -5,7 +5,6 @@ import '../services/routine_service.dart';
 import '../services/workout_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
-import '../utils/dates.dart';
 import 'routine_edit_screen.dart';
 
 class RoutinesScreen extends StatefulWidget {
@@ -15,9 +14,68 @@ class RoutinesScreen extends StatefulWidget {
   State<RoutinesScreen> createState() => _RoutinesScreenState();
 }
 
+Future<Routine?> pickRoutine(
+  BuildContext context, {
+  required List<Routine> routines,
+  required Discipline Function(String) disciplineFor,
+  String? currentId,
+  String title = 'Pick a routine',
+}) {
+  final lt = context.lt;
+
+  return showModalBottomSheet<Routine>(
+    context: context,
+    backgroundColor: lt.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius:
+          BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: LiftrSpacing.x18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
+            child:
+                Text(title, style: Theme.of(ctx).textTheme.displaySmall),
+          ),
+          const SizedBox(height: LiftrSpacing.x12),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final r in routines)
+                  ListTile(
+                    leading: Text(disciplineFor(r.discipline).emoji,
+                        style: const TextStyle(fontSize: LiftrType.x20)),
+                    trailing: r.routineId == currentId
+                        ? Icon(Icons.check_circle,
+                            size: 20, color: lt.accentStrong)
+                        : null,
+                    title: Text(r.name,
+                        style: TextStyle(
+                            fontSize: LiftrType.x15, color: lt.textPrimary)),
+                    subtitle: Text(
+                      r.inCycle ? r.summary : '${r.summary} · off the cycle',
+                      style: TextStyle(
+                          fontSize: LiftrType.x12, color: lt.textMuted),
+                    ),
+                    onTap: () => Navigator.pop(ctx, r),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: LiftrSpacing.x12),
+        ],
+      ),
+    ),
+  );
+}
+
 class _RoutinesScreenState extends State<RoutinesScreen> {
   List<Routine> _routines = [];
-  WeeklySchedule _schedule = {};
 
   List<Discipline> _disciplines = [];
 
@@ -29,21 +87,14 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     _load();
   }
 
-  Discipline _disciplineFor(String key) => _disciplines.firstWhere(
-        (d) => d.key == key,
-        orElse: () => Discipline(key: key, label: key, emoji: '•'),
-      );
-
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
       final routines = await RoutineService.getRoutines();
-      final schedule = await RoutineService.getSchedule();
       final disciplines = await WorkoutService.getDisciplines();
       if (mounted) {
         setState(() {
           _routines = routines;
-          _schedule = schedule;
           _disciplines = [
             for (final d in disciplines)
               if (d.logsSets || d.logsDistance) d,
@@ -77,71 +128,89 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     if (saved == true) await _load();
   }
 
-  Future<void> _assign(int weekday) async {
-    final lt = context.lt;
-    final current = _schedule[weekday]?.routineId;
+  List<Routine> _cycleFor(String disciplineKey) => [
+        for (final r in _routines)
+          if (r.discipline == disciplineKey) r,
+      ];
 
-    final picked = await showModalBottomSheet<String?>(
-      context: context,
-      backgroundColor: lt.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(LiftrRadii.sheet)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: LiftrSpacing.x18),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: LiftrSpacing.x20),
-              child: Text(kWeekdaysFull[weekday - 1],
-                  style: Theme.of(ctx).textTheme.displaySmall),
-            ),
-            const SizedBox(height: LiftrSpacing.x12),
-            for (final r in _routines)
-              ListTile(
-                leading: Text(_disciplineFor(r.discipline).emoji,
-                    style: const TextStyle(fontSize: LiftrType.x20)),
-                trailing: r.routineId == current
-                    ? Icon(Icons.check_circle, size: 20, color: lt.accentStrong)
-                    : null,
-                title: Text(r.name,
-                    style: TextStyle(
-                        fontSize: LiftrType.x15, color: lt.textPrimary)),
-                subtitle: Text(r.summary,
-                    style: TextStyle(
-                        fontSize: LiftrType.x12, color: lt.textMuted)),
-                onTap: () => Navigator.pop(ctx, r.routineId),
-              ),
-            const Divider(),
-            ListTile(
-              leading: Icon(Icons.bedtime_outlined,
-                  size: 20, color: lt.textSecondary),
-              title: Text('Rest day',
-                  style: TextStyle(
-                      fontSize: LiftrType.x15, color: lt.textPrimary)),
-              subtitle: Text('Nothing scheduled',
-                  style:
-                      TextStyle(fontSize: LiftrType.x12, color: lt.textMuted)),
-              onTap: () => Navigator.pop(ctx, ''),
-            ),
-            const SizedBox(height: LiftrSpacing.x12),
-          ],
-        ),
-      ),
-    );
+  Future<void> _reorder(String disciplineKey, int from, int to) async {
+    final cycle = _cycleFor(disciplineKey);
+    if (to > from) to -= 1;
 
-    if (picked == null || !mounted) return;
+    final moved = cycle.removeAt(from);
+    cycle.insert(to, moved);
+
+    setState(() {
+      _routines = [
+        for (final r in _routines)
+          if (r.discipline != disciplineKey) r,
+        ...cycle,
+      ];
+    });
 
     try {
-      await RoutineService.assignDay(weekday, picked.isEmpty ? null : picked);
+      await RoutineService.setCycleOrder(
+        [for (final r in cycle) r.routineId!],
+      );
       await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not update the week: $e'),
+          content: Text('Could not save the new order: $e'),
+          backgroundColor: LiftrColors.danger,
+        ));
+      }
+      await _load();
+    }
+  }
+
+  List<Widget> _cycleSection(Discipline d) {
+    final cycle = _cycleFor(d.key);
+    if (cycle.isEmpty) return const [];
+
+    final lt = context.lt;
+
+    return [
+      SectionLabel('${d.label} cycle'),
+      const SizedBox(height: LiftrSpacing.x6),
+      Text(
+        'Drag to reorder. Doing one moves you to the next.',
+        style: TextStyle(fontSize: LiftrType.x11, color: lt.textDim),
+      ),
+      const SizedBox(height: LiftrSpacing.x8),
+      ReorderableListView(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        onReorder: (from, to) => _reorder(d.key, from, to),
+        children: [
+          for (var i = 0; i < cycle.length; i++)
+            _CycleRow(
+              key: ValueKey(cycle[i].routineId),
+              index: i,
+              routine: cycle[i],
+              emoji: d.emoji,
+              onTap: () => _edit(cycle[i]),
+              onToggleCycle: () => _toggleInCycle(cycle[i]),
+              onDelete: () => _delete(cycle[i]),
+            ),
+        ],
+      ),
+      const SizedBox(height: LiftrSpacing.x20),
+    ];
+  }
+
+  Future<void> _toggleInCycle(Routine r) async {
+    final id = r.routineId;
+    if (id == null) return;
+
+    try {
+      await RoutineService.setInCycle(id, !r.inCycle);
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not update the cycle: $e'),
           backgroundColor: LiftrColors.danger,
         ));
       }
@@ -162,9 +231,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
         title: Text('Delete ${r.name}?',
             style: TextStyle(fontSize: LiftrType.x16, color: lt.textPrimary)),
         content: Text(
-          'Any weekday running it becomes a rest day.\n\n'
-          'Workouts you already filled from it are not affected — they hold '
-          'their own exercises and never pointed back here.',
+          'The cycle closes up around it and the rest keep their order.\n\n'
+          'Workouts you already filled from it keep every exercise and set. '
+          'They just stop counting towards where you are in the cycle.',
           style: TextStyle(
               fontSize: LiftrType.x13, color: lt.textSecondary, height: 1.5),
         ),
@@ -243,8 +312,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       children: [
-                        const SectionLabel('Your week'),
-                        const SizedBox(height: LiftrSpacing.x8),
                         if (_routines.isEmpty)
                           Container(
                             width: double.infinity,
@@ -258,33 +325,16 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                                   BorderRadius.circular(LiftrRadii.field),
                             ),
                             child: Text(
-                              'Make a routine first, then you can put it on a '
-                              'day.',
+                              'Make a routine, then another. They run in a '
+                              'cycle — finish one and the next comes up, '
+                              'whenever you next train.',
                               style: TextStyle(
                                   fontSize: LiftrType.x12,
                                   color: lt.textDim,
                                   height: 1.5),
                             ),
-                          )
-                        else
-                          for (var d = 1; d <= 7; d++)
-                            _DayRow(
-                              weekday: d,
-                              routine: _schedule[d],
-                              isToday: DateTime.now().weekday == d,
-                              onTap: () => _assign(d),
-                            ),
-                        const SizedBox(height: LiftrSpacing.x20),
-                        const SectionLabel('Routines'),
-                        const SizedBox(height: LiftrSpacing.x8),
-                        for (final r in _routines)
-                          _RoutineRow(
-                            routine: r,
-                            emoji: _disciplineFor(r.discipline).emoji,
-                            subtitle: r.summary,
-                            onTap: () => _edit(r),
-                            onDelete: () => _delete(r),
                           ),
+                        for (final d in _disciplines) ..._cycleSection(d),
                         const SizedBox(height: LiftrSpacing.x10),
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -328,102 +378,28 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 }
 
-class _DayRow extends StatelessWidget {
-  final int weekday;
-  final Routine? routine;
-  final bool isToday;
-  final VoidCallback onTap;
-
-  const _DayRow({
-    required this.weekday,
-    required this.routine,
-    required this.isToday,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final lt = context.lt;
-    final r = routine;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: LiftrSpacing.x6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(LiftrRadii.field),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
-          decoration: BoxDecoration(
-            color: lt.card,
-            border: Border.all(
-              color: isToday ? lt.accentBorder : lt.border,
-              width: LiftrBorders.hairline,
-            ),
-            borderRadius: BorderRadius.circular(LiftrRadii.field),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 42,
-                child: Text(
-                  kWeekdaysUpper[weekday - 1],
-                  style: TextStyle(
-                    fontSize: LiftrType.x11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.08,
-                    color: isToday ? lt.accentMid : lt.textMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: LiftrSpacing.x8),
-              Expanded(
-                child: Text(
-                  r?.name ?? 'Rest',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: LiftrType.x14,
-                    fontWeight: r == null ? FontWeight.w400 : FontWeight.w500,
-                    color: r == null ? lt.textDim : lt.textPrimary,
-                  ),
-                ),
-              ),
-              if (r != null) ...[
-                Text(
-                  r.summary,
-                  style:
-                      TextStyle(fontSize: LiftrType.x11, color: lt.textMuted),
-                ),
-                const SizedBox(width: LiftrSpacing.x8),
-              ],
-              Icon(Icons.chevron_right, size: 18, color: lt.textDim),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoutineRow extends StatelessWidget {
+class _CycleRow extends StatelessWidget {
+  final int index;
   final Routine routine;
   final String emoji;
-  final String subtitle;
   final VoidCallback onTap;
+  final VoidCallback onToggleCycle;
   final VoidCallback onDelete;
 
-  const _RoutineRow({
+  const _CycleRow({
+    super.key,
+    required this.index,
     required this.routine,
     required this.emoji,
-    required this.subtitle,
     required this.onTap,
+    required this.onToggleCycle,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
+    final active = routine.inCycle;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: LiftrSpacing.x6),
@@ -432,7 +408,7 @@ class _RoutineRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(LiftrRadii.field),
         child: Container(
           padding: const EdgeInsets.symmetric(
-              horizontal: LiftrSpacing.x14, vertical: LiftrSpacing.x12),
+              horizontal: LiftrSpacing.x12, vertical: LiftrSpacing.x12),
           decoration: BoxDecoration(
             color: lt.card,
             border: Border.all(color: lt.border, width: LiftrBorders.hairline),
@@ -440,6 +416,14 @@ class _RoutineRow extends StatelessWidget {
           ),
           child: Row(
             children: [
+              ReorderableDragStartListener(
+                index: index,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: LiftrSpacing.x8),
+                  child:
+                      Icon(Icons.drag_indicator, size: 18, color: lt.textDim),
+                ),
+              ),
               Text(emoji, style: const TextStyle(fontSize: LiftrType.x18)),
               const SizedBox(width: LiftrSpacing.x10),
               Expanded(
@@ -453,18 +437,25 @@ class _RoutineRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: LiftrType.x14,
                         fontWeight: FontWeight.w500,
-                        color: lt.textPrimary,
+                        color: active ? lt.textPrimary : lt.textMuted,
                       ),
                     ),
                     const SizedBox(height: LiftrSpacing.x2),
-                    Text(subtitle,
-                        style: TextStyle(
-                            fontSize: LiftrType.x11, color: lt.textMuted)),
+                    Text(
+                      active
+                          ? routine.summary
+                          : '${routine.summary} · off the cycle',
+                      style: TextStyle(
+                          fontSize: LiftrType.x11, color: lt.textMuted),
+                    ),
                   ],
                 ),
               ),
               ThreeDotMenu(actions: [
                 MenuAction('Edit', onTap),
+                MenuAction(
+                    active ? 'Take off the cycle' : 'Put back on the cycle',
+                    onToggleCycle),
                 MenuAction('Delete', onDelete, isDanger: true),
               ]),
             ],

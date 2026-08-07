@@ -9,6 +9,8 @@ class WorkoutSessions {
 
   final String discipline;
 
+  final String? routineId;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -19,6 +21,7 @@ class WorkoutSessions {
     this.name,
     this.notes,
     this.discipline = Discipline.gymKey,
+    this.routineId,
     this.createdAt,
     this.updatedAt,
   });
@@ -32,6 +35,7 @@ class WorkoutSessions {
         name: j['name'] as String?,
         notes: j['notes'] as String?,
         discipline: j['discipline'] as String? ?? Discipline.gymKey,
+        routineId: j['routine_id'] as String?,
         createdAt: j['created_at'] == null
             ? null
             : DateTime.parse(j['created_at'] as String),

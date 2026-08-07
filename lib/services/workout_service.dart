@@ -12,7 +12,7 @@ class WorkoutService {
   }
 
   static const _sessionCols = 'session_id, session_date, name, notes, '
-      'discipline, created_at, updated_at';
+      'discipline, routine_id, created_at, updated_at';
 
   static Future<List<Discipline>> getDisciplines() async {
     try {

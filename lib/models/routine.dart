@@ -76,6 +76,10 @@ class Routine {
   final String name;
   final String discipline;
 
+  final int sortOrder;
+
+  final bool inCycle;
+
   final List<RoutineExercise> exercises;
 
   final List<RoutineInterval> intervals;
@@ -84,6 +88,8 @@ class Routine {
     required this.name,
     this.routineId,
     this.discipline = Discipline.gymKey,
+    this.sortOrder = 0,
+    this.inCycle = true,
     this.exercises = const [],
     this.intervals = const [],
   });
@@ -141,10 +147,10 @@ class Routine {
       routineId: j['routine_id'] as String?,
       name: j['name'] as String? ?? '',
       discipline: j['discipline'] as String? ?? Discipline.gymKey,
+      sortOrder: (j['sort_order'] as num?)?.toInt() ?? 0,
+      inCycle: j['in_cycle'] as bool? ?? true,
       exercises: lines,
       intervals: targets,
     );
   }
 }
-
-typedef WeeklySchedule = Map<int, Routine>;

@@ -16,74 +16,111 @@ class RoutineService {
       'order_index, catalog_detail:exercise_catalog(catalog_id, name, category, '
       'muscle_group, equipment, is_compound, is_global, created_by, created_at)';
 
-  static const _routineCols = 'routine_id, name, discipline, '
-      'routine_exercises($_lineCols), '
+  static const _routineCols = 'routine_id, name, discipline, sort_order, '
+      'in_cycle, routine_exercises($_lineCols), '
       'routine_intervals(routine_interval_id, routine_id, '
       'target_distance_meters, order_index)';
 
-  static Future<List<Routine>> getRoutines() async {
-    final data = await _db
-        .from('routines')
-        .select(_routineCols)
-        .eq('user_id', _userId)
-        .order('created_at', ascending: true);
+  static Future<List<Routine>> getRoutines({String? discipline}) async {
+    var query = _db.from('routines').select(_routineCols).eq('user_id', _userId);
+
+    if (discipline != null) query = query.eq('discipline', discipline);
+
+    final data = await query
+        .order('discipline', ascending: true)
+        .order('sort_order', ascending: true);
 
     return data.map((j) => Routine.fromJson(j)).toList();
   }
 
-  static Future<bool> hasAny() async {
-    final data = await _db
-        .from('routines')
-        .select('routine_id')
-        .eq('user_id', _userId)
-        .limit(1);
-    return data.isNotEmpty;
+  static Routine? nextAfter(List<Routine> cycle, String? lastId) {
+    if (cycle.isEmpty) return null;
+    if (lastId == null) return cycle.first;
+
+    final at = cycle.indexWhere((r) => r.routineId == lastId);
+    if (at < 0) return cycle.first;
+
+    return cycle[(at + 1) % cycle.length];
   }
 
-  static Future<WeeklySchedule> getSchedule() async {
-    final data = await _db
-        .from('routine_days')
-        .select('weekday, routines($_routineCols)')
-        .eq('user_id', _userId);
+  static Future<Map<String, Routine>> nextByDiscipline() async {
+    final cycles = <String, List<Routine>>{};
+    for (final r in await getRoutines()) {
+      if (!r.inCycle || r.routineId == null) continue;
+      cycles.putIfAbsent(r.discipline, () => []).add(r);
+    }
 
-    final out = <int, Routine>{};
-    for (final row in data) {
-      final weekday = (row['weekday'] as num?)?.toInt();
-      final routine = row['routines'];
-      if (weekday == null || routine is! Map<String, dynamic>) continue;
-      out[weekday] = Routine.fromJson(routine);
+    final out = <String, Routine>{};
+    for (final entry in cycles.entries) {
+      final lastId = await lastRoutineId(
+        entry.key,
+        [for (final r in entry.value) r.routineId!],
+      );
+
+      final next = nextAfter(entry.value, lastId);
+      if (next != null) out[entry.key] = next;
     }
     return out;
   }
 
-  static Future<Routine?> routineFor(DateTime date) async {
+  static Future<String?> lastRoutineId(
+    String discipline,
+    List<String> withinCycle,
+  ) async {
+    if (withinCycle.isEmpty) return null;
+
     final data = await _db
-        .from('routine_days')
-        .select('routines($_routineCols)')
+        .from('workout_sessions')
+        .select('routine_id')
         .eq('user_id', _userId)
-        .eq('weekday', date.weekday)
+        .eq('discipline', discipline)
+        .inFilter('routine_id', withinCycle)
+        .order('session_date', ascending: false)
         .limit(1);
 
     if (data.isEmpty) return null;
-    final routine = data.first['routines'];
-    if (routine is! Map<String, dynamic>) return null;
-    return Routine.fromJson(routine);
+    return data.first['routine_id'] as String?;
   }
 
   static Future<String> createRoutine(
     String name, {
     String discipline = Discipline.gymKey,
   }) async {
+    final siblings = await _db
+        .from('routines')
+        .select('sort_order')
+        .eq('user_id', _userId)
+        .eq('discipline', discipline);
+
+    final order = nextOrderIndex(
+      [for (final row in siblings) (row['sort_order'] as num?)?.toInt()],
+    );
+
     final result = await _db
         .from('routines')
         .insert({
           'user_id': _userId,
           'name': name,
           'discipline': discipline,
+          'sort_order': order,
         })
         .select('routine_id')
         .single();
     return result['routine_id'] as String;
+  }
+
+  static Future<void> setCycleOrder(List<String> routineIds) async {
+    for (var i = 0; i < routineIds.length; i++) {
+      await _db
+          .from('routines')
+          .update({'sort_order': i + 1}).eq('routine_id', routineIds[i]);
+    }
+  }
+
+  static Future<void> setInCycle(String routineId, bool value) async {
+    await _db
+        .from('routines')
+        .update({'in_cycle': value}).eq('routine_id', routineId);
   }
 
   static Future<void> renameRoutine(String routineId, String name) async {
@@ -137,21 +174,23 @@ class RoutineService {
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       }).eq('routine_id', routineId);
 
-  static Future<void> assignDay(int weekday, String? routineId) async {
-    if (routineId == null) {
-      await _db
-          .from('routine_days')
-          .delete()
-          .eq('user_id', _userId)
-          .eq('weekday', weekday);
-      return;
-    }
+  static Future<void> _tag(String sessionId, String? routineId) async {
+    if (routineId == null) return;
+    await _db
+        .from('workout_sessions')
+        .update({'routine_id': routineId}).eq('session_id', sessionId);
+  }
 
-    await _db.from('routine_days').upsert({
-      'user_id': _userId,
-      'weekday': weekday,
-      'routine_id': routineId,
-    }, onConflict: 'user_id,weekday');
+  static Future<void> tagSession(DateTime date, Routine routine) async {
+    final session = await WorkoutService.getWorkoutSession(
+      date,
+      discipline: routine.discipline,
+    );
+
+    final sessionId = session?.sessionId;
+    if (sessionId == null) return;
+
+    await _tag(sessionId, routine.routineId);
   }
 
   static int nextOrderIndex(Iterable<int?> existing) {
@@ -174,6 +213,8 @@ class RoutineService {
           routine.name,
           discipline: routine.discipline,
         );
+
+    await _tag(sessionId, routine.routineId);
 
     if (routine.exercises.isEmpty) return sessionId;
 
