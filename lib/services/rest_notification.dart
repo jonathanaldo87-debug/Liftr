@@ -8,8 +8,10 @@ class RestNotification {
   static const _countdownId = 1002;
   static const _alertId = 1003;
 
-  static const _countdownChannelId = 'rest_countdown';
+  static const _countdownChannelId = 'rest_countdown_v2';
   static const _countdownChannelName = 'Rest countdown';
+
+  static const _retiredChannelIds = ['rest_countdown'];
 
   static const _alertChannelId = 'rest_finished';
   static const _alertChannelName = 'Rest finished';
@@ -33,8 +35,23 @@ class RestNotification {
         settings: const InitializationSettings(android: android, iOS: ios),
       );
       _initialised = true;
+      await _dropRetiredChannels();
     } catch (e) {
       debugPrint('RestNotification.init failed: $e');
+    }
+  }
+
+  static Future<void> _dropRetiredChannels() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return;
+
+    for (final id in _retiredChannelIds) {
+      try {
+        await android.deleteNotificationChannel(channelId: id);
+      } catch (e) {
+        debugPrint('RestNotification could not drop channel $id: $e');
+      }
     }
   }
 
@@ -91,6 +108,7 @@ class RestNotification {
         priority: Priority.low,
         playSound: false,
         enableVibration: false,
+        silent: true,
         onlyAlertOnce: true,
         showWhen: true,
         when: endsAt.millisecondsSinceEpoch,
