@@ -1,5 +1,6 @@
 import 'package:liftr/models/models.dart';
 import 'package:liftr/utils/dates.dart';
+import 'package:liftr/utils/setup_timeline.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WorkoutService {
@@ -260,24 +261,48 @@ class WorkoutService {
     }).eq('set_id', setId);
   }
 
-  static Future<ExerciseSets?> getLastSetForExercise(String catalogId) async {
+  static Future<ExerciseSets?> getLastSetForExercise(
+    String catalogId, {
+    SetupScope? scope,
+  }) async {
     try {
       final data = await _db
           .from('exercise_sets')
           .select(
               'set_id, exercise_id, set_number, weight_kg, reps, logged_at, '
               'workout_exercises!inner(catalog_id, '
-              'workout_sessions!inner(user_id))')
+              'workout_sessions!inner(user_id, session_date))')
           .eq('workout_exercises.catalog_id', catalogId)
-          .eq('workout_exercises.workout_sessions.user_id', _userId)
-          .order('logged_at', ascending: false)
-          .limit(1);
+          .eq('workout_exercises.workout_sessions.user_id', _userId);
 
-      if (data.isEmpty) return null;
-      return ExerciseSets.fromJson(data.first);
+      final dated = <({DateTime date, ExerciseSets set})>[];
+      for (final row in data) {
+        final date = _sessionDateOf(row);
+        if (date == null) continue;
+        if (scope != null && !scope.includes(date)) continue;
+
+        dated.add((date: date, set: ExerciseSets.fromJson(row)));
+      }
+      if (dated.isEmpty) return null;
+
+      dated.sort((a, b) {
+        final byDate = b.date.compareTo(a.date);
+        if (byDate != 0) return byDate;
+        return (b.set.setNumber ?? 0).compareTo(a.set.setNumber ?? 0);
+      });
+
+      return dated.first.set;
     } catch (_) {
       return null;
     }
+  }
+
+  static DateTime? _sessionDateOf(Map<String, dynamic> row) {
+    final exercise = row['workout_exercises'] as Map<String, dynamic>?;
+    final session = exercise?['workout_sessions'] as Map<String, dynamic>?;
+    final date = session?['session_date'] as String?;
+
+    return date == null ? null : DateTime.parse(date);
   }
 
   static Future<void> deleteExerciseSet(String setId, String exerciseId) async {
@@ -333,7 +358,10 @@ class WorkoutService {
     }
   }
 
-  static Future<List<WeightPoint>> getExerciseHistory(String catalogId) async {
+  static Future<List<WeightPoint>> getExerciseHistory(
+    String catalogId, {
+    SetupScope? scope,
+  }) async {
     try {
       final data = await _db
           .from('exercise_sets')
@@ -347,11 +375,11 @@ class WorkoutService {
         final weight = (row['weight_kg'] as num?)?.toDouble();
         if (weight == null) continue;
 
-        final exercise = row['workout_exercises'] as Map<String, dynamic>?;
-        final session = exercise?['workout_sessions'] as Map<String, dynamic>?;
-        final date = session?['session_date'] as String?;
-        if (date == null) continue;
+        final sessionDate = _sessionDateOf(row);
+        if (sessionDate == null) continue;
+        if (scope != null && !scope.includes(sessionDate)) continue;
 
+        final date = isoDate(sessionDate);
         if (weight > (topPerDay[date] ?? double.negativeInfinity)) {
           topPerDay[date] = weight;
         }

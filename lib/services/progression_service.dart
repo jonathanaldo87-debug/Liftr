@@ -2,6 +2,7 @@ import 'package:liftr/models/models.dart';
 import 'package:liftr/services/exercise_setup_service.dart';
 import 'package:liftr/utils/dates.dart';
 import 'package:liftr/utils/progression.dart';
+import 'package:liftr/utils/setup_timeline.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExerciseSessionHistory {
@@ -56,6 +57,7 @@ class ProgressionService {
   static Future<List<ExerciseSessionHistory>> recentHistory(
     String catalogId, {
     int limit = 2,
+    SetupScope? scope,
   }) async {
     try {
       final data = await _db
@@ -77,6 +79,9 @@ class ProgressionService {
         final dateStr = session?['session_date'] as String?;
         if (sessionId == null || dateStr == null) continue;
 
+        final sessionDate = DateTime.parse(dateStr);
+        if (scope != null && !scope.includes(sessionDate)) continue;
+
         final rawSets = (row['exercise_sets'] as List?) ?? const [];
         final sets = rawSets
             .whereType<Map<String, dynamic>>()
@@ -88,7 +93,7 @@ class ProgressionService {
         if (existing == null) {
           bySession[sessionId] = ExerciseSessionHistory(
             sessionId: sessionId,
-            sessionDate: DateTime.parse(dateStr),
+            sessionDate: sessionDate,
             sets: sets,
             setupId: row['setup_id'] as String?,
           );
@@ -139,11 +144,12 @@ class ProgressionService {
   static Future<ProgressionHint?> hintFor(
     CatalogExercises exercise, {
     String? selectedSetupId,
+    SetupScope? scope,
   }) async {
     final catalogId = exercise.catalogId;
     if (catalogId == null) return null;
 
-    final history = await recentHistory(catalogId, limit: 5);
+    final history = await recentHistory(catalogId, limit: 5, scope: scope);
     if (history.isEmpty) return null;
 
     final recent = history.first;

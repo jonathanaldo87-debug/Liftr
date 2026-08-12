@@ -1,5 +1,6 @@
 import 'package:liftr/models/models.dart';
 import 'package:liftr/utils/increment_inference.dart';
+import 'package:liftr/utils/setup_timeline.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ExerciseSetupService {
@@ -114,6 +115,25 @@ class ExerciseSetupService {
       'settings': settings,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'setup_id,catalog_id');
+  }
+
+  static Future<SetupTimeline> timelineFor(String catalogId) async {
+    try {
+      final data = await _db
+          .from('workout_exercises')
+          .select('setup_id, workout_sessions!inner(session_date, user_id)')
+          .eq('catalog_id', catalogId)
+          .eq('workout_sessions.user_id', _userId);
+
+      return SetupTimeline([
+        for (final row in data)
+          if (row['workout_sessions'] case final Map<String, dynamic> session)
+            if (session['session_date'] case final String date)
+              SetupStamp(DateTime.parse(date), row['setup_id'] as String?),
+      ]);
+    } catch (_) {
+      return const SetupTimeline.empty();
+    }
   }
 
   static Future<void> assignSetup(String exerciseId, String? setupId) async {

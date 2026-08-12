@@ -12,6 +12,7 @@ import '../theme/widgets.dart';
 import '../utils/dates.dart';
 import '../utils/format.dart';
 import '../utils/progression.dart';
+import '../utils/setup_timeline.dart';
 import 'exercise_setup_sheet.dart';
 
 class ExerciseDetailScreen extends StatefulWidget {
@@ -51,6 +52,10 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
 
   String? _selectedSetupId;
 
+  String? _pickedSetupId;
+
+  SetupTimeline _timeline = const SetupTimeline.empty();
+
   ProgressionHint? _progression;
 
   String get _exerciseId => widget.exercise.exerciseId ?? '';
@@ -65,7 +70,8 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
   void initState() {
     super.initState();
     _noteCtrl = TextEditingController(text: widget.exercise.notes ?? '');
-    _selectedSetupId = widget.exercise.setupId;
+    _pickedSetupId = widget.exercise.setupId;
+    _selectedSetupId = _pickedSetupId;
     _load();
   }
 
@@ -81,39 +87,67 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     setState(() => _isLoading = true);
     try {
       final sets = await WorkoutService.getExerciseSets(_exerciseId);
-      final catalogId = widget.exercise.catalogId;
+      if (mounted) setState(() => _sets = sets);
 
-      final history = catalogId == null
-          ? <WeightPoint>[]
-          : await WorkoutService.getExerciseHistory(catalogId);
+      final catalogId = _catalogId;
+      if (catalogId != null) {
+        await _loadSetup();
 
-      final lastTime = (sets.isEmpty && catalogId != null)
-          ? await WorkoutService.getLastSetForExercise(catalogId)
-          : null;
-
-      if (mounted) {
+        final timeline = await ExerciseSetupService.timelineFor(catalogId);
+        if (!mounted) return;
         setState(() {
-          _sets = sets;
-          _history = history;
-          _lastTime = lastTime;
+          _timeline = timeline;
+          _selectedSetupId = _resolveSetup(timeline);
         });
-        _prefill();
       }
 
-      await _loadSetup();
-      await _loadHint();
+      await _applyScope();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _loadHint() async {
+  String? _resolveSetup(SetupTimeline timeline) {
+    final resolved = _pickedSetupId ?? timeline.effectiveOn(widget.selectedDate);
+    if (resolved == null) return null;
+
+    final known = _setups.any((s) => s.setupId == resolved);
+    return known ? resolved : null;
+  }
+
+  Future<void> _applyScope({bool forcePrefill = false}) async {
+    final catalogId = _catalogId;
+    if (catalogId == null) {
+      _prefill(force: forcePrefill);
+      return;
+    }
+
+    final scope = SetupScope(_timeline, _selectedSetupId);
+
+    final history =
+        await WorkoutService.getExerciseHistory(catalogId, scope: scope);
+    final lastTime = _sets.isEmpty
+        ? await WorkoutService.getLastSetForExercise(catalogId, scope: scope)
+        : null;
+
+    if (!mounted) return;
+    setState(() {
+      _history = history;
+      _lastTime = lastTime;
+    });
+    _prefill(force: forcePrefill);
+
+    await _loadHint(scope);
+  }
+
+  Future<void> _loadHint(SetupScope scope) async {
     final detail = widget.exercise.catalogDetail;
     if (widget.readOnly || detail == null) return;
 
     final hint = await ProgressionService.hintFor(
       detail,
       selectedSetupId: _selectedSetupId,
+      scope: scope,
     );
     if (!mounted) return;
     setState(() => _progression = hint);
@@ -128,24 +162,44 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
       equipment: _equipment,
     );
     if (!mounted) return;
-    setState(() {
-      _setups = setups;
-      if (!setups.any((s) => s.setupId == _selectedSetupId)) {
-        _selectedSetupId = null;
-      }
-    });
+    setState(() => _setups = setups);
+  }
+
+  Future<void> _commitInheritedSetup() async {
+    final inherited = _selectedSetupId;
+    if (_pickedSetupId != null || inherited == null) return;
+
+    try {
+      await ExerciseSetupService.assignSetup(_exerciseId, inherited);
+      _pickedSetupId = inherited;
+      _timeline = _timeline.withPick(widget.selectedDate, inherited);
+    } catch (_) {}
   }
 
   Future<void> _selectSetup(String? setupId) async {
-    final previous = _selectedSetupId;
-    setState(() => _selectedSetupId = setupId);
+    final previousPick = _pickedSetupId;
+    final previousSelection = _selectedSetupId;
+    final previousTimeline = _timeline;
+
+    final timeline = _timeline.withPick(widget.selectedDate, setupId);
+    setState(() {
+      _pickedSetupId = setupId;
+      _timeline = timeline;
+      _selectedSetupId = setupId ?? timeline.effectiveOn(widget.selectedDate);
+    });
 
     try {
       await ExerciseSetupService.assignSetup(_exerciseId, setupId);
       _dirty = true;
-      await _loadHint();
+      await _applyScope(forcePrefill: true);
     } catch (e) {
-      if (mounted) setState(() => _selectedSetupId = previous);
+      if (mounted) {
+        setState(() {
+          _pickedSetupId = previousPick;
+          _selectedSetupId = previousSelection;
+          _timeline = previousTimeline;
+        });
+      }
       _toast('Could not record the setup: $e', error: true);
     }
   }
@@ -171,13 +225,16 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
     if (!saved || !mounted) return;
     await _loadSetup();
     if (!mounted) return;
-    await _loadHint();
+    setState(() => _selectedSetupId = _resolveSetup(_timeline));
+    await _applyScope();
   }
 
-  void _prefill() {
+  void _prefill({bool force = false}) {
     if (widget.readOnly) return;
     if (_editing != null) return;
-    if (_weightCtrl.text.isNotEmpty || _repsCtrl.text.isNotEmpty) return;
+    if (!force && (_weightCtrl.text.isNotEmpty || _repsCtrl.text.isNotEmpty)) {
+      return;
+    }
 
     final source = _sets.isNotEmpty ? _sets.last : _lastTime;
     if (source == null) return;
@@ -215,6 +272,7 @@ class _ExerciseDetailScreenState extends State<ExerciseDetailScreen> {
         await WorkoutService.updateExerciseSet(editing!.setId!, weight, reps);
       } else {
         await WorkoutService.addSet(_exerciseId, weight, reps);
+        await _commitInheritedSetup();
         if (Prefs.restAutoStart) {
           unawaited(RestTimer.start(widget.exercise.name));
         }
