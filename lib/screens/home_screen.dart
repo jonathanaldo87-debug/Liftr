@@ -122,6 +122,8 @@ class _TodayTabState extends State<_TodayTab> {
 
   Map<String, List<DistanceInterval>> _runsBySession = {};
 
+  bool _isReordering = false;
+
   Set<String> _sessionDates = {};
 
   late DateTime _visibleMonth =
@@ -168,7 +170,10 @@ class _TodayTabState extends State<_TodayTab> {
     return () => _toggleEdit(s);
   }
 
-  void _relock() => _editableSessionId = null;
+  void _relock() {
+    _editableSessionId = null;
+    _isReordering = false;
+  }
 
   bool _recoveryChecked = false;
 
@@ -631,6 +636,41 @@ class _TodayTabState extends State<_TodayTab> {
     }
   }
 
+  VoidCallback? _toggleReorderFor(WorkoutSessions? s) {
+    if (s == null || !_canEdit(s)) return null;
+    if ((_exercisesBySession[s.sessionId] ?? const []).length < 2) return null;
+
+    return () => setState(() => _isReordering = !_isReordering);
+  }
+
+  Future<void> _reorderExercises(int from, int to) async {
+    final sessionId = _gymSession?.sessionId;
+    if (sessionId == null) return;
+
+    final current = _exercisesBySession[sessionId];
+    if (current == null || current.length < 2) return;
+
+    final reordered = WorkoutService.reordered(current, from, to);
+    if (identical(reordered, current)) return;
+
+    setState(() => _exercisesBySession[sessionId] = reordered);
+
+    try {
+      await WorkoutService.setExerciseOrder([
+        for (final e in reordered)
+          if (e.exerciseId != null) e.exerciseId!,
+      ]);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _exercisesBySession[sessionId] = current);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Could not save the new order: $e'),
+          backgroundColor: LiftrColors.danger,
+        ));
+      }
+    }
+  }
+
   Future<void> _deleteExercise(WorkoutExercises ex) async {
     final id = ex.exerciseId;
     if (id == null) return;
@@ -904,6 +944,9 @@ class _TodayTabState extends State<_TodayTab> {
             : () => _deleteSession(gym, _disciplineFor(Discipline.gymKey)),
         onExerciseTap: _openExercise,
         onExerciseDelete: _deleteExercise,
+        onExerciseReorder: _reorderExercises,
+        isReordering: _isReordering,
+        onToggleReorder: _toggleReorderFor(gym),
       );
     }
 
@@ -2470,6 +2513,12 @@ class _WorkoutCard extends StatelessWidget {
   final ValueChanged<WorkoutExercises> onExerciseTap;
   final ValueChanged<WorkoutExercises> onExerciseDelete;
 
+  final void Function(int from, int to) onExerciseReorder;
+
+  final bool isReordering;
+
+  final VoidCallback? onToggleReorder;
+
   const _WorkoutCard({
     required this.date,
     required this.session,
@@ -2483,7 +2532,13 @@ class _WorkoutCard extends StatelessWidget {
     required this.onDeleteSession,
     required this.onExerciseTap,
     required this.onExerciseDelete,
+    required this.onExerciseReorder,
+    required this.isReordering,
+    required this.onToggleReorder,
   });
+
+  bool get _canReorder =>
+      isReordering && isEditable && exercises.length > 1;
 
   @override
   Widget build(BuildContext context) {
@@ -2508,6 +2563,8 @@ class _WorkoutCard extends StatelessWidget {
             onToggleEdit: onToggleEdit,
             onFillRoutine: onFillRoutine,
             onDelete: onDeleteSession,
+            isReordering: isReordering,
+            onToggleReorder: onToggleReorder,
           ),
           const Divider(),
           Expanded(
@@ -2532,17 +2589,35 @@ class _WorkoutCard extends StatelessWidget {
                             message: isEditable
                                 ? 'No exercises yet.\nTap "Add exercise" below to get started.'
                                 : 'Nothing was logged in this session.')
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: LiftrSpacing.x6),
-                            itemCount: exercises.length,
-                            itemBuilder: (_, i) => _ExerciseRow(
-                              exercise: exercises[i],
-                              isEditable: isEditable,
-                              onTap: () => onExerciseTap(exercises[i]),
-                              onDelete: () => onExerciseDelete(exercises[i]),
-                            ),
-                          ),
+                        : _canReorder
+                            ? ReorderableListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: LiftrSpacing.x6),
+                                buildDefaultDragHandles: false,
+                                itemCount: exercises.length,
+                                onReorder: onExerciseReorder,
+                                itemBuilder: (_, i) => _ExerciseRow(
+                                  key: ValueKey(exercises[i].exerciseId),
+                                  exercise: exercises[i],
+                                  isEditable: isEditable,
+                                  dragIndex: i,
+                                  onTap: () => onExerciseTap(exercises[i]),
+                                  onDelete: () =>
+                                      onExerciseDelete(exercises[i]),
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: LiftrSpacing.x6),
+                                itemCount: exercises.length,
+                                itemBuilder: (_, i) => _ExerciseRow(
+                                  exercise: exercises[i],
+                                  isEditable: isEditable,
+                                  onTap: () => onExerciseTap(exercises[i]),
+                                  onDelete: () =>
+                                      onExerciseDelete(exercises[i]),
+                                ),
+                              ),
           ),
         ],
       ),
@@ -2565,6 +2640,10 @@ class _CardHeader extends StatelessWidget {
 
   final VoidCallback? onDelete;
 
+  final bool isReordering;
+
+  final VoidCallback? onToggleReorder;
+
   const _CardHeader({
     required this.date,
     required this.title,
@@ -2574,6 +2653,8 @@ class _CardHeader extends StatelessWidget {
     this.onToggleEdit,
     this.onFillRoutine,
     this.onDelete,
+    this.isReordering = false,
+    this.onToggleReorder,
   });
 
   @override
@@ -2631,6 +2712,11 @@ class _CardHeader extends StatelessWidget {
           MenuAction(isEditable ? 'Done editing' : 'Edit sets', onToggleEdit!),
         if (onFillRoutine != null)
           MenuAction('Fill from routine', onFillRoutine!),
+        if (onToggleReorder != null)
+          MenuAction(
+            isReordering ? 'Done reordering' : 'Reorder session',
+            onToggleReorder!,
+          ),
         if (onDelete != null)
           MenuAction('Delete session', onDelete!, isDanger: true),
       ];
@@ -2704,11 +2790,15 @@ class _ExerciseRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
+  final int? dragIndex;
+
   const _ExerciseRow({
+    super.key,
     required this.exercise,
     required this.isEditable,
     required this.onTap,
     required this.onDelete,
+    this.dragIndex,
   });
 
   @override
@@ -2718,7 +2808,7 @@ class _ExerciseRow extends StatelessWidget {
     final subtitle = detailLine([detail?.equipment, detail?.muscleGroup]);
 
     return InkWell(
-      onTap: onTap,
+      onTap: dragIndex == null ? onTap : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(
             horizontal: LiftrSpacing.x16, vertical: LiftrSpacing.x10),
@@ -2761,7 +2851,16 @@ class _ExerciseRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (isEditable)
+            if (dragIndex case final index?)
+              ReorderableDragStartListener(
+                index: index,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: LiftrSpacing.x12, vertical: LiftrSpacing.x10),
+                  child: Icon(Icons.drag_handle, size: 20, color: lt.textDim),
+                ),
+              )
+            else if (isEditable)
               PopupMenuButton<String>(
                 padding: EdgeInsets.zero,
                 tooltip: 'Options',

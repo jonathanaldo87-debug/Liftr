@@ -204,6 +204,25 @@ class WorkoutService {
     return ((rows.first['order_index'] as num?)?.toInt() ?? 0) + 1;
   }
 
+  static List<T> reordered<T>(List<T> items, int from, int to) {
+    if (from < 0 || from >= items.length) return items;
+
+    final target = (to > from ? to - 1 : to).clamp(0, items.length - 1);
+    if (target == from) return items;
+
+    final out = [...items];
+    out.insert(target, out.removeAt(from));
+    return out;
+  }
+
+  static Future<void> setExerciseOrder(List<String> exerciseIds) async {
+    for (var i = 0; i < exerciseIds.length; i++) {
+      await _db
+          .from('workout_exercises')
+          .update({'order_index': i + 1}).eq('exercise_id', exerciseIds[i]);
+    }
+  }
+
   static Future<void> updateExerciseNotes(
       String exerciseId, String? notes) async {
     await _db
