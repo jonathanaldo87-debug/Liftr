@@ -186,7 +186,7 @@ class _StreakCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lt = context.lt;
-    final days = stats.streakDays;
+    final weeks = stats.streakWeeks;
 
     return Container(
       padding: const EdgeInsets.all(LiftrSpacing.x18),
@@ -198,7 +198,7 @@ class _StreakCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(days > 0 ? '🔥' : '💤',
+          Text(weeks > 0 ? '🔥' : '💤',
               style: const TextStyle(fontSize: LiftrType.x30)),
           const SizedBox(width: LiftrSpacing.x14),
           Expanded(
@@ -206,7 +206,9 @@ class _StreakCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  days == 0 ? 'No active streak' : '$days day streak',
+                  weeks == 0
+                      ? 'No active streak'
+                      : '$weeks week streak',
                   style: TextStyle(
                     fontSize: LiftrType.x18,
                     fontWeight: FontWeight.w600,
@@ -215,9 +217,9 @@ class _StreakCard extends StatelessWidget {
                 ),
                 const SizedBox(height: LiftrSpacing.x2),
                 Text(
-                  days == 0
-                      ? 'Log a workout today to start one.'
-                      : 'Consecutive days trained. Keep it going.',
+                  weeks == 0
+                      ? 'Train once this week to start one.'
+                      : 'Weeks in a row with a workout. Keep it going.',
                   style: TextStyle(
                       fontSize: LiftrType.x12, color: lt.textSecondary),
                 ),

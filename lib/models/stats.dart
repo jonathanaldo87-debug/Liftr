@@ -13,7 +13,7 @@ class WorkoutStats {
 
   final int sessionsThisWeek;
 
-  final int streakDays;
+  final int streakWeeks;
 
   final double? heaviestSetKg;
 
@@ -22,7 +22,7 @@ class WorkoutStats {
     this.totalSets = 0,
     this.totalVolumeKg = 0,
     this.sessionsThisWeek = 0,
-    this.streakDays = 0,
+    this.streakWeeks = 0,
     this.heaviestSetKg,
   });
 }

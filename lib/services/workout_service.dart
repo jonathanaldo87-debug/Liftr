@@ -448,25 +448,32 @@ class WorkoutService {
       totalSets: sets.length,
       totalVolumeKg: volume,
       sessionsThisWeek: thisWeek,
-      streakDays: _streak(dates, today),
+      streakWeeks: weekStreak(dates, today),
       heaviestSetKg: heaviest,
     );
   }
 
-  static int _streak(Set<DateTime> days, DateTime today) {
-    var cursor = today;
-    if (!days.contains(cursor)) {
-      cursor = cursor.subtract(const Duration(days: 1));
-      if (!days.contains(cursor)) return 0;
+  static int weekStreak(Set<DateTime> days, DateTime today) {
+    if (days.isEmpty) return 0;
+
+    final trained = {for (final d in days) weekStart(d)};
+
+    var cursor = weekStart(today);
+    if (!trained.contains(cursor)) {
+      cursor = _previousWeek(cursor);
+      if (!trained.contains(cursor)) return 0;
     }
 
     var streak = 0;
-    while (days.contains(cursor)) {
+    while (trained.contains(cursor)) {
       streak++;
-      cursor = cursor.subtract(const Duration(days: 1));
+      cursor = _previousWeek(cursor);
     }
     return streak;
   }
+
+  static DateTime _previousWeek(DateTime week) =>
+      weekStart(week.subtract(const Duration(days: 1)));
 
   static DateTime _dayOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 

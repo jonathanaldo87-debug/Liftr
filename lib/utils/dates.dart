@@ -60,6 +60,12 @@ List<DateTime?> monthGrid(DateTime month) {
   ];
 }
 
+DateTime weekStart(DateTime d) {
+  final day = DateTime(d.year, d.month, d.day);
+  final back = day.subtract(Duration(days: day.weekday - 1));
+  return DateTime(back.year, back.month, back.day);
+}
+
 String isoDate(DateTime d) =>
     '${d.year}-${_two(d.month)}-${_two(d.day)}';
 

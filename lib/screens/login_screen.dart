@@ -4,6 +4,7 @@ import '../main.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/widgets.dart';
+import 'reset_password_screen.dart';
 import 'sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -48,6 +49,17 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isGuestLoading = false);
     }
+  }
+
+  void _openReset() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResetPasswordScreen(
+          initialEmail: _emailCtrl.text.trim(),
+        ),
+      ),
+    );
   }
 
   Future<void> _login() async {
@@ -150,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: _isLoading ? null : _openReset,
                   child: Text(
                     'Forgot password?',
                     style:

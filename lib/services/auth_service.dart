@@ -26,6 +26,24 @@ class AuthService {
     );
   }
 
+  static Future<void> requestPasswordReset(String email) =>
+      _auth.resetPasswordForEmail(email.trim());
+
+  static Future<void> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) async {
+    await _auth.verifyOTP(
+      type: OtpType.recovery,
+      email: email.trim(),
+      token: code.trim(),
+    );
+  }
+
+  static Future<void> setPassword(String password) async {
+    await _auth.updateUser(UserAttributes(password: password));
+  }
+
   static Future<void> signOut() => _auth.signOut();
 
   static String get displayName {
